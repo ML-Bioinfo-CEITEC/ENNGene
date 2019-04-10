@@ -1,62 +1,77 @@
-
-
-
+#!/usr/bin/env bash
 # Extract data from reference
-foreach $class in ((pos neg))
-do
-    make_dataset.py \
-        --coord $class.bed \
-        --ref genome.fa \
-        --reftype fasta \
-        --onehot [A,C,G,T,N] \
-        > sequence_$class_dataset.txt
-    make_dataset.py \
-        --coord $class.bed \
-        --ref phastcons.bedgraph \
-        --reftype bedgraph \
-        --score \
-        > conservation_$class_dataset.txt
-    fold_seq.py \
-        --input sequence_${class}_dataset.txt \
-        > fold_$class_dataset.txt
 
-done
+# mkdir create separate folders
+# cd
+
+classes=('pos' 'neg')
+branches=('seq' 'cons' 'fold')
+
+for class in ${classes[@]}
+    do
+        make_dataset.py \
+            --coord ${class}.bed \
+            --ref genome.fa \
+            --reftype fasta \
+            --onehot [A,C,G,T,N] \
+            > sequence_${class}_dataset.txt
+        make_dataset.py \
+            --coord ${class}.bed \
+            --ref phastcons.bedgraph \
+            --reftype bedgraph \
+            --score \
+            > conservation_${class}_dataset.txt
+        fold_seq.py \
+            --input sequence_${class}_dataset.txt \
+            > fold_${class}_dataset.txt
+    done
+
 
 # Merge positives and negatives (classes) and add labels
-foreach $branch in ((seq, cons, fold))
-do
-    file_list = []
-    foreach $class in ((pos neg))
+for branch in ${branches[@]}
     do
-        table-paste-col \
-            --table ${branch}_${class}_dataset.txt \
-            --col-name class \
-            --col-val $class \
-        > ${branch}_${class}_dataset.labelled.txt
-        
-        file_list += "${branch}_${class}_dataset.labelled.txt"
+        file_list=()
+        for class in ${classes[@]}
+            do
+                table-paste-col \
+                    --table ${branch}_${class}_dataset.txt \
+                    --col-name "class" \
+                    --col-val $class \
+                > ${branch}_${class}_dataset.labelled.txt
+
+                file_list+=${branch}_${class}_dataset.labelled.txt
+            done
+
+        files_to_merge=$(printf " %s" "${file_list[@]}")
+        files_to_merge=${files_to_merge:1}
+        table-cat $files_to_merge > ${branch}_dataset.txt
+
+        rm files_to_merge
     done
-    
-    $files_to_merge = join(" ", empty_file_list)
-    
-    table-cat $files_to_merge > ${branch}_dataset.txt
 
-    # rm temp files in file_list
-
-done
 
 # Separate test, train, validation etc
-chromosomes = {train = ["chr1", "chr2"], ... }
-foreach $branch in branches
-do
-    foreach $category in keys chromosomes
+valid_chrs=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr10' 'chr11' 'chr12' 'chr13' 'chr14' \
+            'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr20' 'chr21' 'chr22' 'chrY' 'chrX' 'chrMT')
+validation=('chr10')
+test=('chr20')
+blackbox=('chr21')
+# array subtraction in bash?
+# test=valid_chrs-validation-test-blackbox
+train=('chr1' 'chr2' 'chr3' 'chr4' 'chr5' 'chr6' 'chr7' 'chr8' 'chr9' 'chr11' 'chr12' 'chr13' 'chr14' \
+            'chr15' 'chr16' 'chr17' 'chr18' 'chr19' 'chr22' 'chrY' 'chrX' 'chrMT')
+
+chromosomes=(['train']=train ['validation']=validation ['test']=test ['blackbox']=blackbox)
+for branch in ${branches[@]}
     do
-        separate_sets_by_chr.py \
-            --input ${branch}_dataset \
-            --chr @[$chromosomes{$category}] \
-        > ${branch}_${category}_dataset.txt
+        for category in ${!chromosomes[@]}
+            do
+            separate_sets_by_chr.py \
+                --input ${branch}_dataset \
+                --chr ${chromosomes[$category]} \
+            > ${branch}_${category}_dataset.txt
+        done
     done
-done
 
 # ... to training
 
