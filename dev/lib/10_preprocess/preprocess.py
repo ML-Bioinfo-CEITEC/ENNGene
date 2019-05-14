@@ -13,15 +13,12 @@ class Preprocess(Subcommand):
     def __init__(self):
         help_message = '''deepnet <command> [<args>]
             Subcommand-specific description ....    
+            
+            Validation, test and blackbox datasets can be assigned specific chromosomes. The rest of the chromosomes 
+            shall be used for training.
             '''
 
         parser = self.initialize_parser(help_message)
-
-        # TODO add options for
-        # validation = self.args.validation or ['chr10']
-        # test = self.args.test or ['chr20']
-        # blackbox = self.args.blackbox or ['chr21']
-        # train = seq.VALID_CHRS - validation - test - blackbox
 
         # TODO accept several input files
         parser.add_argument(
@@ -67,6 +64,21 @@ class Preprocess(Subcommand):
             default=False,
             help="Apply strand information when mapping interval file to reference [default: %default]"
         )
+        parser.add_argument(
+            "--validation",
+            default={'chr19', 'chr20'},
+            help="Set of chromosomes to be included in the validation set [default: %default]"
+        )
+        parser.add_argument(
+            "--test",
+            default={'chr21'},
+            help="Set of chromosomes to be included in the test set [default: %default]"
+        )
+        parser.add_argument(
+            "--blackbox",
+            default={'chr22'},
+            help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
+        )
 
         self.args = parser.parse_args(sys.argv[2:])
 
@@ -74,12 +86,12 @@ class Preprocess(Subcommand):
         self.ref_dict = self.make_ref_dict(self.args.ref, self.args.ref_type)
         self.branches = self.args.branches.split(',')
         self.input_files = self.collect_input_files(self.args)
-        self.chromosomes = {'train': self.args.train,
-                            'validation': self.args.validation,
+        self.chromosomes = {'validation': self.args.validation,
                             'test': self.args.test,
-                            'blackbox': self.args.blackbox}
+                            'blackbox': self.args.blackbox,
+                            'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
         if self.args.verbose:
-                print('Running deepnet preprocess with input files {}'.format(self.input_files.join(',')))
+            print('Running deepnet preprocess with input files {}'.format(self.input_files.join(',')))
 
     @staticmethod
     def make_ref_dict(ref_file, ref_type):
