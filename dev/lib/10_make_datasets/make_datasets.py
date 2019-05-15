@@ -8,7 +8,7 @@ from dataset import Dataset
 import separate_sets_by_chr
 
 
-class Preprocess(Subcommand):
+class MakeDatasets(Subcommand):
 
     def __init__(self):
         help_message = '''deepnet <command> [<args>]
@@ -21,6 +21,8 @@ class Preprocess(Subcommand):
         parser = self.initialize_parser(help_message)
 
         # TODO accept several input files
+        # TODO somehow define acceptable values per attribute
+        # TODO check format of the input file - accept only some particular format, e.g. bed6 ?
         parser.add_argument(
             # arguments without -- are mandatory
             "coord",
@@ -51,7 +53,7 @@ class Preprocess(Subcommand):
             action="store",
             help="If data needs to be converted to One Hot encoding, give a list of alphabet used.",
             dest="onehot",
-            default="-"
+            default=None
         )
         parser.add_argument(
             "--score",
@@ -94,11 +96,13 @@ class Preprocess(Subcommand):
             print('Running deepnet preprocess with input files {}'.format(self.input_files.join(',')))
 
     @staticmethod
-    def make_ref_dict(ref_file, ref_type):
+    def make_ref_dict(ref_path, ref_type):
         if ref_type == 'fasta':
-            return seq.fasta_to_dictionary(ref_file)
+            return seq.fasta_to_dictionary(ref_path)
+        elif ref_type == 'wig':
+            return seq.wig_to_dictionary(ref_path)
         else:
-            warning = "Unknown reference type. Accepted types are 'fasta' and 'something_else'."
+            warning = "Unknown reference type. Accepted types are 'fasta', 'wig' and 'something_else?'."
             raise Exception(warning)
 
     @staticmethod
@@ -108,16 +112,16 @@ class Preprocess(Subcommand):
     def run(self):
         super().run(self.args)
         datasets = {}
+        if self.args.onehot:
+            encoding = seq.encode_alphabet(self.args.onehot)
 
         # create separate folders
 
         # one input file per class
         for file in self.input_files:
-            # TODO how to dynamically create variable name "seq_{}_dataset".format(klass)
-
             for branch in self.branches:
-                datasets[branch] += [Dataset(file, self.ref_dict, ['A','C','G','T','N']).create(branch, )]
-                # > sequence_${class}_dataset.txt
+                if not datasets[branch]: datasets[branch] = []
+                datasets[branch] += [Dataset(branch).create(file, self.ref_dict, self.args.strand, encoding)]
 
         # Merge positives and negatives (classes) and add labels
         for branch in datasets.keys:

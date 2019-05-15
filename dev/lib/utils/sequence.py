@@ -1,5 +1,7 @@
 import numpy
+import os
 from re import sub
+from zipfile import ZipFile
 
 from . import file_utils as f
 
@@ -26,12 +28,28 @@ def fasta_to_dictionary(fasta_file):
         # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
         if line1.strip() in VALID_CHRS:
             seq_dict.update({sub('>', '', line1.strip()): line2.strip()})
+    file.close()
     return seq_dict
 
 
-def complement(sequence, dictionary):
-    return ''.join([dictionary[base] for base in sequence])
+def wig_to_dictionary(ref_path):
+    zipped = f.unzip(f.list_files_in_dir(ref_path, '.wig'))
+    files = ZipFile.axtractall(ref_path, zipped)
+    cons_dict = {}
 
+    for file in files:
+        file = f.filehandle_for(file)
+        # define position & step
+        for line in file:
+            if 'chrom' in line:
+                # read chromosome, position and step
+                # increment position += step
+            else:
+                # add score to current cons_dict[chrom][position]
+                # seq scores as array per position ?
+                # why there's step one but many different positions? does it count up to value per one base?
+        file.close()
+    return cons_dict
 
 
 def complement(sequence, dictionary):

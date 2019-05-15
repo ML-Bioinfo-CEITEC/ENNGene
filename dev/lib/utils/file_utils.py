@@ -1,5 +1,6 @@
 # module containing methods for file handling
 import os
+import sys
 
 
 def filehandle_for(filename):
@@ -19,3 +20,9 @@ def list_files_in_dir(path, extension='*'):
     return files
 
 
+def export_to_bed(dataset, path):
+    return
+
+
+def export_to_bedgraph(dataset, path):
+    return
