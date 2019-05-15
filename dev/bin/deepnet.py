@@ -27,15 +27,14 @@ class DeepNet:
         # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
 
-        # FIXME replace with check for class / file of that name
-        klass = find_class_containing_that_name
-        if not klass:
+        module = __import__("lib.{}".format(args.command))
+        if not module:
             print('Unrecognized command')
             parser.print_help()
             exit(1)
 
         # use dispatch pattern to invoke object of class with same name as the subcommand
-        from .lib import klass
+        # TODO generalize for multiple-word classes
         subcommand = args.command.capitalize()()
         subcommand.run()
 
