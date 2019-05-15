@@ -1,5 +1,5 @@
-from re import sub
 import numpy
+from re import sub
 
 from . import file_utils as f
 
@@ -33,29 +33,9 @@ def complement(sequence, dictionary):
     return ''.join([dictionary[base] for base in sequence])
 
 
-def bed_to_seq_dictionary(bed_file, ref_dictionary, strand=False):
-    # TODO check format of the input file - accept only some particular format, e.g. bed6 ?
-    file = f.filehandle_for(bed_file)
-    seq_dict = {}
 
-    # TODO keep any other information from the original bed file? do we need name of the bed line?
-    for line in file:
-        values = line.split()
-
-        # 0 - chr. name, 1 - seq. start, 2 - seq. end, 5 - strand
-        key = values[0] + "_" + values[1] + "_" + values[2] + "_" + values[5]
-
-        if values[0] in ref_dictionary.keys():
-            start_position = int(values[1])
-            end_position = (int(values[2])-1)
-            sequence = ref_dictionary[values[0]][start_position:end_position]
-            if strand and values[5] == '-':
-                sequence = complement(sequence, DNA_COMPLEMENTARY)
-
-        if key and sequence:
-            seq_dict.update({key: sequence.split()})
-
-    return seq_dict
+def complement(sequence, dictionary):
+    return ''.join([dictionary[base] for base in sequence])
 
 
 def encode_alphabet(alphabet, force_new=False):
