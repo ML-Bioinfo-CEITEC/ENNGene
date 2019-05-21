@@ -28,7 +28,7 @@ class MakeDatasets(Subcommand):
             "coord",
             action="store",
             nargs='?',
-            help="Coordinates BED File per each class, omit for STDIN",
+            help="Coordinates BED File per each class, omit for STDIN, class name = file name",
             default='-'
         )
         parser.add_argument(
@@ -120,27 +120,29 @@ class MakeDatasets(Subcommand):
 
         # Accept one file per class nad then generate requested branches from that
         for file in self.input_files:
+            file_name = os.path.basename(file)
+            if '.bed' in file_name:
+                klass = file.replace('.bed', '')
+            else:
+                klass = file_name
             for branch in self.branches:
                 if not datasets[branch]: datasets[branch] = []
-                datasets[branch] += [Dataset(branch).create(file, self.ref_dict, self.args.strand, encoding)]
+                datasets[branch][klass] = \
+                    [Dataset(branch, klass=klass, bed_file=file, ref_dict=self.ref_dict, strand=self.args.strand, encoding=encoding)]
 
         # Merge positives and negatives (classes) and add labels
-        for branch in datasets.keys:
+        for branch in datasets.keys():
             datasets_to_merge = []
-            for dataset in datasets[branch]:
-                datasets_to_merge.append(f.table_paste_col(dataset, "class", dataset.klass))
-            datasets[branch] = Dataset.merge(datasets_to_merge)
+            for klass, dataset in datasets[branch].items():
+                # FIXME remove unneccesary add_value - put the klass identifier to the key right from the beginning
+                datasets_to_merge.append(dataset.add_value("class", klass))
+            datasets[branch] = Dataset(branch, datasetlist=datasets_to_merge)
 
-        for branch in datasets.keys:
+        # Separate data into train, validation, test and blackbox datasets
+        separated_datasets = {}
+        for branch in datasets.keys():
             for category in self.chromosomes.keys():
-                branch_category_dataset = separate_sets_by_chr(datasets[branch], self.chromosomes[category]
-
-
-
-
-
-
-
-
-
-
+                key = "{}_{}".format(branch, category)
+                # value = self.separate_sets_by_chr(datasets[branch], self.chromosomes[category])
+                value = Dataset.separate_by_chr(datasets[branch], self.chromosomes[category])
+                separated_datasets.update({key: value})

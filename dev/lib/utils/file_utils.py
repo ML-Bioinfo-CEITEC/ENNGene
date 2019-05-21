@@ -20,9 +20,9 @@ def list_files_in_dir(path, extension='*'):
     return files
 
 
-def export_to_bed(dataset, path):
+def dictionary_to_bed(dictionary, path):
     return
 
 
-def export_to_bedgraph(dataset, path):
+def dictionary_to_bedgraph(dataset, path):
     return
