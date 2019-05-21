@@ -1,11 +1,11 @@
+import os
 import sys
 
-from utils import file_utils as f
-from utils import sequence as seq
-from utils.subcommand import Subcommand
+from ..utils import file_utils as f
+from ..utils import sequence as seq
+from ..utils.subcommand import Subcommand
 
-from dataset import Dataset
-import separate_sets_by_chr
+from .dataset import Dataset
 
 
 class MakeDatasets(Subcommand):
@@ -44,7 +44,7 @@ class MakeDatasets(Subcommand):
         )
         parser.add_argument(
             "--branches",
-            default="seq",
+            default=["seq"],
             help="List of branches delimited by comma. Accepted values are 'seq', 'cons', 'fold'. [default: %default]"
         )
         parser.add_argument(
@@ -112,12 +112,13 @@ class MakeDatasets(Subcommand):
     def run(self):
         super().run(self.args)
         datasets = {}
+
         if self.args.onehot:
             encoding = seq.encode_alphabet(self.args.onehot)
+        else:
+            encoding = None
 
-        # create separate folders
-
-        # one input file per class
+        # Accept one file per class nad then generate requested branches from that
         for file in self.input_files:
             for branch in self.branches:
                 if not datasets[branch]: datasets[branch] = []

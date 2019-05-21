@@ -33,6 +33,10 @@ class DeepNet:
             parser.print_help()
             exit(1)
 
+        # TODO discuss naming and import conventions for the subcommands - probably best would be name of the dir match
+        # the subcommand for easier dispatching and to import full dir as a package (use the init file)
+        # if possible in python 3.7 ?
+
         # use dispatch pattern to invoke object of class with same name as the subcommand
         # TODO generalize for multiple-word classes
         subcommand = args.command.capitalize()()
