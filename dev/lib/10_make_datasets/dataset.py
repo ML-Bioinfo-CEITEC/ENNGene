@@ -24,6 +24,18 @@ class Dataset:
 
         return result_dict
 
+    @staticmethod # TODO should be instance method on object dataset
+    def separate_sets_by_chr(dataset, chr_list):
+        # FIXME dataset should be the object itself, which means it should be created during initialization instead
+        # of using separate create method
+        separated_dataset = {}
+        for key, sequence_list in dataset.items():
+            chromosome = key.split('_')[0]
+            if chromosome in chr_list:
+                separated_dataset.update({key: sequence_list})
+
+        return separated_dataset
+
     @staticmethod
     def bed_to_dictionary(bed_file, ref_dictionary, strand):
         file = f.filehandle_for(bed_file)
