@@ -125,24 +125,23 @@ class MakeDatasets(Subcommand):
                 klass = file.replace('.bed', '')
             else:
                 klass = file_name
-            for branch in self.branches:
-                if not datasets[branch]: datasets[branch] = []
-                datasets[branch][klass] = \
-                    [Dataset(branch, klass=klass, bed_file=file, ref_dict=self.ref_dict, strand=self.args.strand, encoding=encoding)]
 
-        # Merge positives and negatives (classes) and add labels
+            for branch in self.branches:
+                if branch not in datasets.keys(): datasets.update({branch: {}})
+                datasets[branch].update({klass: Dataset(branch, klass=klass, bed_file=file, ref_dict=self.ref_dict,
+                                                        strand=self.args.strand, encoding=encoding)})
+
+        # Merge positives and negatives (classes)
         for branch in datasets.keys():
-            datasets_to_merge = []
-            for klass, dataset in datasets[branch].items():
-                # FIXME remove unneccesary add_value - put the klass identifier to the key right from the beginning
-                datasets_to_merge.append(dataset.add_value("class", klass))
-            datasets[branch] = Dataset(branch, datasetlist=datasets_to_merge)
+            datasets.update({branch: Dataset(branch, datasetlist=datasets[branch].values())})
 
         # Separate data into train, validation, test and blackbox datasets
         separated_datasets = {}
         for branch in datasets.keys():
             for category in self.chromosomes.keys():
                 key = "{}_{}".format(branch, category)
-                # value = self.separate_sets_by_chr(datasets[branch], self.chromosomes[category])
-                value = Dataset.separate_by_chr(datasets[branch], self.chromosomes[category])
+                value = datasets[branch].separate_by_chr(self.chromosomes[category])
                 separated_datasets.update({key: value})
+
+        # Final datasets in format branch_category, e.g. 'seq_test' or 'fold_train'
+        return separated_datasets
