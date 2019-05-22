@@ -1,7 +1,6 @@
 import os
 import sys
 
-from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
@@ -20,9 +19,6 @@ class MakeDatasets(Subcommand):
 
         parser = self.initialize_parser(help_message)
 
-        # TODO accept several input files
-        # TODO somehow define acceptable values per attribute
-        # TODO check format of the input file - accept only some particular format, e.g. bed6 ?
         parser.add_argument(
             # arguments without -- are mandatory
             "coord",
@@ -38,14 +34,17 @@ class MakeDatasets(Subcommand):
             default="-"
         )
         parser.add_argument(
-            "--reftype",
-            default="fasta",
-            help="Reference filetype: fasta or wig or json [default: %default]"
+            "--branches",
+            choices=['seq', 'cons', 'fold'],
+            nargs='?',
+            # or ['seq'] ?
+            default='seq',
+            help="Branches. [default: %default]"
         )
         parser.add_argument(
-            "--branches",
-            default=["seq"],
-            help="List of branches delimited by comma. Accepted values are 'seq', 'cons', 'fold'. [default: %default]"
+            "--consdir",
+            action="store",
+            help="Directory containing wig files with scores. Necessary if 'cons' branch is required."
         )
         parser.add_argument(
             # arguments with -- are optional
@@ -54,12 +53,6 @@ class MakeDatasets(Subcommand):
             help="If data needs to be converted to One Hot encoding, give a list of alphabet used.",
             dest="onehot",
             default=None
-        )
-        parser.add_argument(
-            "--score",
-            action="store_false",
-            help="If data does not need to be converted",
-            dest="onehot"
         )
         parser.add_argument(
             "--strand",
@@ -85,29 +78,27 @@ class MakeDatasets(Subcommand):
         self.args = parser.parse_args(sys.argv[2:])
 
         self.encoded_alphabet = None
-        self.ref_dict = self.make_ref_dict(self.args.ref, self.args.ref_type)
+        self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
         self.branches = self.args.branches.split(',')
-        self.input_files = self.collect_input_files(self.args)
+        if 'cons' in self.branches:
+            if not self.args.consdir:
+                raise Exception("Provide conservation directory for calculating scores for conservation branch.")
+            else:
+                self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
+
+        self.input_files = self.args.coord
         self.chromosomes = {'validation': self.args.validation,
                             'test': self.args.test,
                             'blackbox': self.args.blackbox,
                             'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
         if self.args.verbose:
-            print('Running deepnet preprocess with input files {}'.format(self.input_files.join(',')))
+            print('Running deepnet make_datasets with input files {}'.format(self.input_files.join(',')))
 
-    @staticmethod
-    def make_ref_dict(ref_path, ref_type):
-        if ref_type == 'fasta':
-            return seq.fasta_to_dictionary(ref_path)
-        elif ref_type == 'wig':
-            return seq.wig_to_dictionary(ref_path)
-        else:
-            warning = "Unknown reference type. Accepted types are 'fasta', 'wig' and 'something_else?'."
-            raise Exception(warning)
-
-    @staticmethod
-    def collect_input_files(args):
-        return list_of_files
+    def reference(self, branch):
+        if branch == 'cons':
+            return self.cons_ref
+        elif branch == 'seq' or branch == 'fold':
+            return self.seq_ref
 
     def run(self):
         super().run(self.args)
@@ -128,8 +119,9 @@ class MakeDatasets(Subcommand):
 
             for branch in self.branches:
                 if branch not in datasets.keys(): datasets.update({branch: {}})
-                datasets[branch].update({klass: Dataset(branch, klass=klass, bed_file=file, ref_dict=self.ref_dict,
-                                                        strand=self.args.strand, encoding=encoding)})
+                datasets[branch].update({klass: Dataset(branch, klass=klass, bed_file=file,
+                                                        ref_dict=self.reference(branch), strand=self.args.strand,
+                                                        encoding=encoding)})
 
         # Merge positives and negatives (classes)
         for branch in datasets.keys():
