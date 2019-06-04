@@ -33,22 +33,60 @@ def fasta_to_dictionary(fasta_file):
 
 
 def wig_to_dictionary(ref_path):
-    zipped = f.unzip(f.list_files_in_dir(ref_path, '.wig'))
-    files = ZipFile.axtractall(ref_path, zipped)
+    zipped = f.list_files_in_dir(ref_path, '.wig')
+    files = ZipFile.extractall(ref_path, zipped)
     cons_dict = {}
 
     for file in files:
         file = f.filehandle_for(file)
-        # define position & step
         for line in file:
+            # parse the header line
+            # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
             if 'chrom' in line:
-                # read chromosome, position and step
-                # increment position += step
+                chr = None
+                start = None
+                step = None
+                step_no = 0
+                span = 1
+
+                parts = line.split()
+                file_type = parts.pop(0)
+                if file_type not in ['fixedStep', 'variableStep']:
+                    warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
+                    raise Exception(warning.format(file_type))
+
+                for part in parts:
+                    key, value = part.split('=')
+                    if key == 'chrom':
+                        chr = value
+                    elif key == 'span':
+                        span = int(value)
+                    elif key == 'start':  # only for fixedStep
+                        start = int(value)
+                    elif key == 'step':  # only for fixedStep
+                        step = int(value)
+
+                if chr not in cons_dict.keys(): cons_dict.update({chr: {}})
+
+            # update values, until another header is met
             else:
-                # add score to current cons_dict[chrom][position]
-                # seq scores as array per position ?
-                # why there's step one but many different positions? does it count up to value per one base?
+                if not chr: next
+                if file_type == 'variableStep':
+                    parts = line.split()
+                    start = parts[0]
+                    value = int(parts[1])
+                    for i in range(span):
+                        coord = start + i
+                        cons_dict[chr].update({coord: value})
+                elif file_type == 'fixedStep':
+                    value = int(line)
+                    for i in range(span):
+                        coord = start + (step_no * step) + i
+                        cons_dict[chr].update({coord: value})
+                    step_no += 1
+
         file.close()
+    # dictionary format: {chr => {coordinate => int_value}}
     return cons_dict
 
 
