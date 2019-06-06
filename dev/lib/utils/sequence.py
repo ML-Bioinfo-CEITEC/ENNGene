@@ -1,6 +1,7 @@
 import numpy
 import os
 from re import sub
+import subprocess
 from zipfile import ZipFile
 
 from . import file_utils as f
@@ -30,6 +31,19 @@ def fasta_to_dictionary(fasta_file):
             seq_dict.update({sub('>', '', line1.strip()): line2.strip()})
     file.close()
     return seq_dict
+
+
+def dictionary_to_fasta(dictionary, path, name):
+    filepath = os.path.join(path, (name + ".fa"))
+    content = ""
+    for key, seq in dictionary.items():
+        line1 = ">" + key + "\n"
+        line2 = seq + "\n"
+        content += line1
+        content += line2
+
+    f.write(filepath, content.strip())
+    return filepath
 
 
 def wig_to_dictionary(ref_path):
@@ -113,6 +127,12 @@ def encode_alphabet(alphabet, force_new=False):
     return encoded_alphabet
 
 
+def dna_to_rna(char):
+    encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
+    translated_letter = translate(char, encoding)
+    return translated_letter
+
+
 def translate(char, encoding):
     if not char:
         return None
@@ -125,3 +145,21 @@ def translate(char, encoding):
         warning = "Invalid character '{}' found. " \
                   "Provided encoding must contain all possible characters (case-insensitive)."
         raise Exception(warning.format(char))
+
+
+def fold(dict, name, dna=True):
+    if dna:
+        rna_dict = {}
+        for key, seq in dict.items():
+            new_seq = [dna_to_rna(char) for char in seq]
+            rna_dict.update({key: new_seq})
+    else:
+        rna_dict = dict
+
+    path = os.getcwd()
+    fasta_file = f.dictionary_to_fasta(rna_dict, path, name)
+
+    folded_file = os.path.join(path, name + "folded")
+    subprocess.run("RNAfold -i {} --jobs=10 --noPS --noconv -o {}".format(fasta_file, folded_file), check=True, )
+
+    return folded_file

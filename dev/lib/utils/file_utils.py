@@ -20,9 +20,10 @@ def list_files_in_dir(path, extension='*'):
     return files
 
 
-def dictionary_to_bed(dictionary, path):
-    return
-
+def write(path, content):
+    file = open(path, 'w')
+    file.write(content)
+    file.close()
 
 def dictionary_to_bedgraph(dataset, path):
     return

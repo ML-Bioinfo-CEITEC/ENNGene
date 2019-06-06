@@ -12,8 +12,10 @@ class Dataset:
         else:
             self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass)
 
-            if self.branch == 'fold':
-                self.dictionary = self.fold_sequence(self.dictionary)
+            if self.branch == 'fold' and not datasetlist:
+                # can the result really be a dictionary? probably should
+                file_name = branch + "_" + klass
+                self.dictionary = seq.fold(self.dictionary, file_name)
 
             if encoding:
                 for key, arr in self.dictionary.items():
@@ -68,6 +70,3 @@ class Dataset:
     def merge(list_of_datasets):
         return merged_dataset
 
-    @staticmethod
-    def fold_sequence(result_dict):
-        return result_dict
