@@ -10,6 +10,7 @@ class Dataset:
         if datasetlist:
             self.dictionary = self.merge(datasetlist)
         else:
+            # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
             self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass)
 
             if self.branch == 'fold' and not datasetlist:
@@ -31,22 +32,16 @@ class Dataset:
 
         return separated_dataset
 
-    # def add_value(self, value):
-    #     new_dict = {}
-    #     for key, sequence in self.dictionary.items():
-    #         new_key = key + '_' + value
-    #         new_dict.update({new_key: sequence})
-    #     self.dictionary = new_dict
+    # def export_to_bed(self, path):
+    #     return f.dictionary_to_bed(self.dictionary, path)
     #
-    #     return self.dictionary
-
-    def export_to_bed(self, path):
-        return f.dictionary_to_bed(self.dictionary, path)
+    # def export_to_fasta(self, path):
+    #     return f.dictionary_to_fasta(self.dictionary, path)
 
     @staticmethod
     def bed_to_dictionary(bed_file, ref_dictionary, strand, klass):
         file = f.filehandle_for(bed_file)
-        seq_dict = {}
+        final_dict = {}
 
         for line in file:
             values = line.split()
@@ -56,17 +51,22 @@ class Dataset:
 
             if values[0] in ref_dictionary.keys():
                 start_position = int(values[1])
-                end_position = (int(values[2])-1)
+                end_position = (int(values[2]) - 1)
                 sequence = ref_dictionary[values[0]][start_position:end_position]
                 if strand and values[5] == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
             if key and sequence:
-                seq_dict.update({key: sequence.split()})
+                final_dict.update({key: sequence.split()})
 
-        return seq_dict
+        return final_dict
 
     @staticmethod
     def merge(list_of_datasets):
-        return merged_dataset
+        merged_dictionary = {}
+        for dataset in list_of_datasets:
+            merged_dictionary.update(dataset.dictionary)
+
+        return merged_dictionary
+
 

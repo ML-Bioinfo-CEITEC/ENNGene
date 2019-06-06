@@ -25,5 +25,3 @@ def write(path, content):
     file.write(content)
     file.close()
 
-def dictionary_to_bedgraph(dataset, path):
-    return

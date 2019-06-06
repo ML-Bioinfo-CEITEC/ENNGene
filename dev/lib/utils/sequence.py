@@ -6,9 +6,9 @@ from zipfile import ZipFile
 
 from . import file_utils as f
 
-
-VALID_CHRS = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
-              'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrY', 'chrX', 'chrMT'}
+VALID_CHRS = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12',
+              'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrY', 'chrX',
+              'chrMT'}
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
@@ -24,7 +24,7 @@ def fasta_to_dictionary(fasta_file):
 
         # Make sure each pair starts with valid identifier, so that we do not iterate over nonsense.
         if '>' not in line1:
-           raise Exception("Invalid sequence identifier. Please provide a valid Fasta file (with '>' identifier).")
+            raise Exception("Invalid sequence identifier. Please provide a valid Fasta file (with '>' identifier).")
 
         # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
         if line1.strip() in VALID_CHRS:
@@ -43,10 +43,12 @@ def dictionary_to_fasta(dictionary, path, name):
         content += line2
 
     f.write(filepath, content.strip())
+    # TODO add some check the file was created ok
     return filepath
 
 
 def wig_to_dictionary(ref_path):
+    # TODO for now converting everything without taking VALID_CHRS into account
     zipped = f.list_files_in_dir(ref_path, '.wig')
     files = ZipFile.extractall(ref_path, zipped)
     cons_dict = {}
@@ -128,6 +130,7 @@ def encode_alphabet(alphabet, force_new=False):
 
 
 def dna_to_rna(char):
+    # TODO is that really all that's necessary? shouldn't it be maid complementary or something?
     encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
     translated_letter = translate(char, encoding)
     return translated_letter
@@ -147,6 +150,7 @@ def translate(char, encoding):
         raise Exception(warning.format(char))
 
 
+# TODO place the method somewhere else? divide it more?
 def fold(dict, name, dna=True):
     if dna:
         rna_dict = {}
@@ -156,9 +160,11 @@ def fold(dict, name, dna=True):
     else:
         rna_dict = dict
 
+    # TODO decide where to save the intermediate files
     path = os.getcwd()
     fasta_file = f.dictionary_to_fasta(rna_dict, path, name)
 
+    # TODO without --noconv it substitutes T > U, maybe the dna to rna conversion beforehand is than unnecessary?
     folded_file = os.path.join(path, name + "folded")
     subprocess.run("RNAfold -i {} --jobs=10 --noPS --noconv -o {}".format(fasta_file, folded_file), check=True, )
 
