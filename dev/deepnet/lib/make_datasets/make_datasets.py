@@ -10,7 +10,7 @@ from .dataset import Dataset
 class MakeDatasets(Subcommand):
 
     def __init__(self):
-        help_message = '''deepnet <command> [<args>]
+        help_message = '''deepnet <subcommand> [<args>]
             Subcommand-specific description ....    
             
             Validation, test and blackbox datasets can be assigned specific chromosomes. The rest of the chromosomes 
