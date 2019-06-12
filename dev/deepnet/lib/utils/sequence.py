@@ -12,23 +12,29 @@ VALID_CHRS = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'c
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
+# FIXME incorporate usage of the index file for some reasonable run time
 def fasta_to_dictionary(fasta_file):
     file = f.filehandle_for(fasta_file)
     seq_dict = {}
 
-    # TODO generalize for multiline fasta
-    while True:
-        line1 = file.readline()
-        line2 = file.readline()
-        if not line2: break  # EOF
+    key = None
+    value = ""
 
-        # Make sure each pair starts with valid identifier, so that we do not iterate over nonsense.
-        if '>' not in line1:
-            raise Exception("Invalid sequence identifier. Please provide a valid Fasta file (with '>' identifier).")
+    for line in file:
+        if '>' in line:
+            # Save finished previous key value pair (unless it's the first iteration)
+            if key and key.strip() in VALID_CHRS:
+                # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
+                seq_dict.update({sub('>', '', key.strip()): value.strip()})
 
-        # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
-        if line1.strip() in VALID_CHRS:
-            seq_dict.update({sub('>', '', line1.strip()): line2.strip()})
+            key = line
+            value = ""
+        else:
+            if key:
+                value += line
+            else:
+                raise Exception("Please provide a valid Fasta file (with '>' identifier).")
+
     file.close()
     return seq_dict
 
