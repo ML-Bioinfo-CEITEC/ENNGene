@@ -11,45 +11,47 @@ class MakeDatasets(Subcommand):
 
     def __init__(self):
         help_message = '''deepnet <subcommand> [<args>]
-            Subcommand-specific description ....    
+            Preprocess input files by creating datasets containing data specific per each branch. That includes mapping
+            to reference, encoding, folding, etc.    
             
             Validation, test and blackbox datasets can be assigned specific chromosomes. The rest of the chromosomes 
-            shall be used for training.
+            is used for training.
             '''
 
         parser = self.initialize_parser(help_message)
 
+        # TODO allow multiple files per class?
         parser.add_argument(
-            # arguments without -- are mandatory
-            "coord",
+            "--coord",
             action="store",
-            nargs='?',
+            required=True,
+            nargs='+',
             help="Coordinates BED File per each class, omit for STDIN, class name = file name",
             default='-'
         )
         parser.add_argument(
-            "ref",
+            "--ref",
             action="store",
+            required=True,
             help="Path to reference file or folder, omit for STDIN",
             default="-"
         )
         parser.add_argument(
             "--branches",
             choices=['seq', 'cons', 'fold'],
-            nargs='?',
-            # or ['seq'] ?
+            nargs='+',
             default='seq',
             help="Branches. [default: %default]"
         )
         parser.add_argument(
             "--consdir",
             action="store",
-            help="Directory containing wig files with scores. Necessary if 'cons' branch is required."
+            help="Directory containing wig files with scores. Necessary if 'cons' branch is selected."
         )
         parser.add_argument(
-            # arguments with -- are optional
             "--onehot",
             action="store",
+            nargs='+',
             help="If data needs to be converted to One Hot encoding, give a list of alphabet used.",
             dest="onehot",
             default=None
@@ -75,18 +77,22 @@ class MakeDatasets(Subcommand):
             help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
         )
 
-        self.args = parser.parse_args(sys.argv[2:])
+        self.args = parser.parse_args(sys.argv[2:-1])
 
         self.encoded_alphabet = None
         self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
-        self.branches = self.args.branches.split(',')
+        self.branches = self.args.branches
         if 'cons' in self.branches:
             if not self.args.consdir:
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
                 self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
 
-        self.input_files = self.args.coord
+        if self.args.coord:
+            self.input_files = self.args.coord
+        else:
+            raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
+
         self.chromosomes = {'validation': self.args.validation,
                             'test': self.args.test,
                             'blackbox': self.args.blackbox,
