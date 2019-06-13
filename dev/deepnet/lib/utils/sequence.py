@@ -2,7 +2,7 @@ import numpy
 import os
 from re import sub
 import subprocess
-from zipfile import ZipFile
+
 
 from . import file_utils as f
 
@@ -56,11 +56,14 @@ def dictionary_to_fasta(dictionary, path, name):
 def wig_to_dictionary(ref_path):
     # TODO for now converting everything without taking VALID_CHRS into account
     zipped = f.list_files_in_dir(ref_path, '.wig')
-    files = ZipFile.extractall(ref_path, zipped)
-    cons_dict = {}
+    file_contents = []
+    for zipped_file in zipped:
+        file = f.unzip_if_zipped(zipped_file)
+        file_contents.append(file.read())
+        file.close()
 
-    for file in files:
-        file = f.filehandle_for(file)
+    cons_dict = {}
+    for file in file_contents:
         for line in file:
             # parse the header line
             # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)

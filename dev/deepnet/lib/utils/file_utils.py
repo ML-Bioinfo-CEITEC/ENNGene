@@ -1,6 +1,8 @@
 # module containing methods for file handling
+import gzip
 import os
 import sys
+from zipfile import ZipFile
 
 
 def filehandle_for(filename):
@@ -25,3 +27,12 @@ def write(path, content):
     file.write(content)
     file.close()
 
+
+def unzip_if_zipped(zipped_file):
+    if ".gz" in zipped_file:
+        file = gzip.open(zipped_file, 'rb')
+    elif ".zip" in zipped_file:
+        file = ZipFile(zipped_file).extractall()
+    else:
+        file = zipped_file
+    return file
