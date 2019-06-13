@@ -12,12 +12,12 @@ def filehandle_for(filename):
 
 
 def list_files_in_dir(path, extension='*'):
-    files = []
+    file_paths = []
     for root, _, files in os.walk(path):
         for file in files:
             if extension in file:
-                files.append(os.path.join(root, file))
-    return files
+                file_paths.append(os.path.join(root, file))
+    return file_paths
 
 
 def write(path, content):
