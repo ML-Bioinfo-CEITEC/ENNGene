@@ -30,9 +30,9 @@ def write(path, content):
 
 def unzip_if_zipped(zipped_file):
     if ".gz" in zipped_file:
-        file = gzip.open(zipped_file, 'rb')
+        file = gzip.open(zipped_file, 'rt')
     elif ".zip" in zipped_file:
         file = ZipFile(zipped_file).extractall()
     else:
-        file = zipped_file
+        file = open(zipped_file)
     return file

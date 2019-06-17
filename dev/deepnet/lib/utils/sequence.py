@@ -56,14 +56,12 @@ def dictionary_to_fasta(dictionary, path, name):
 def wig_to_dictionary(ref_path):
     # TODO for now converting everything without taking VALID_CHRS into account
     zipped = f.list_files_in_dir(ref_path, '.wig')
-    file_contents = []
+    files = []
     for zipped_file in zipped:
-        file = f.unzip_if_zipped(zipped_file)
-        file_contents.append(file.read())
-        file.close()
+        files.append(f.unzip_if_zipped(zipped_file))
 
     cons_dict = {}
-    for file in file_contents:
+    for file in files:
         for line in file:
             # parse the header line
             # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
