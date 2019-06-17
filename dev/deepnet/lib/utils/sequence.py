@@ -12,7 +12,7 @@ VALID_CHRS = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'c
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
-# FIXME incorporate usage of the index file for some reasonable run time
+# FIXME incorporate usage of the index file for some reasonable run time?
 def fasta_to_dictionary(fasta_file):
     file = f.filehandle_for(fasta_file)
     seq_dict = {}
@@ -35,6 +35,9 @@ def fasta_to_dictionary(fasta_file):
             else:
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
+    # Save the last kay value pair
+    seq_dict.update({sub('>', '', key.strip()): value.strip()})
+    
     file.close()
     return seq_dict
 
