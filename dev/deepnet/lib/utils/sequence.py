@@ -62,10 +62,11 @@ def wig_to_dictionary(ref_path):
 
     cons_dict = {}
     for file in files:
+        chr = None
         for line in file:
             # parse the header line
             # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-            if 'chrom' in line:
+            if line.__class__.__name__ == 'str' and 'chrom' in line:
                 chr = None
                 start = None
                 step = None
@@ -93,22 +94,22 @@ def wig_to_dictionary(ref_path):
 
             # update values, until another header is met
             else:
-                if not chr: next
+                if not chr: break
                 if file_type == 'variableStep':
                     parts = line.split()
                     start = parts[0]
-                    value = int(parts[1])
+                    value = float(parts[1])
                     for i in range(span):
                         coord = start + i
                         cons_dict[chr].update({coord: value})
                 elif file_type == 'fixedStep':
-                    value = int(line)
+                    value = float(line)
                     for i in range(span):
                         coord = start + (step_no * step) + i
                         cons_dict[chr].update({coord: value})
                     step_no += 1
-
         file.close()
+
     # dictionary format: {chr => {coordinate => int_value}}
     return cons_dict
 
