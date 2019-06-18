@@ -117,8 +117,8 @@ def wig_to_dictionary(ref_path):
     return cons_dict
 
 
-def complement(sequence, dictionary):
-    return ''.join([dictionary[base] for base in sequence])
+def complement(sequence_list, dictionary):
+    return [dictionary[base] for base in sequence_list]
 
 
 def onehot_encode_alphabet(alphabet):
