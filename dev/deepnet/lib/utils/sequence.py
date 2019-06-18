@@ -31,7 +31,7 @@ def fasta_to_dictionary(fasta_file):
             value = ""
         else:
             if key:
-                value += line
+                value += line.strip()
             else:
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
