@@ -112,7 +112,7 @@ class MakeDatasets(Subcommand):
         datasets = {}
 
         if self.args.onehot:
-            encoding = seq.encode_alphabet(self.args.onehot)
+            encoding = seq.onehot_encode_alphabet(self.args.onehot)
         else:
             encoding = None
 

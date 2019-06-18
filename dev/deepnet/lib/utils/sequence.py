@@ -121,21 +121,16 @@ def complement(sequence, dictionary):
     return ''.join([dictionary[base] for base in sequence])
 
 
-def encode_alphabet(alphabet, force_new=False):
-    global encoded_alphabet
+def onehot_encode_alphabet(alphabet):
+    class_name = alphabet.__class__.__name__
+    if class_name != 'list':
+        raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
 
-    if encoded_alphabet and not force_new:
-        return encoded_alphabet
-    else:
-        class_name = alphabet.__class__.__name__
-        if class_name != 'list':
-            raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
-
-        encoded_alphabet = {}
-        for i, char in enumerate(alphabet):
-            array = numpy.zeros([len(alphabet)])
-            array[i] = 1.0
-            encoded_alphabet.update({str(char).lower(): array})
+    encoded_alphabet = {}
+    for i, char in enumerate(alphabet):
+        array = numpy.zeros([len(alphabet)])
+        array[i] = 1.0
+        encoded_alphabet.update({str(char).lower(): array})
 
     return encoded_alphabet
 
