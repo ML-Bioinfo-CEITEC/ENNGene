@@ -20,7 +20,8 @@ class Dataset:
                 file_name = branch + "_" + klass
                 self.dictionary = seq.fold(self.dictionary, file_name)
 
-            if encoding:
+            # TODO apply one-hot encoding also to the fold branch? 
+            if encoding and branch == 'seq':
                 for key, arr in self.dictionary.items():
                     new_arr = [seq.translate(item, encoding) for item in arr]
                     self.dictionary.update({key: new_arr})
