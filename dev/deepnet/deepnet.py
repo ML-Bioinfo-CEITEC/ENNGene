@@ -3,9 +3,21 @@
 import argparse
 import os
 import sys
+import logging
 
 sys.path.append(os.getcwd())
+logging.basicConfig(filename='app.log',
+                    filemode='a',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p',
+                    level=logging.DEBUG)
 
+logger = logging.getLogger('main')
+consoleHandler = logging.StreamHandler()
+consoleHandler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',  datefmt='%m/%d/%Y %I:%M:%S %p')
+consoleHandler.setFormatter(formatter)
+logger.addHandler(consoleHandler)
 
 class DeepNet:
 
@@ -25,13 +37,15 @@ class DeepNet:
 
         # parse_args defaults to [1:] for args, but exclude the rest of the args, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
+        logger.info('DeepNet started with the following subcommands: ' + str(sys.argv[1:]))
 
         module_path = "lib.{}.{}".format(args.subcommand, args.subcommand)
         subcommand_class = dirname_to_class(args.subcommand)
         try:
             module = __import__(module_path, fromlist=[subcommand_class])
+            logger.info('Module ' + args.subcommand + ' successfully imported.')
         except ModuleNotFoundError:
-            print('Unrecognized subcommand')
+            logger.error('Unrecognized subcommand.')
             parser.print_help()
             exit(1)
 

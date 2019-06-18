@@ -1,11 +1,13 @@
 import os
 import sys
+import logging
 
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
 from .dataset import Dataset
 
+logger = logging.getLogger('main')
 
 class MakeDatasets(Subcommand):
 
@@ -78,12 +80,14 @@ class MakeDatasets(Subcommand):
         )
 
         self.args = parser.parse_args(sys.argv[2:])
+        logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
 
         self.encoded_alphabet = None
         self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
         self.branches = self.args.branches
         if 'cons' in self.branches:
             if not self.args.consdir:
+                logger.exception('Exception occured.')
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
                 self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
@@ -91,6 +95,7 @@ class MakeDatasets(Subcommand):
         if self.args.coord:
             self.input_files = self.args.coord
         else:
+            logger.exception('Exception occured.')
             raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
 
         self.chromosomes = {'validation': self.args.validation,
@@ -99,7 +104,7 @@ class MakeDatasets(Subcommand):
                             'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
         # TODO add more printouts for verbose throughout the code
         if self.args.verbose:
-            print('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
+            logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def reference(self, branch):
         if branch == 'cons':

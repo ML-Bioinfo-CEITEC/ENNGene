@@ -2,9 +2,11 @@ import numpy
 import os
 from re import sub
 import subprocess
-
+import logging
 
 from . import file_utils as f
+
+logger = logging.getLogger('main')
 
 VALID_CHRS = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12',
               'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrY', 'chrX',
@@ -33,6 +35,7 @@ def fasta_to_dictionary(fasta_file):
             if key:
                 value += line.strip()
             else:
+                logger.exception('Exception occured.')
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
     # Save the last kay value pair
@@ -80,6 +83,7 @@ def wig_to_dictionary(ref_path):
                 file_type = parts.pop(0)
                 if file_type not in ['fixedStep', 'variableStep']:
                     warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
+                    logger.exception('Exception occured.')
                     raise Exception(warning.format(file_type))
 
                 for part in parts:
@@ -124,6 +128,7 @@ def complement(sequence_list, dictionary):
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list':
+        logger.exception('Exception occured.')
         raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
 
     encoded_alphabet = {}
@@ -146,6 +151,7 @@ def translate(char, encoding):
     if not char:
         return None
     if not encoding or not (encoding.__class__.__name__ == 'dict'):
+        logger.exception('Exception occured.')
         raise Exception('')
 
     if char.lower() in encoding.keys():
@@ -153,6 +159,7 @@ def translate(char, encoding):
     else:
         warning = "Invalid character '{}' found. " \
                   "Provided encoding must contain all possible characters (case-insensitive)."
+        logger.exception('Exception occured.')
         raise Exception(warning.format(char))
 
 
