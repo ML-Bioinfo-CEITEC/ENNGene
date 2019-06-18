@@ -11,7 +11,9 @@ class Dataset:
             self.dictionary = self.merge(datasetlist)
         else:
             # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
-            self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass)
+            # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
+            complement = branch == 'seq' or branch == 'fold'
+            self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass, complement)
 
             if self.branch == 'fold' and not datasetlist:
                 # can the result really be a dictionary? probably should
@@ -40,7 +42,7 @@ class Dataset:
     #     return f.dictionary_to_fasta(self.dictionary, path)
 
     @staticmethod
-    def bed_to_dictionary(bed_file, ref_dictionary, strand, klass):
+    def bed_to_dictionary(bed_file, ref_dictionary, strand, klass, complement):
         file = f.filehandle_for(bed_file)
         final_dict = {}
 
@@ -59,7 +61,7 @@ class Dataset:
                 for i in range(start_position, end_position):
                     sequence.append(ref_dictionary[values[0]][i])
 
-                if strand and values[5] == '-':
+                if complement and strand and values[5] == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
             if key and sequence:
