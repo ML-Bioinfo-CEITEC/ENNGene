@@ -60,7 +60,7 @@ class Dataset:
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
             if key and sequence:
-                final_dict.update({key: sequence.split()})
+                final_dict.update({key: list(sequence)})
 
         return final_dict
 
