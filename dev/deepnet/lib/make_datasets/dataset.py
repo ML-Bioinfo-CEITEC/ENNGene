@@ -51,8 +51,10 @@ class Dataset:
             key = values[0] + "_" + values[1] + "_" + values[2] + "_" + values[5] + '_' + klass
 
             if values[0] in ref_dictionary.keys():
+                # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
                 start_position = int(values[1])
-                end_position = (int(values[2]) - 1)
+                # both bed file coordinates and python when accessing the values in list exclude the last position
+                end_position = int(values[2])
                 sequence = ref_dictionary[values[0]][start_position:end_position]
                 if strand and values[5] == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
