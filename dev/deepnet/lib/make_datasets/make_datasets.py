@@ -120,7 +120,7 @@ class MakeDatasets(Subcommand):
         for file in self.input_files:
             file_name = os.path.basename(file)
             if '.bed' in file_name:
-                klass = file.replace('.bed', '')
+                klass = file_name.replace('.bed', '')
             else:
                 klass = file_name
 
