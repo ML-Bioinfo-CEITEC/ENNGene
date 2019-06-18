@@ -77,7 +77,7 @@ class MakeDatasets(Subcommand):
             help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
         )
 
-        self.args = parser.parse_args(sys.argv[2:-1])
+        self.args = parser.parse_args(sys.argv[2:])
 
         self.encoded_alphabet = None
         self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
@@ -97,8 +97,9 @@ class MakeDatasets(Subcommand):
                             'test': self.args.test,
                             'blackbox': self.args.blackbox,
                             'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
+        # TODO add more printouts for verbose throughout the code
         if self.args.verbose:
-            print('Running deepnet make_datasets with input files {}'.format(self.input_files.join(',')))
+            print('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def reference(self, branch):
         if branch == 'cons':

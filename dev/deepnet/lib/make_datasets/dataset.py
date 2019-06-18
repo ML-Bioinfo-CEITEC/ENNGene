@@ -23,6 +23,7 @@ class Dataset:
                     new_arr = [seq.translate(item, encoding) for item in arr]
                     self.dictionary.update({key: new_arr})
 
+    # TODO allow random separation too
     def separate_by_chr(self, chr_list):
         separated_dataset = {}
         for key, sequence_list in self.dictionary.items():
