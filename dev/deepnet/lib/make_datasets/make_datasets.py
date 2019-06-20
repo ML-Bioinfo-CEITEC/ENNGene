@@ -9,6 +9,7 @@ from .dataset import Dataset
 
 logger = logging.getLogger('main')
 
+
 class MakeDatasets(Subcommand):
 
     def __init__(self):
@@ -87,7 +88,7 @@ class MakeDatasets(Subcommand):
         self.branches = self.args.branches
         if 'cons' in self.branches:
             if not self.args.consdir:
-                logger.exception('Exception occured.')
+                logger.exception('Exception occurred.')
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
                 self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
@@ -95,16 +96,19 @@ class MakeDatasets(Subcommand):
         if self.args.coord:
             self.input_files = self.args.coord
         else:
-            logger.exception('Exception occured.')
+            logger.exception('Exception occurred.')
             raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
 
         self.chromosomes = {'validation': self.args.validation,
                             'test': self.args.test,
                             'blackbox': self.args.blackbox,
                             'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
-        # TODO add more printouts for verbose throughout the code
+
+        logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
+        # TODO add more printouts for verbose throughout the code, decide what to print and what to log
+        # TODO decide if the verbose opt applies only to stdout, or to logger as well
         if self.args.verbose:
-            logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
+            print('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def reference(self, branch):
         if branch == 'cons':

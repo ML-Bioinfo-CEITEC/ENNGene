@@ -35,12 +35,12 @@ def fasta_to_dictionary(fasta_file):
             if key:
                 value += line.strip()
             else:
-                logger.exception('Exception occured.')
+                logger.exception('Exception occurred.')
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
     # Save the last kay value pair
     seq_dict.update({sub('>', '', key.strip()): value.strip()})
-    
+
     file.close()
     return seq_dict
 
@@ -83,7 +83,7 @@ def wig_to_dictionary(ref_path):
                 file_type = parts.pop(0)
                 if file_type not in ['fixedStep', 'variableStep']:
                     warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
-                    logger.exception('Exception occured.')
+                    logger.exception('Exception occurred.')
                     raise Exception(warning.format(file_type))
 
                 for part in parts:
@@ -128,7 +128,7 @@ def complement(sequence_list, dictionary):
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list':
-        logger.exception('Exception occured.')
+        logger.exception('Exception occurred.')
         raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
 
     encoded_alphabet = {}
@@ -141,7 +141,7 @@ def onehot_encode_alphabet(alphabet):
 
 
 def dna_to_rna(char):
-    # TODO is that really all that's necessary? shouldn't it be maid complementary or something?
+    # TODO is that really all that's necessary? shouldn't it be made complementary or something?
     encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
     translated_letter = translate(char, encoding)
     return translated_letter
@@ -151,7 +151,7 @@ def translate(char, encoding):
     if not char:
         return None
     if not encoding or not (encoding.__class__.__name__ == 'dict'):
-        logger.exception('Exception occured.')
+        logger.exception('Exception occurred.')
         raise Exception('')
 
     if char.lower() in encoding.keys():
@@ -159,7 +159,7 @@ def translate(char, encoding):
     else:
         warning = "Invalid character '{}' found. " \
                   "Provided encoding must contain all possible characters (case-insensitive)."
-        logger.exception('Exception occured.')
+        logger.exception('Exception occurred.')
         raise Exception(warning.format(char))
 
 
@@ -175,7 +175,7 @@ def fold(dict, name, dna=True):
 
     # TODO decide where to save the intermediate files
     path = os.getcwd()
-    fasta_file = f.dictionary_to_fasta(rna_dict, path, name)
+    fasta_file = dictionary_to_fasta(rna_dict, path, name)
 
     # TODO without --noconv it substitutes T > U, maybe the dna to rna conversion beforehand is than unnecessary?
     folded_file = os.path.join(path, name + "folded")
