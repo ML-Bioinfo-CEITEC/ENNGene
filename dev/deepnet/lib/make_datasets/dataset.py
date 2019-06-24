@@ -50,19 +50,27 @@ class Dataset:
         for line in file:
             values = line.split()
 
-            # 0 - chr. name, 1 - seq. start, 2 - seq. end, 5 - strand
-            key = values[0] + "_" + values[1] + "_" + values[2] + "_" + values[5] + '_' + klass
+            chrom_name = values[0]
+            seq_start = values[1]
+            seq_end = values[2]
 
-            if values[0] in ref_dictionary.keys():
+            try:
+                strand_sign = values[5]
+                key = chrom_name + "_" + seq_start + "_" + seq_end + "_" + strand_sign + '_' + klass
+            
+            except:
+                key = chrom_name + "_" + seq_start + "_" + seq_end + '_' + klass
+
+            if chrom_name in ref_dictionary.keys():
                 # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
-                start_position = int(values[1])
+                start_position = int(seq_start)
                 # both bed file coordinates and python range exclude the last position
-                end_position = int(values[2])
+                end_position = int(seq_end)
                 sequence = []
                 for i in range(start_position, end_position):
-                    sequence.append(ref_dictionary[values[0]][i])
+                    sequence.append(ref_dictionary[chrom_name][i])
 
-                if complement and strand and values[5] == '-':
+                if complement and strand and strand_sign == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
             if key and sequence:
@@ -77,5 +85,3 @@ class Dataset:
             merged_dictionary.update(dataset.dictionary)
 
         return merged_dictionary
-
-
