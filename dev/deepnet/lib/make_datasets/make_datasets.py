@@ -142,12 +142,7 @@ class MakeDatasets(Subcommand):
         # Separate data into train, validation, test and blackbox datasets
         separated_datasets = {}
         for branch in datasets.keys():
-            for category in self.chromosomes.keys():
-                # TODO replace with {branch: {category1: {}, category2: {})
-                # and when exporting combine the two keys to the file name
-                key = "{}_{}".format(branch, category)
-                value = datasets[branch].separate_by_chr(self.chromosomes[category])
-                separated_datasets.update({key: value})
+            separated_datasets.update({branch: Dataset.separate_by_chr(datasets[branch], self.chromosomes)})
 
-        # Final datasets in format branch_category, e.g. 'seq_test' or 'fold_train'
+        # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
         return separated_datasets

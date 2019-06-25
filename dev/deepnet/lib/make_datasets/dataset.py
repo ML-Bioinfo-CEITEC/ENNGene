@@ -4,7 +4,39 @@ from ..utils import sequence as seq
 
 class Dataset:
 
-    def __init__(self, branch, klass=None, bed_file=None, ref_dict=None, strand=None, encoding=None, datasetlist=None):
+    @classmethod
+    def separate_by_chr(cls, dataset, chrs_by_category):
+        separated_dictionaries = {}
+        datasets_dict = {}
+        categories_by_chr = cls.reverse_chrs_dictionary(chrs_by_category)
+
+        # separate original dictionary by categories
+        for key, sequence_list in dataset.dictionary.items():
+            chromosome = key.split('_')[0]
+            try:
+                category = categories_by_chr[chromosome]
+                if category not in separated_dictionaries.keys(): separated_dictionaries.update({category: {}})
+                separated_dictionaries[category].update({key: sequence_list})
+            except:
+                # probably unnecessary (already checked for valid chromosomes before?)
+                continue
+
+        # create Dataset objects from separated dictionaries
+        for category, dict in separated_dictionaries.items():
+            # TODO maybe unnecessary to use category as a key, as it's saved as datasets attribute
+            datasets_dict.update({category: Dataset(dataset.branch, category=category, dictionary=dict)})
+
+        return datasets_dict
+
+    @classmethod
+    def reverse_chrs_dictionary(cls, dictionary):
+        reversed_dict = {}
+        for key, chrs in dictionary.items():
+            for chr in chrs:
+                reversed_dict.update({chr: key})
+
+        return reversed_dict
+
     @classmethod
     def merge(cls, list_of_datasets):
         merged_dictionary = {}
@@ -39,18 +71,6 @@ class Dataset:
             for key, arr in self.dictionary.items():
                 new_arr = [seq.translate(item, encoding) for item in arr]
                 self.dictionary.update({key: new_arr})
-
-    # TODO allow random separation too
-    # TODO do not call per category, it iterates over the same data multiple times
-    # instead call it once and separate it to all the given categories
-    def separate_by_chr(self, chr_list):
-        separated_dataset = {}
-        for key, sequence_list in self.dictionary.items():
-            chromosome = key.split('_')[0]
-            if chromosome in chr_list:
-                separated_dataset.update({key: sequence_list})
-
-        return separated_dataset
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
@@ -95,4 +115,3 @@ class Dataset:
                 final_dict.update({key: sequence})
 
         return final_dict
-
