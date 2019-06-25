@@ -27,6 +27,8 @@ class Dataset:
                     self.dictionary.update({key: new_arr})
 
     # TODO allow random separation too
+    # TODO do not call per category, it iterates over the same data multiple times
+    # instead call it once and separate it to all the given categories
     def separate_by_chr(self, chr_list):
         separated_dataset = {}
         for key, sequence_list in self.dictionary.items():
@@ -53,11 +55,13 @@ class Dataset:
             chrom_name = values[0]
             seq_start = values[1]
             seq_end = values[2]
+            strand_sign = None
+            sequence = None
 
+            # TODO implement as a standalone object with attributes chrom_name, seq_start, ...
             try:
                 strand_sign = values[5]
                 key = chrom_name + "_" + seq_start + "_" + seq_end + "_" + strand_sign + '_' + klass
-            
             except:
                 key = chrom_name + "_" + seq_start + "_" + seq_end + '_' + klass
 

@@ -14,6 +14,7 @@ class Subcommand:
             description='rbp deepnet',
             usage=subcommand_help
         )
+        # TODO do we need verbose and quite, or rather use the logger for everything? Or use it set level of logger verbosity?
         parser.add_argument(
             "-v", "--verbose",
             action="store_true",

@@ -19,6 +19,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 consoleHandler.setFormatter(formatter)
 logger.addHandler(consoleHandler)
 
+
 class DeepNet:
 
     def __init__(self):

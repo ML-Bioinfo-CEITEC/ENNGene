@@ -105,10 +105,6 @@ class MakeDatasets(Subcommand):
                             'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
 
         logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
-        # TODO add more printouts for verbose throughout the code, decide what to print and what to log
-        # TODO decide if the verbose opt applies only to stdout, or to logger as well
-        if self.args.verbose:
-            print('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def reference(self, branch):
         if branch == 'cons':
@@ -147,6 +143,8 @@ class MakeDatasets(Subcommand):
         separated_datasets = {}
         for branch in datasets.keys():
             for category in self.chromosomes.keys():
+                # TODO replace with {branch: {category1: {}, category2: {})
+                # and when exporting combine the two keys to the file name
                 key = "{}_{}".format(branch, category)
                 value = datasets[branch].separate_by_chr(self.chromosomes[category])
                 separated_datasets.update({key: value})
