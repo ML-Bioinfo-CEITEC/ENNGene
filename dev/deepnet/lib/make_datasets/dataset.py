@@ -14,9 +14,11 @@ class Dataset:
 
         return cls(branch, dictionary=merged_dictionary)
 
-    def __init__(self, branch, klass=None, bed_file=None, ref_dict=None, strand=None, encoding=None, dictionary=None):
-        self.branch = branch
-        self.klass = klass
+    def __init__(self, branch, klass=None, category=None, bed_file=None, ref_dict=None, strand=None, encoding=None,
+                 dictionary=None):
+        self.branch = branch # seq, cons or fold
+        self.klass = klass  # e.g. positive and negative
+        self.category = category  # train, validation, test or blackbox
 
         # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
         # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
