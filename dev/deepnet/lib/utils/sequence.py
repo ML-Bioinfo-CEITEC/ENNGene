@@ -25,11 +25,11 @@ def fasta_to_dictionary(fasta_file):
     for line in file:
         if '>' in line:
             # Save finished previous key value pair (unless it's the first iteration)
-            if key and key.strip() in VALID_CHRS:
+            if key in VALID_CHRS:
                 # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
-                seq_dict.update({sub('>', '', key.strip()): value.strip()})
+                seq_dict.update({key: value.strip()})
 
-            key = line
+            key = line.strip().strip('>')
             value = ""
         else:
             if key:
