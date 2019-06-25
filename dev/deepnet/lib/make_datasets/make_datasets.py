@@ -137,7 +137,7 @@ class MakeDatasets(Subcommand):
 
         # Merge positives and negatives (classes)
         for branch in datasets.keys():
-            datasets.update({branch: Dataset(branch, datasetlist=datasets[branch].values())})
+            datasets.update({branch: Dataset.merge(list(datasets[branch].values()))})
 
         # Separate data into train, validation, test and blackbox datasets
         separated_datasets = {}

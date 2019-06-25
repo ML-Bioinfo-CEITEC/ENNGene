@@ -5,26 +5,38 @@ from ..utils import sequence as seq
 class Dataset:
 
     def __init__(self, branch, klass=None, bed_file=None, ref_dict=None, strand=None, encoding=None, datasetlist=None):
-        self.branch = branch
+    @classmethod
+    def merge(cls, list_of_datasets):
+        merged_dictionary = {}
+        branch = list_of_datasets[0].branch
+        for dataset in list_of_datasets:
+            merged_dictionary.update(dataset.dictionary)
 
-        if datasetlist:
-            self.dictionary = self.merge(datasetlist)
+        return cls(branch, dictionary=merged_dictionary)
+
+    def __init__(self, branch, klass=None, bed_file=None, ref_dict=None, strand=None, encoding=None, dictionary=None):
+        self.branch = branch
+        self.klass = klass
+
+        # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
+        # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
+        complement = branch == 'seq' or branch == 'fold'
+
+        if dictionary:
+            self.dictionary = dictionary
         else:
-            # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
-            # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
-            complement = branch == 'seq' or branch == 'fold'
             self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass, complement)
 
-            if self.branch == 'fold' and not datasetlist:
-                # can the result really be a dictionary? probably should
-                file_name = branch + "_" + klass
-                self.dictionary = seq.fold(self.dictionary, file_name)
+        if self.branch == 'fold' and not dictionary:
+            # can the result really be a dictionary? probably should
+            file_name = branch + "_" + klass
+            self.dictionary = seq.fold(self.dictionary, file_name)
 
-            # TODO apply one-hot encoding also to the fold branch? 
-            if encoding and branch == 'seq':
-                for key, arr in self.dictionary.items():
-                    new_arr = [seq.translate(item, encoding) for item in arr]
-                    self.dictionary.update({key: new_arr})
+        # TODO apply one-hot encoding also to the fold branch?
+        if encoding and branch == 'seq':
+            for key, arr in self.dictionary.items():
+                new_arr = [seq.translate(item, encoding) for item in arr]
+                self.dictionary.update({key: new_arr})
 
     # TODO allow random separation too
     # TODO do not call per category, it iterates over the same data multiple times
@@ -82,10 +94,3 @@ class Dataset:
 
         return final_dict
 
-    @staticmethod
-    def merge(list_of_datasets):
-        merged_dictionary = {}
-        for dataset in list_of_datasets:
-            merged_dictionary.update(dataset.dictionary)
-
-        return merged_dictionary
