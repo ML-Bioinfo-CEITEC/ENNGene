@@ -1,3 +1,5 @@
+import random
+
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 
@@ -36,6 +38,32 @@ class Dataset:
                 reversed_dict.update({chr: key})
 
         return reversed_dict
+
+    @classmethod
+    def separate_random(cls, dataset, ratio_list, seed):
+        # so far the categories are fixed, not sure if there would be need for custom categories
+        categories_ratio = {'test': float(ratio_list[0]),
+                            'validation': float(ratio_list[1]),
+                            'train': float(ratio_list[2]),
+                            'blackbox': float(ratio_list[3])}
+
+        random.seed(seed)
+        randomized = list(dataset.dictionary.items())
+        random.shuffle(randomized)
+
+        dataset_size = len(dataset.dictionary)
+        total = sum(categories_ratio.values())
+        separated_datasets = {}
+        start = 0; end = 0
+
+        # TODO ? to assure whole numbers, we round down the division, which leads to lost of several samples. Fix it?
+        for category, ratio in categories_ratio.items():
+            size = int(dataset_size/total*ratio)
+            end += (size-1)
+            separated_datasets.update({category: dict(randomized[start:end])})
+            start += size
+
+        return separated_datasets
 
     @classmethod
     def merge(cls, list_of_datasets):

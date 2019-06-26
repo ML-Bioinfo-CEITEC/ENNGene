@@ -44,13 +44,21 @@ class MakeDatasets(Subcommand):
             logger.exception('Exception occurred.')
             raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
 
-        self.chromosomes = {'validation': self.args.validation,
-                            'test': self.args.test,
-                            'blackbox': self.args.blackbox,
-                            'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
+        self.separate = self.args.separate
+        if self.separate == 'by_chr':
+            self.chromosomes = {'validation': self.args.validation,
+                                'test': self.args.test,
+                                'blackbox': self.args.blackbox,
+                                'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
+        elif self.separate == 'rand':
+            self.seed = self.args.seed
+            self.ratio_list = self.args.ratio.split(':')
+            if len(self.ratio_list) != 4:
+                logger.exception('Exception occurred.')
+                raise Exception("Provide ratio for all four categories (train, validation, test and blackbox). \
+                                 Default: '10:2:2:1'.")
 
         logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
-
 
     def create_parser(self, message):
         parser = self.initialize_parser(message)
@@ -97,6 +105,23 @@ class MakeDatasets(Subcommand):
             help="Apply strand information when mapping interval file to reference [default: %default]"
         )
         parser.add_argument(
+            "--separate",
+            default='by_chr',
+            choices=['by_chr', 'rand'],
+            help="Criteria for separation into test, train, validation and blackbox datasets. [default: %default]"
+        )
+        parser.add_argument(
+            "--seed",
+            help="You may provide seed for random separation of datasets. --separate must be set to 'rand'."
+        )
+        # TODO what ratio to use as default? What would be better way to define the ratio?
+        parser.add_argument(
+            "--ratio",
+            default='10:2:2:1',
+            help="Ratio for random separation. The order is as follows: train:validation:test:blackbox. \n \
+            --separate must be set to 'rand'. [default: %default]"
+        )
+        parser.add_argument(
             "--validation",
             default={'chr19', 'chr20'},
             help="Set of chromosomes to be included in the validation set [default: %default]"
@@ -112,7 +137,6 @@ class MakeDatasets(Subcommand):
             help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
         )
         return parser
-
 
     def reference(self, branch):
         if branch == 'cons':
@@ -151,7 +175,12 @@ class MakeDatasets(Subcommand):
         separated_datasets = {}
         valid_data = []
         for branch in datasets.keys():
-            separated_datasets.update({branch: Dataset.separate_by_chr(datasets[branch], self.chromosomes)})
+            if self.separate == 'by_chr':
+                separated_subsets = Dataset.separate_by_chr(datasets[branch], self.chromosomes)
+            elif self.separate == 'rand':
+                separated_subsets = Dataset.separate_random(datasets[branch], self.ratio_list, self.seed)
+            separated_datasets.update({branch: separated_subsets})
             valid_data.append(self.chromosomes)
+
         # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
         return separated_datasets, valid_data
