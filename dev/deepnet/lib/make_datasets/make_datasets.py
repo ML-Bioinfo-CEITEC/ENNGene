@@ -84,7 +84,7 @@ class MakeDatasets(Subcommand):
             choices=['seq', 'cons', 'fold'],
             nargs='+',
             default='seq',
-            help="Branches. [default: %default]"
+            help="Branches. [default: 'seq']"
         )
         parser.add_argument(
             "--consdir",
@@ -95,20 +95,20 @@ class MakeDatasets(Subcommand):
             "--onehot",
             action="store",
             nargs='+',
-            help="If data needs to be converted to One Hot encoding, give a list of alphabet used.",
+            help="If data needs to be converted to One Hot encoding, provide a list of alphabet used.",
             dest="onehot",
             default=None
         )
         parser.add_argument(
             "--strand",
             default=False,
-            help="Apply strand information when mapping interval file to reference [default: %default]"
+            help="Apply strand information when mapping interval file to reference [default: False]"
         )
         parser.add_argument(
             "--separate",
             default='by_chr',
             choices=['by_chr', 'rand'],
-            help="Criteria for separation into test, train, validation and blackbox datasets. [default: %default]"
+            help="Criteria for separation into test, train, validation and blackbox datasets. [default: 'by_chr']"
         )
         parser.add_argument(
             "--seed",
@@ -119,22 +119,25 @@ class MakeDatasets(Subcommand):
             "--ratio",
             default='10:2:2:1',
             help="Ratio for random separation. The order is as follows: train:validation:test:blackbox. \n \
-            --separate must be set to 'rand'. [default: %default]"
+            --separate must be set to 'rand'. [default: '10:2:2:1']"
         )
         parser.add_argument(
             "--validation",
             default={'chr19', 'chr20'},
-            help="Set of chromosomes to be included in the validation set [default: %default]"
+            help="Set of chromosomes to be included in the validation set. --separate must be set to 'by_chr'. \
+                        [default: {'chr19', 'chr20'}]"
         )
         parser.add_argument(
             "--test",
             default={'chr21'},
-            help="Set of chromosomes to be included in the test set [default: %default]"
+            help="Set of chromosomes to be included in the test set. --separate must be set to 'by_chr'. \
+                 [default: {'chr21'}]"
         )
         parser.add_argument(
             "--blackbox",
             default={'chr22'},
-            help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
+            help="Set of chromosomes to be included in the blackbox set for final evaluation. \
+                 --separate must be set to 'by_chr'. [default: {'chr22'}]"
         )
         return parser
 
