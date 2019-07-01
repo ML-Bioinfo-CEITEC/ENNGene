@@ -1,4 +1,5 @@
 import numpy
+from copy import deepcopy
 import os
 from re import sub
 import subprocess
@@ -45,17 +46,16 @@ def fasta_to_dictionary(fasta_file):
     return seq_dict
 
 
-def dictionary_to_fasta(dictionary, path, name):
+def datapoint_set_to_fasta(datapoint_set, path, name):
     filepath = os.path.join(path, (name + ".fa"))
     content = ""
-    for key, seq in dictionary.items():
-        line1 = ">" + key + "\n"
-        line2 = seq + "\n"
+    for datapoint in datapoint_set:
+        line1 = ">" + datapoint.key + "\n"
+        line2 = datapoint.value + "\n"
         content += line1
         content += line2
 
     f.write(filepath, content.strip())
-    # TODO add some check the file was created ok
     return filepath
 
 
@@ -164,18 +164,20 @@ def translate(char, encoding):
 
 
 # TODO place the method somewhere else? divide it more?
-def fold(dict, name, dna=True):
+def fold(datapoint_set, name, dna=True):
     if dna:
-        rna_dict = {}
-        for key, seq in dict.items():
-            new_seq = [dna_to_rna(char) for char in seq]
-            rna_dict.update({key: new_seq})
+        rna_set = {}
+        for datapoint in datapoint_set:
+            new_value = [dna_to_rna(char) for char in datapoint.value]
+            new_datapoint = deepcopy(datapoint)
+            new_datapoint.value = new_value
+            rna_set.add(new_datapoint)
     else:
-        rna_dict = dict
+        rna_set = datapoint_set
 
     # TODO decide where to save the intermediate files
     path = os.getcwd()
-    fasta_file = dictionary_to_fasta(rna_dict, path, name)
+    fasta_file = datapoint_set_to_fasta(rna_set, path, name)
 
     # TODO without --noconv it substitutes T > U, maybe the dna to rna conversion beforehand is than unnecessary?
     folded_file = os.path.join(path, name + "folded")

@@ -1,5 +1,6 @@
 import random
 
+from .data_point import DataPoint
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 
@@ -8,27 +9,26 @@ class Dataset:
 
     @classmethod
     def separate_by_chr(cls, dataset, chrs_by_category):
-        separated_dictionaries = {}
-        datasets_dict = {}
+        separated_sets = {}
+        final_datasets = {}
         categories_by_chr = cls.reverse_chrs_dictionary(chrs_by_category)
 
         # separate original dictionary by categories
-        for key, sequence_list in dataset.dictionary.items():
-            chromosome = key.split('_')[0]
+        for datapoint in dataset.datapoint_set:
             try:
-                category = categories_by_chr[chromosome]
-                if category not in separated_dictionaries.keys(): separated_dictionaries.update({category: {}})
-                separated_dictionaries[category].update({key: sequence_list})
+                category = categories_by_chr[datapoint.chrom_name]
+                if category not in separated_sets.keys(): separated_sets.update({category: set()})
+                separated_sets[category].add(datapoint)
             except:
                 # probably unnecessary (already checked for valid chromosomes before?)
                 continue
 
         # create Dataset objects from separated dictionaries
-        for category, dict in separated_dictionaries.items():
+        for category, set in separated_sets.items():
             # TODO maybe unnecessary to use category as a key, as it's saved as datasets attribute
-            datasets_dict.update({category: Dataset(dataset.branch, category=category, dictionary=dict)})
+            final_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=set)})
 
-        return datasets_dict
+        return final_datasets
 
     @classmethod
     def reverse_chrs_dictionary(cls, dictionary):
@@ -48,10 +48,10 @@ class Dataset:
                             'blackbox': float(ratio_list[3])}
 
         random.seed(seed)
-        randomized = list(dataset.dictionary.items())
+        randomized = list(dataset.datapoint_set)
         random.shuffle(randomized)
 
-        dataset_size = len(dataset.dictionary)
+        dataset_size = len(dataset.datapoint_set)
         total = sum(categories_ratio.values())
         separated_datasets = {}
         start = 0; end = 0
@@ -60,24 +60,24 @@ class Dataset:
         for category, ratio in categories_ratio.items():
             size = int(dataset_size*ratio/total)
             end += (size-1)
-            d = dict(randomized[start:end])
-            separated_datasets.update({category: Dataset(dataset.branch, category=category, dictionary=d)})
+            dp_set = set(randomized[start:end])
+            separated_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=dp_set)})
             start += size
 
         return separated_datasets
 
     @classmethod
     def merge(cls, list_of_datasets):
-        merged_dictionary = {}
+        merged_datapoint_set = set()
         branch = list_of_datasets[0].branch
         for dataset in list_of_datasets:
-            merged_dictionary.update(dataset.dictionary)
+            merged_datapoint_set.update(dataset.datapoint_set)
 
-        return cls(branch, dictionary=merged_dictionary)
+        return cls(branch, datapoint_set=merged_datapoint_set)
 
     def __init__(self, branch, klass=None, category=None, bed_file=None, ref_dict=None, strand=None, encoding=None,
-                 dictionary=None):
-        self.branch = branch # seq, cons or fold
+                 datapoint_set=None):
+        self.branch = branch  # seq, cons or fold
         self.klass = klass  # e.g. positive and negative
         self.category = category  # train, validation, test or blackbox
 
@@ -85,21 +85,21 @@ class Dataset:
         # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
         complement = branch == 'seq' or branch == 'fold'
 
-        if dictionary:
-            self.dictionary = dictionary
+        if datapoint_set:
+            self.datapoint_set = datapoint_set
         else:
-            self.dictionary = self.bed_to_dictionary(bed_file, ref_dict, strand, klass, complement)
+            self.datapoint_set = self.map_bed_to_ref(bed_file, ref_dict, strand, klass, complement)
 
-        if self.branch == 'fold' and not dictionary:
+        if self.branch == 'fold' and not datapoint_set:
             # can the result really be a dictionary? probably should
             file_name = branch + "_" + klass
-            self.dictionary = seq.fold(self.dictionary, file_name)
+            self.datapoint_set = seq.fold(self.datapoint_set, file_name)
 
         # TODO apply one-hot encoding also to the fold branch?
         if encoding and branch == 'seq':
-            for key, arr in self.dictionary.items():
-                new_arr = [seq.translate(item, encoding) for item in arr]
-                self.dictionary.update({key: new_arr})
+            for datapoint in self.datapoint_set:
+                new_value = [seq.translate(item, encoding) for item in datapoint.value]
+                datapoint.value = new_value
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
@@ -108,9 +108,9 @@ class Dataset:
     #     return f.dictionary_to_fasta(self.dictionary, path)
 
     @staticmethod
-    def bed_to_dictionary(bed_file, ref_dictionary, strand, klass, complement):
+    def map_bed_to_ref(bed_file, ref_dictionary, strand, klass, complement):
         file = f.filehandle_for(bed_file)
-        final_dict = {}
+        final_set = set()
 
         for line in file:
             values = line.split()
@@ -118,15 +118,10 @@ class Dataset:
             chrom_name = values[0]
             seq_start = values[1]
             seq_end = values[2]
-            strand_sign = None
-            sequence = None
-
-            # TODO implement as a standalone object with attributes chrom_name, seq_start, ...
             try:
                 strand_sign = values[5]
-                key = chrom_name + "_" + seq_start + "_" + seq_end + "_" + strand_sign + '_' + klass
             except:
-                key = chrom_name + "_" + seq_start + "_" + seq_end + '_' + klass
+                strand_sign = None
 
             if chrom_name in ref_dictionary.keys():
                 # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
@@ -140,7 +135,6 @@ class Dataset:
                 if complement and strand and strand_sign == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
-            if key and sequence:
-                final_dict.update({key: sequence})
+                final_set.add(DataPoint(chrom_name, seq_start, seq_end, strand_sign, klass, sequence))
 
-        return final_dict
+        return final_set
