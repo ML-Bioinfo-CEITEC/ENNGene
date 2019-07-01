@@ -12,16 +12,48 @@ logger = logging.getLogger('main')
 
 class MakeDatasets(Subcommand):
 
-    def __init__(self):
+    def __init__(self, default_args):
         help_message = '''deepnet <subcommand> [<args>]
             Preprocess input files by creating datasets containing data specific per each branch. That includes mapping
-            to reference, encoding, folding, etc.    
-            
-            Validation, test and blackbox datasets can be assigned specific chromosomes. The rest of the chromosomes 
+            to reference, encoding, folding, etc.
+
+            Validation, test and blackbox datasets can be assigned specific chromosomes. The rest of the chromosomes
             is used for training.
             '''
 
-        parser = self.initialize_parser(help_message)
+        parser = self.create_parser(help_message)
+        if default_args is not None:
+            self.args = parser.parse_args(default_args)
+        else:
+            self.args = parser.parse_args(sys.argv[2:])
+        logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
+
+        self.encoded_alphabet = None
+        self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
+        self.branches = self.args.branches
+        if 'cons' in self.branches:
+            if not self.args.consdir:
+                logger.exception('Exception occurred.')
+                raise Exception("Provide conservation directory for calculating scores for conservation branch.")
+            else:
+                self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
+
+        if self.args.coord:
+            self.input_files = self.args.coord
+        else:
+            logger.exception('Exception occurred.')
+            raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
+
+        self.chromosomes = {'validation': self.args.validation,
+                            'test': self.args.test,
+                            'blackbox': self.args.blackbox,
+                            'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
+
+        logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
+
+
+    def create_parser(self, message):
+        parser = self.initialize_parser(message)
 
         # TODO allow multiple files per class?
         parser.add_argument(
@@ -79,32 +111,8 @@ class MakeDatasets(Subcommand):
             default={'chr22'},
             help="Set of chromosomes to be included in the blackbox set for final evaluation [default: %default]"
         )
+        return parser
 
-        self.args = parser.parse_args(sys.argv[2:])
-        logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
-
-        self.encoded_alphabet = None
-        self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
-        self.branches = self.args.branches
-        if 'cons' in self.branches:
-            if not self.args.consdir:
-                logger.exception('Exception occurred.')
-                raise Exception("Provide conservation directory for calculating scores for conservation branch.")
-            else:
-                self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
-
-        if self.args.coord:
-            self.input_files = self.args.coord
-        else:
-            logger.exception('Exception occurred.')
-            raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
-
-        self.chromosomes = {'validation': self.args.validation,
-                            'test': self.args.test,
-                            'blackbox': self.args.blackbox,
-                            'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
-
-        logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def reference(self, branch):
         if branch == 'cons':
@@ -141,8 +149,9 @@ class MakeDatasets(Subcommand):
 
         # Separate data into train, validation, test and blackbox datasets
         separated_datasets = {}
+        valid_data = []
         for branch in datasets.keys():
             separated_datasets.update({branch: Dataset.separate_by_chr(datasets[branch], self.chromosomes)})
-
+            valid_data.append(self.chromosomes)
         # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
-        return separated_datasets
+        return separated_datasets, valid_data
