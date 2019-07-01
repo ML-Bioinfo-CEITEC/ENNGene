@@ -58,7 +58,7 @@ class Dataset:
 
         # TODO ? to assure whole numbers, we round down the division, which leads to lost of several samples. Fix it?
         for category, ratio in categories_ratio.items():
-            size = int(dataset_size/total*ratio)
+            size = int(dataset_size*ratio/total)
             end += (size-1)
             separated_datasets.update({category: dict(randomized[start:end])})
             start += size
