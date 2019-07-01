@@ -42,9 +42,9 @@ class Dataset:
     @classmethod
     def separate_random(cls, dataset, ratio_list, seed):
         # so far the categories are fixed, not sure if there would be need for custom categories
-        categories_ratio = {'test': float(ratio_list[0]),
+        categories_ratio = {'train': float(ratio_list[0]),
                             'validation': float(ratio_list[1]),
-                            'train': float(ratio_list[2]),
+                            'test': float(ratio_list[2]),
                             'blackbox': float(ratio_list[3])}
 
         random.seed(seed)
@@ -60,7 +60,8 @@ class Dataset:
         for category, ratio in categories_ratio.items():
             size = int(dataset_size*ratio/total)
             end += (size-1)
-            separated_datasets.update({category: dict(randomized[start:end])})
+            d = dict(randomized[start:end])
+            separated_datasets.update({category: Dataset(dataset.branch, category=category, dictionary=d)})
             start += size
 
         return separated_datasets
