@@ -14,3 +14,18 @@ class DataPoint:
         except:
             key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + '_' + self.klass
         return key
+
+    def string_value(self):
+        string = ""
+        for e in self.value:
+            if type(e) == list:
+                substring = ""
+                for el in e:
+                    substring += str(el) + ", "
+                substring = substring.strip(', ')
+                substring += " | "
+                string += substring
+            else:
+                string += str(e) + ", "
+
+        return string.strip(' | ').strip(', ')
