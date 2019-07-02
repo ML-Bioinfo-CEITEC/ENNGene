@@ -1,3 +1,4 @@
+import os
 import random
 
 from .data_point import DataPoint
@@ -100,6 +101,14 @@ class Dataset:
             for datapoint in self.datapoint_set:
                 new_value = [seq.translate(item, encoding) for item in datapoint.value]
                 datapoint.value = new_value
+
+    def save_to_file(self, branch_dir_path, file_name):
+        content = ""
+        for datapoint in self.datapoint_set:
+            content += datapoint.key() + "\t"
+            content += datapoint.string_value() + "\n"
+
+        f.write(os.path.join(branch_dir_path, file_name), content.strip())
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
