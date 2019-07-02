@@ -28,6 +28,14 @@ class MakeDatasets(Subcommand):
             self.args = parser.parse_args(sys.argv[2:])
         logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
 
+        if self.args.output:
+            self.output_folder = self.args.output
+            if not os.path.exists(self.output_folder):
+                os.makedirs(self.args.output)
+        else:
+            self.output_folder = os.path.join(os.getcwd(), 'output')
+            os.makedirs(self.output_folder)
+
         self.encoded_alphabet = None
         self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
         self.branches = self.args.branches
