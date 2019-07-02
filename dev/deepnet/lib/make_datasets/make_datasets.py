@@ -193,5 +193,11 @@ class MakeDatasets(Subcommand):
             separated_datasets.update({branch: separated_subsets})
             valid_data.append(self.chromosomes)
 
+        for branch, dictionary in separated_datasets.items():
+            branch_folder = os.path.join(self.output_folder, 'datasets', branch)
+            if not os.path.exists(branch_folder): os.makedirs(branch_folder)
+            for category, dataset in dictionary.items():
+                dataset.save_to_file(branch_folder, category)
+
         # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
         return separated_datasets, valid_data
