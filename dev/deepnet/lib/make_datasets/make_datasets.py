@@ -2,10 +2,9 @@ import os
 import sys
 import logging
 
+from ..utils.dataset import Dataset
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
-
-from .dataset import Dataset
 
 logger = logging.getLogger('main')
 

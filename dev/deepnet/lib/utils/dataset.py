@@ -2,8 +2,8 @@ import os
 import random
 
 from .data_point import DataPoint
-from ..utils import file_utils as f
-from ..utils import sequence as seq
+from . import file_utils as f
+from . import sequence as seq
 
 
 class Dataset:
