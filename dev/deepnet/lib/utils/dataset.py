@@ -108,7 +108,9 @@ class Dataset:
             content += datapoint.key() + "\t"
             content += datapoint.string_value() + "\n"
 
-        f.write(os.path.join(branch_dir_path, file_name), content.strip())
+        file_path = os.path.join(branch_dir_path, file_name)
+        f.write(file_path, content.strip())
+        return file_path
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
