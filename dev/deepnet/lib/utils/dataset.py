@@ -9,6 +9,25 @@ from . import sequence as seq
 class Dataset:
 
     @classmethod
+    def load_from_file(cls, file_path):
+        file = open(file_path)
+        datapoint_set = set()
+
+        branch = cls.branch_from_filepath(file_path)
+
+        for line in file:
+            key, string_value = line.split("\t")
+            datapoint_set.add(DataPoint.load(key, string_value))
+
+        return cls(branch, datapoint_set=datapoint_set)
+
+    @classmethod
+    def branch_from_filepath(cls, file_path):
+        dirname = os.path.dirname(file_path)
+        dirs = dirname.split('\\')
+        return dirs[-1]
+
+    @classmethod
     def separate_by_chr(cls, dataset, chrs_by_category):
         separated_sets = {}
         final_datasets = {}
