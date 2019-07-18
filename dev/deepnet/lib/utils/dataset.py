@@ -134,6 +134,17 @@ class Dataset:
         f.write(file_path, content.strip())
         return file_path
 
+    def reduce(self, ratio, seed=84):
+        random.seed(seed)
+        randomized = list(self.datapoint_set)
+        random.shuffle(randomized)
+        last = int(len(randomized) * ratio)
+
+        reduced_dp_set = set(randomized[0:last])
+
+        self.datapoint_set = reduced_dp_set
+        return self
+
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
     #
