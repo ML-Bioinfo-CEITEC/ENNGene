@@ -51,16 +51,23 @@ class MakeDatasets(Subcommand):
             logger.exception('Exception occurred.')
             raise Exception("Input coordinate (.bed) files are required. Provide one file per class.")
 
-        self.separate = self.args.separate
-        if self.separate == 'by_chr':
+        if self.args.reducelist:
+            self.reducelist = self.args.reducelist
+            if self.args.reduceratio:
+                self.reduceratio = [float(x) for x in self.args.reduceratio]
+            if self.args.reduceseed:
+                self.reduceseed = self.args.reduceseed
+
+        self.split = self.args.split
+        if self.split == 'by_chr':
             self.chromosomes = {'validation': self.args.validation,
                                 'test': self.args.test,
                                 'blackbox': self.args.blackbox,
                                 'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
-        elif self.separate == 'rand':
-            self.seed = self.args.seed
-            self.ratio_list = self.args.ratio.split(':')
-            if len(self.ratio_list) != 4:
+        elif self.split == 'rand':
+            self.split_seed = self.args.splitseed
+            self.splitratio_list = self.args.splitratio.split(':')
+            if len(self.splitratio_list) != 4:
                 logger.exception('Exception occurred.')
                 raise Exception("Provide ratio for all four categories (train, validation, test and blackbox). \
                                  Default: '10:2:2:1'.")
@@ -109,42 +116,58 @@ class MakeDatasets(Subcommand):
         parser.add_argument(
             "--strand",
             default=False,
-            help="Apply strand information when mapping interval file to reference [default: False]"
+            help="Apply strand information when mapping interval file to reference. [default: False]"
         )
         parser.add_argument(
-            "--separate",
+            "--reducelist",
+            nargs='+',
+            help="Provide list of classes you wish to reduce (e.g. 'positive' 'negative'). \n \
+            Names of the classes must correspond to the input file names."
+        )
+        parser.add_argument(
+            "--reduceratio",
+            nargs='+',
+            help="Define reducing ratio per each class you wish to reduce (e.g. 0.2 0.5). \n \
+            --reducelist must be provided."
+        )
+        parser.add_argument(
+            "--reduceseed",
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'."
+        )
+        parser.add_argument(
+            "--split",
             default='by_chr',
             choices=['by_chr', 'rand'],
             help="Criteria for separation into test, train, validation and blackbox datasets. [default: 'by_chr']"
         )
         parser.add_argument(
-            "--seed",
-            help="You may provide seed for random separation of datasets. --separate must be set to 'rand'."
+            "--splitseed",
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'."
         )
         # TODO what ratio to use as default? What would be better way to define the ratio?
         parser.add_argument(
-            "--ratio",
+            "--splitratio",
             default='10:2:2:1',
             help="Ratio for random separation. The order is as follows: train:validation:test:blackbox. \n \
-            --separate must be set to 'rand'. [default: '10:2:2:1']"
+            --split must be set to 'rand'. [default: '10:2:2:1']"
         )
         parser.add_argument(
             "--validation",
             default={'chr19', 'chr20'},
-            help="Set of chromosomes to be included in the validation set. --separate must be set to 'by_chr'. \
+            help="Set of chromosomes to be included in the validation set. --split must be set to 'by_chr'. \
                         [default: {'chr19', 'chr20'}]"
         )
         parser.add_argument(
             "--test",
             default={'chr21'},
-            help="Set of chromosomes to be included in the test set. --separate must be set to 'by_chr'. \
+            help="Set of chromosomes to be included in the test set. --split must be set to 'by_chr'. \
                  [default: {'chr21'}]"
         )
         parser.add_argument(
             "--blackbox",
             default={'chr22'},
             help="Set of chromosomes to be included in the blackbox set for final evaluation. \
-                 --separate must be set to 'by_chr'. [default: {'chr22'}]"
+                 --split must be set to 'by_chr'. [default: {'chr22'}]"
         )
         return parser
 
@@ -172,31 +195,70 @@ class MakeDatasets(Subcommand):
                 klass = file_name
 
             for branch in self.branches:
-                if branch not in datasets.keys(): datasets.update({branch: {}})
-                datasets[branch].update({klass: Dataset(branch, klass=klass, bed_file=file,
-                                                        ref_dict=self.reference(branch), strand=self.args.strand,
-                                                        encoding=encoding)})
+                if branch not in datasets.keys(): datasets.update({branch: set()})
+                datasets[branch].add(Dataset(branch, klass=klass, bed_file=file,
+                                             ref_dict=self.reference(branch), strand=self.args.strand,
+                                             encoding=encoding))
 
-        # Merge positives and negatives (classes)
-        for branch in datasets.keys():
-            datasets.update({branch: Dataset.merge(list(datasets[branch].values()))})
+        # TODO export before random selection
+        # Randomly select smaller datasets
+        if self.reducelist:
+            reduced_datasets = {}
+            for branch, dsets in datasets.items():
+                if branch not in reduced_datasets.keys(): reduced_datasets.update({branch: set()})
+                for dataset in dsets:
+                    if dataset.klass in self.reducelist:
+                        print("reducing klass {} for branch {}".format(dataset.klass, branch))
+                        ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
+                        reduced_datasets[branch].add(dataset.reduce(ratio, self.reduceseed))
+                    else:
+                        print("keeping klass {} for branch {}".format(dataset.klass, branch))
+                        reduced_datasets[branch].add(dataset)
+        else:
+            reduced_datasets = datasets
 
-        # Separate data into train, validation, test and blackbox datasets
-        separated_datasets = {}
+        # Split data into train, validation, test and blackbox datasets
+        split_datasets = {}
         valid_data = []
-        for branch in datasets.keys():
-            if self.separate == 'by_chr':
-                separated_subsets = Dataset.separate_by_chr(datasets[branch], self.chromosomes)
-            elif self.separate == 'rand':
-                separated_subsets = Dataset.separate_random(datasets[branch], self.ratio_list, self.seed)
-            separated_datasets.update({branch: separated_subsets})
+        for branch, dsets in reduced_datasets.items():
+            if branch not in split_datasets.keys(): split_datasets.update({branch: []})
+            for dataset in dsets:
+                if self.split == 'by_chr':
+                    split_subsets = Dataset.split_by_chr(dataset, self.chromosomes)
+                elif self.split == 'rand':
+                    # TODO export before random separation
+                    split_subsets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
+                split_datasets[branch].append(split_subsets)
+            # valid_data.append(self.chromosomes)
+
+        # Separate positives and negatives (classes) within all the categories across the branches
+        datasets_to_merge = {}
+        for branch, dsets in split_datasets.items():
+            if branch not in datasets_to_merge.keys(): datasets_to_merge.update({branch: {}})
+            for split_subsets in dsets:
+                for category, dataset in split_subsets.items():
+                    klass = dataset.klass
+                    if category not in datasets_to_merge[branch].keys():
+                        datasets_to_merge[branch].update({category: {}})
+                    if klass not in datasets_to_merge[branch][category].keys():
+                        datasets_to_merge[branch][category].update({klass: []})
+                    datasets_to_merge[branch][category][klass].append(dataset)
+
+        # Merge datasets of the same klass within all the branch (e.g. pos + neg)
+        final_datasets = set()
+        for branch, dictionary in datasets_to_merge.items():
+            for category, dictionary2 in dictionary.items():
+                for klass, list_of_datasets in dictionary2.items():
+                    final_datasets.add(Dataset.merge(list_of_datasets))
             valid_data.append(self.chromosomes)
 
-        for branch, dictionary in separated_datasets.items():
-            branch_folder = os.path.join(self.output_folder, 'datasets', branch)
+        # Export final datasets to files
+        for dataset in final_datasets:
+            branch_folder = os.path.join(self.output_folder, 'datasets', dataset.branch)
             if not os.path.exists(branch_folder): os.makedirs(branch_folder)
-            for category, dataset in dictionary.items():
-                dataset.save_to_file(branch_folder, category)
+            dataset.save_to_file(branch_folder)
+
 
         # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
-        return separated_datasets, valid_data
+
+        return final_datasets, valid_data

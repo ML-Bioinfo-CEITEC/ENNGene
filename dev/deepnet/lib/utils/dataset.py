@@ -28,8 +28,8 @@ class Dataset:
         return dirs[-1]
 
     @classmethod
-    def separate_by_chr(cls, dataset, chrs_by_category):
-        separated_sets = {}
+    def split_by_chr(cls, dataset, chrs_by_category):
+        split_sets = {}
         final_datasets = {}
         categories_by_chr = cls.reverse_chrs_dictionary(chrs_by_category)
 
@@ -37,14 +37,14 @@ class Dataset:
         for datapoint in dataset.datapoint_set:
             try:
                 category = categories_by_chr[datapoint.chrom_name]
-                if category not in separated_sets.keys(): separated_sets.update({category: set()})
-                separated_sets[category].add(datapoint)
+                if category not in split_sets.keys(): split_sets.update({category: set()})
+                split_sets[category].add(datapoint)
             except:
                 # probably unnecessary (already checked for valid chromosomes before?)
                 continue
 
         # create Dataset objects from separated dictionaries
-        for category, set in separated_sets.items():
+        for category, set in split_sets.items():
             # TODO maybe unnecessary to use category as a key, as it's saved as datasets attribute
             final_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=set)})
 
@@ -60,7 +60,7 @@ class Dataset:
         return reversed_dict
 
     @classmethod
-    def separate_random(cls, dataset, ratio_list, seed):
+    def split_random(cls, dataset, ratio_list, seed=56):
         # so far the categories are fixed, not sure if there would be need for custom categories
         categories_ratio = {'train': float(ratio_list[0]),
                             'validation': float(ratio_list[1]),
@@ -73,27 +73,29 @@ class Dataset:
 
         dataset_size = len(dataset.datapoint_set)
         total = sum(categories_ratio.values())
-        separated_datasets = {}
-        start = 0; end = 0
+        split_datasets = {}
+        start = 0
+        end = 0
 
         # TODO ? to assure whole numbers, we round down the division, which leads to lost of several samples. Fix it?
         for category, ratio in categories_ratio.items():
-            size = int(dataset_size*ratio/total)
-            end += (size-1)
+            size = int(dataset_size * ratio / total)
+            end += (size - 1)
             dp_set = set(randomized[start:end])
-            separated_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=dp_set)})
+            split_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=dp_set)})
             start += size
 
-        return separated_datasets
+        return split_datasets
 
     @classmethod
     def merge(cls, list_of_datasets):
         merged_datapoint_set = set()
         branch = list_of_datasets[0].branch
+        category = list_of_datasets[0].category
         for dataset in list_of_datasets:
             merged_datapoint_set.update(dataset.datapoint_set)
 
-        return cls(branch, datapoint_set=merged_datapoint_set)
+        return cls(branch, category=category, datapoint_set=merged_datapoint_set)
 
     def __init__(self, branch, klass=None, category=None, bed_file=None, ref_dict=None, strand=None, encoding=None,
                  datapoint_set=None):
@@ -121,7 +123,8 @@ class Dataset:
                 new_value = [seq.translate(item, encoding) for item in datapoint.value]
                 datapoint.value = new_value
 
-    def save_to_file(self, branch_dir_path, file_name):
+    def save_to_file(self, branch_dir_path):
+        file_name = self.category
         content = ""
         for datapoint in self.datapoint_set:
             content += datapoint.key() + "\t"
