@@ -21,7 +21,7 @@ class TestMakeDatasets(object):
         """Test if corresponding datasets in different branches have same length"""
         for test_data in create_data:
             if len(test_data) > 1:  # more than 1 branch
-            branch_1, branch_2 = list(test_data.keys())
+                branch_1, branch_2 = list(test_data.keys())
                 for dataset in self.datasets_names:
                     if dataset == 'train':
                         continue
