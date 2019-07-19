@@ -34,9 +34,6 @@ def set_default_args(kwargs):
     default_args = []
     for key in kwargs.keys():
         args = kwargs[key]
-        args = kwargs[key]
-    for key in kwargs.keys():
-        args = kwargs[key]
         key = '--' + key
         default_args.append(key)
         if type(args) == list:

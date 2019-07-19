@@ -11,7 +11,7 @@ logger = logging.getLogger('main')
 
 class MakeDatasets(Subcommand):
 
-    def __init__(self, default_args):
+    def __init__(self, default_args=None):
         help_message = '''deepnet <subcommand> [<args>]
             Preprocess input files by creating datasets containing data specific per each branch. That includes mapping
             to reference, encoding, folding, etc.
@@ -219,7 +219,7 @@ class MakeDatasets(Subcommand):
 
         # Split data into train, validation, test and blackbox datasets
         split_datasets = {}
-        valid_data = []
+
         for branch, dsets in reduced_datasets.items():
             if branch not in split_datasets.keys(): split_datasets.update({branch: []})
             for dataset in dsets:
@@ -229,7 +229,7 @@ class MakeDatasets(Subcommand):
                     # TODO export before random separation
                     split_subsets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
                 split_datasets[branch].append(split_subsets)
-            # valid_data.append(self.chromosomes)
+
 
         # Separate positives and negatives (classes) within all the categories across the branches
         datasets_to_merge = {}
@@ -250,7 +250,6 @@ class MakeDatasets(Subcommand):
             for category, dictionary2 in dictionary.items():
                 for klass, list_of_datasets in dictionary2.items():
                     final_datasets.add(Dataset.merge(list_of_datasets))
-            valid_data.append(self.chromosomes)
 
         # Export final datasets to files
         for dataset in final_datasets:
@@ -261,4 +260,4 @@ class MakeDatasets(Subcommand):
 
         # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
 
-        return final_datasets, valid_data
+        return final_datasets
