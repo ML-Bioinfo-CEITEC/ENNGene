@@ -11,6 +11,8 @@ logger = logging.getLogger('main')
 
 class MakeDatasets(Subcommand):
 
+    # TODO allow skipping steps, e.g. datasets separation or size reduction
+
     def __init__(self, default_args=None):
         help_message = '''deepnet <subcommand> [<args>]
             Preprocess input files by creating datasets containing data specific per each branch. That includes mapping
