@@ -36,7 +36,9 @@ class Train(Subcommand):
             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = self.parse_data(
                 self.args.datasets)
 
-        self.hyper_tuning = self.args.hyper_tuning
+        if self.args.hyper_tuning:
+            self.hyper_tuning = self.args.hyper_tuning
+            self.tune_rounds = self.args.tune_rounds
 
         self.hyperparams = {
             "batch_size": self.args.batch_size,
@@ -125,6 +127,12 @@ class Train(Subcommand):
             help="Whether to enable hyper parameters tuning",
             type=bool
         )
+        parser.add_argument(
+            "--tune_rounds",
+            action="store",
+            default=5,
+            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True.",
+        )
         return parser
 
     @staticmethod
@@ -138,22 +146,27 @@ class Train(Subcommand):
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
     def run(self):
+        # define model (separate class)
+        # TODO use arg to choose the network architecture
+        data = [self.train_x, self.valid_x, self.train_y, self.valid_y]
+        network = SimpleConvClass(data=data, branches=self.branches, hyperparams=self.hyperparams)
+
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            hyperparams = self.tune_hyperparameters()
+            model = network.build_model(tune=True)
+            hyperparams = self.tune_hyperparameters(model, self.tune_rounds, data)
+            # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
         else:
+            model = network.build_model(tune=False)
             hyperparams = self.hyperparams
 
-        # define model (separate class)
-        model = self.build_model()
-
         # model compilation
-        compiled = self.compile(model)
+        compiled_model = self.compile(model)
 
         # training & testing the model (fit)
         callbacks = self.create_callbacks
-        history = self.train(compiled, self.hyperparameters, callbacks,
-                             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y)
+        history = self.train(compiled_model, self.hyperparameters, callbacks,
+                             self.train_x, self.valid_x, self.train_y, self.valid_y)
         test_results = self.test(model, hyperparams['batch_size'], self.test_x, self.test_y)
 
         # plot metrics
@@ -166,24 +179,21 @@ class Train(Subcommand):
         # TODO save test results
         # TODO save resulting model
 
+        # TODO return something that can be passed on to the next module
+
     @staticmethod
-    def tune_hyperparameters(model, trials, data):
-        # using hyperas
-        # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
+    def tune_hyperparameters(model, tune_rounds, data):
+        # using hyperas package
         params, best_model = optim.minimize(model=model, data=data,
-                                                 algo=tpe.suggest,
-                                                 max_evals=5,
-                                                 trials=Trials())
-        return params   # best_model?
-        # TODO should not be here? It's part of the model compilation
-
-        validation_acc = np.amax(history.history['val_acc'])
-        return {'loss': -validation_acc, 'status': STATUS_OK, 'model': model}
+                                            algo=tpe.suggest,
+                                            max_evals=tune_rounds,
+                                            trials=Trials())
+        return params  # best_model?
 
     @staticmethod
-    def create_callbacks(dir):
-        # TODO replace "/CNNonRaw.hdf5" with something dynamic (something like an inst var model_name)
-        mcp = ModelCheckpoint(filepath=dir + "/CNNonRaw.hdf5",
+    def create_callbacks(out_dir):
+        # TODO replace "/CNNonRaw.hdf5" with something dynamic
+        mcp = ModelCheckpoint(filepath=out_dir + "/CNNonRaw.hdf5",
                               verbose=0,
                               save_best_only=True)
 
@@ -193,54 +203,29 @@ class Train(Subcommand):
                                      verbose=1,
                                      mode='auto')
 
-        csv_logger = CSVLogger(dir + "/CNNonRaw.log.csv",
+        csv_logger = CSVLogger(out_dir + "/CNNonRaw.log.csv",
                                append=True,
                                separator='\t')
 
         return [mcp, earlystopper, csv_logger]
 
     @staticmethod
-    def compile(model):
+    def compile(model, learning_rate):
         # TODO allow using Adam etc.? Probably let the choice of optimizer to argument, with default = sgd
         # (define methods per each optimizer and call based on the arg)
         sgd = SGD(
-            lr=self.params['learn_rate'],
+            lr=learning_rate,
             decay=1e-6,
             momentum=0.9,  # TODO adjust too?
             nesterov=True)
 
+        # TODO does compile return something or does it change the model object?
         model.compile(
             optimizer=sgd,
             loss="categorical_crossentropy",  # TODO allow different one?
             metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
         # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
         # as arguments and return a single tensor value.
-
-        input_data = []
-        branches_models = []
-        for branch in self.BRANCHES:
-            x = Input(shape=(self.x_train[branch]['train'].dictionary.shape))
-            input_data.append(x)
-            for convolution in range(0, self.params["conv_layers"] - 1):
-                x = Conv1D(filters=self.params['filter_num'] * 2, kernel_size=3, strides=1, padding="same")(x)
-                x = LeakyReLU()(x)
-                x = BatchNormalization()(x)
-                x = MaxPooling1D(pool_size=2, padding="same")(x)
-                x = Dropout(rate=self.params["dropout"], noise_shape=None, seed=None)(x)
-            branches_models.append(Flatten()(x))
-
-        if len(self.BRANCHES) == 1:
-            model = branches_models[0]
-        else:
-            model = keras.layers.concatenate(branches_models)
-
-        for dense in range(0, self.params['dense_num']):
-            model = Dense(self.params['nodes'])(model)
-            model = LeakyReLU()(model)
-            model = BatchNormalization()(model)
-            model = Dropout(rate=self.params['dropout'], noise_shape=None, seed=None)(model)
-            model = Dense(units=len(self.BRANCHES), activation="softmax")(model)
-            model = Model(input_data, model)
 
         return model
 
@@ -289,7 +274,7 @@ class Train(Subcommand):
         plt.savefig(out_dir + "/CNNonRaw.acc.png", dpi=300)
         plt.clf()
 
-# TODO Is this class needed?
-# class Config:
-#     data_file_path = None
-#     tmp_output_directory = None
+    # TODO Is this class needed?
+    # class Config:
+    #     data_file_path = None
+    #     tmp_output_directory = None
