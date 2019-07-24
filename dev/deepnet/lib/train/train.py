@@ -14,116 +14,147 @@ from hyperas import optim
 from hyperas.distributions import choice, uniform
 from hyperopt import Trials, STATUS_OK, tpe
 
-# TODO fix imports in all the files to be consistent (relative vs. absolute)
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'make_datasets/tests'))
-
 from setup import random_argument_generator, make_datasets
+from ..utils.subcommand import Subcommand
 
-# TODO implement similar structure as MakeDatasets (move parser within the init, define run containing:
-# hyperparameter tuning (+ export/import), model definition (separate class), model compilation, training (fit),
-# save results to the files
+# TODO fix imports in all the files to be consistent (relative vs. absolute)
+# sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'make_datasets/tests'))
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--batch_size",
-    action="store",
-    default=256,
-    help="Batch Size. Default=256",
-    type=int
-)
-parser.add_argument(
-    "--branches",
-    action="store",
-    help="Names of branches",
-    required=True,
-    type=list
-)
-parser.add_argument(
-    "--dropout",
-    action="store",
-    default=0.2,
-    help="Dropout. Default=0.2",
-    required=False,
-    type=int
-)
-parser.add_argument(
-    "--lr",
-    action="store",
-    default=0.0001,
-    help="Learning Rate. Default=0.0001",
-    required=False,
-    type=int
-)
-parser.add_argument(
-    "--filter_num",
-    action="store",
-    default=40,
-    help="Filter Number. Default=40",
-    required=False
-)
-parser.add_argument(
-    "--conv_num",
-    action="store",
-    default=3,
-    help="Number of convolutional layers. Default=3",
-    type=int
-)
-parser.add_argument(
-    "--dense_num",
-    action="store",
-    default=3,
-    help="Number of dense layers. Default=3",
-    type=int
-)
-parser.add_argument(
-    "--epochs",
-    action="store",
-    default=600,
-    help="Number of epochs to train",
-    type=int
-)
-# TODO allow also defining number of hyperparameter tuning trials for Hyperas?
-parser.add_argument(
-    "--hyper_tuning",
-    action="store",
-    default=False,
-    help="Whether to enable hyper parameters tuning",
-    type=bool
-)
-
-args = parser.parse_args()
+# TODO add logger
 
 
-def create_data():
-    # TODO E - get the data by passing prepared Dataset objects from make_datasets or by reading them from file
-    # What is the meaning of the random_argument_generator ?
-    for argument in random_argument_generator(shuffles=1):
-        data = make_datasets(argument)
-        train_x, test_x, train_y, test_y = data  # ... how to correctly assign datasets?
-        # TODO E - can we pass also the validation data? (not leaving it to Keras to divide the training data)
-        return train_x, test_x, train_y, test_y
+class Train(Subcommand):
 
-
-class Config:
-    data_file_path = None
-    # TODO use self.output (arg defined in Subcommand)
-    # create dir "training" or something like that and inside hierarchy
-    tmp_output_directory = None
-
-
-class HyperTuning:
-    # using hyperas
     def __init__(self):
-        self.BRANCHES = args.branches
-        self.train_x, self.test_x, self.train_y, self.test_y = create_data()
+        help_message = '''deepnet <subcommand> [<args>]
+            Train a model on preprocessed files.
+            '''
 
-    def tune(self):
+        parser = self.create_parser(help_message)
+        self.args = parser.parse_args(sys.argv[2:])
+
+        # TODO move to Subcommand (common with other modules)
+        # TODO create dir "training" or something like that and inside hierarchy
+        if self.args.output:
+            self.output_folder = self.args.output
+            if not os.path.exists(self.output_folder):
+                os.makedirs(self.args.output)
+        else:
+            self.output_folder = os.path.join(os.getcwd(), 'output')
+            os.makedirs(self.output_folder)
+
+        self.branches = self.args.branches
+        if self.args.datasets == '-':
+            # TODO read from STDIN ?
+        else:
+            self.train_x, self.test_x, self.valid_x, \
+            self.train_y, self.valid_y, self.test_y = self.parse_data(self.args.datasets)
+
+    def create_parser(self, message):
+        parser = self.initialize_parser(message)
+
+        parser.add_argument(
+            "--datasets",
+            required=True,
+            nargs='+',
+            help="Files containing preprocessed Dataset objects, omit for STDIN.",
+            default='-'
+        )
+        parser.add_argument(
+            "--batch_size",
+            action="store",
+            default=256,
+            help="Batch Size. Default=256",
+            type=int
+        )
+        parser.add_argument(
+            "--branches",
+            action="store",
+            help="Names of branches",
+            required=True,
+            type=list
+        )
+        parser.add_argument(
+            "--dropout",
+            action="store",
+            default=0.2,
+            help="Dropout. Default=0.2",
+            required=False,
+            type=int
+        )
+        parser.add_argument(
+            "--lr",
+            action="store",
+            default=0.0001,
+            help="Learning Rate. Default=0.0001",
+            required=False,
+            type=int
+        )
+        parser.add_argument(
+            "--filter_num",
+            action="store",
+            default=40,
+            help="Filter Number. Default=40",
+            required=False
+        )
+        parser.add_argument(
+            "--conv_num",
+            action="store",
+            default=3,
+            help="Number of convolutional layers. Default=3",
+            type=int
+        )
+        parser.add_argument(
+            "--dense_num",
+            action="store",
+            default=3,
+            help="Number of dense layers. Default=3",
+            type=int
+        )
+        parser.add_argument(
+            "--epochs",
+            action="store",
+            default=600,
+            help="Number of epochs to train",
+            type=int
+        )
+        # TODO allow also defining number of hyperparameter tuning trials for Hyperas?
+        parser.add_argument(
+            "--hyper_tuning",
+            action="store",
+            default=False,
+            help="Whether to enable hyper parameters tuning",
+            type=bool
+        )
+        return parser
+
+    def run(self):
+        # hyperparameter tuning (+ export/import)
+        # model definition (separate class)
+        # model compilation
+        # training (fit)
+        # save results to the files
+        # saving resulting model
+
+    @staticmethod
+    def parse_data(dataset_files):
+        # TODO read in datasets from the files and divide them to data (x) and labels (y), call the method per branch?
+
+        # What is the meaning of the random_argument_generator ?
+        for argument in random_argument_generator(shuffles=1):
+            data = make_datasets(argument)
+            train_x, valid_x, test_x, train_y, valid_y, test_y = data  # ... how to correctly assign datasets?
+            return train_x, valid_x, test_x, train_y, valid_y, test_y
+
+    def tune_hyperparameters(self):
+        # using hyperas
         # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
         params, self.best_model = optim.minimize(model=self.build_model, data=create_data,
                                                  algo=tpe.suggest,
                                                  max_evals=5,
                                                  trials=Trials())
         return params
+
 
     # TODO move to separate class, probably create our object representing the model?
     # TODO prepare several (for now two, plus maybe one for regression) models with different architectures
@@ -202,9 +233,8 @@ class HyperTuning:
         validation_acc = np.amax(history.history['val_acc'])
         return {'loss': -validation_acc, 'status': STATUS_OK, 'model': model}
 
-
-class TrainModel(HyperTuning):
-    def __init__(self):
+    @staticmethod
+    def train(model):
         super().__init__()
         self.x_train, self.y_train = Config.data_file_path  # !
         self.params = {
@@ -222,12 +252,13 @@ class TrainModel(HyperTuning):
             # TODO move the rest outside the if statement?
             # TODO use more explicit approach? (return the values from compile and pass them to plot)
             self.model = self.compile_model()
-            self.plot_graphs()
+            self.plot_graph()
         else:
             self.model = self.compile_model()
-            self.plot_graphs()
+            self.plot_graph()
 
-    def compile_model(self):
+    @staticmethod
+    def compile_model(model):
         input_data = []
         branches_models = []
         for branch in self.BRANCHES:
@@ -294,7 +325,8 @@ class TrainModel(HyperTuning):
             validation_data=(self.test_x, self.test_y),  # valid_x, valid_y ?
             callbacks=[mcp, earlystopper, csv_logger])
 
-    def plot_graphs(self):
+    @staticmethod
+    def plot_graph(value, name):
         # TODO separate class for plotting? probably combined with the Evaluate module
         # TODO make dynamic based on used metric (may not be just accuracy)
         plt.plot(self.history.history['acc'])
@@ -316,3 +348,9 @@ class TrainModel(HyperTuning):
         plt.legend(['Train', 'Validation'], loc='upper right')
         plt.savefig(Config.tmp_output_directory + "/CNNonRaw.loss.png", dpi=300)
         plt.clf()
+
+# TODO Is this class needed?
+# class Config:
+#     data_file_path = None
+#     tmp_output_directory = None
+
