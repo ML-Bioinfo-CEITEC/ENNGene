@@ -1,4 +1,4 @@
-import numpy
+# import numpy
 from copy import deepcopy
 import os
 from re import sub
@@ -133,7 +133,10 @@ def onehot_encode_alphabet(alphabet):
 
     encoded_alphabet = {}
     for i, char in enumerate(alphabet):
-        array = numpy.zeros([len(alphabet)])
+        # array = numpy.zeros([len(alphabet)])
+        array = []
+        for x in range(len(alphabet)):
+            array.append(0)
         array[i] = 1.0
         encoded_alphabet.update({str(char).lower(): array})
 
