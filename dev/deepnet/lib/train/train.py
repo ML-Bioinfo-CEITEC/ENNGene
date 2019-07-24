@@ -1,17 +1,13 @@
 import numpy as np
 import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D, \
-    Activation, LSTM, Bidirectional, Input, BatchNormalization
 from keras.optimizers import SGD, RMSprop, Adam
-from keras.layers.advanced_activations import LeakyReLU
 import matplotlib.pyplot as plt
 from hyperas import optim
-from hyperas.distributions import choice, uniform
 from hyperopt import Trials, STATUS_OK, tpe
 
 from setup import random_argument_generator, make_datasets
+from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.subcommand import Subcommand
 
 
@@ -179,47 +175,6 @@ class Train(Subcommand):
                                                  max_evals=5,
                                                  trials=Trials())
         return params   # best_model?
-
-    # TODO move to separate class, probably create our object representing the model?
-    # TODO prepare several (for now two, plus maybe one for regression) models with different architectures
-    # (for differences too big to be tacked by arguments) and prepare the code for easy adding of another architectures
-    # (use arg to choose the model)
-    def build_model(self):
-        input_data = []
-        branches_models = []
-        for branch in self.BRANCHES:
-            # Create convolutional network for each branch separately
-
-            x = Input(shape=self.train_x[branch]['train'].dictionary.shape)
-            input_data.append(x)
-
-            # TODO Is it really good idea to leave the number of convolutional layers random?
-            # Maybe use fixed number from an argument?
-            conv_num = {{choice([1, 2, 3, 4])}}
-            for convolution in range(0, conv_num):
-                # TODO kernel size and no. of filters does/not depend on the index of the convolutional layer?
-                x = Conv1D(filters={{choice([8, 16, 32, 64])}}, kernel_size={{choice([1, 3, 5])}}, strides=1,
-                           padding="same")(x)
-                x = LeakyReLU()(x)
-                x = BatchNormalization()(x)
-                x = MaxPooling1D(pool_size=2, padding="same")(x)
-                x = Dropout(rate={{uniform(0, 1)}}, noise_shape=None, seed=None)(x)
-            branches_models.append(Flatten()(x))
-
-        if len(self.BRANCHES) == 1:
-            model = branches_models[0]
-        else:
-            model = keras.layers.concatenate(branches_models)
-
-        # Continue to dense layers using concatenated results from convolution of the branches
-        for dense in range(0, {{choice([1, 2, 3, 4])}}):
-            model = Dense({{choice([16, 32, 64])}})(model)
-            model = LeakyReLU()(model)
-            model = BatchNormalization()(model)
-            model = Dropout(rate={{uniform(0, 1)}}, noise_shape=None, seed=None)(model)
-            model = Dense(units=len(self.BRANCHES), activation="softmax")(model)
-            model = Model(input_data, model)
-
         # TODO should not be here? It's part of the model compilation
 
         validation_acc = np.amax(history.history['val_acc'])
