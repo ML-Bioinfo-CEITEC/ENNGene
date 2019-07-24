@@ -1,10 +1,25 @@
 import argparse
+import os
+import sys
 
 
 class Subcommand:
 
+    def __init__(self, parser):
+        self.args = parser.parse_args(sys.argv[2:])
+
+        if self.args.output:
+            self.output_folder = self.args.output
+            if not os.path.exists(self.output_folder):
+                os.makedirs(self.args.output)
+        else:
+            self.output_folder = os.path.join(os.getcwd(), 'output')
+            os.makedirs(self.output_folder)
+
+        self.verbose = self.args.verbose
+
     def run(self, args):
-        # TODO define generic parts of runnign the subcommand
+        # TODO define generic parts of running the subcommand
         return args
 
     # private method for Subcommand descendants use only
@@ -14,12 +29,13 @@ class Subcommand:
             description='rbp deepnet',
             usage=subcommand_help
         )
-        # TODO do we need verbose and quite, or rather use the logger for everything? Or use it set level of logger verbosity?
         parser.add_argument(
             "-o", "--output",
             dest='output',
             help="Specify folder for output files. If not specified, current working directory will be used."
         )
+        # TODO do we need verbose and quite, or rather use the logger for everything?
+        # Or use it to set level of logger verbosity?
         parser.add_argument(
             "-v", "--verbose",
             action="store_true",

@@ -1,6 +1,3 @@
-import sys
-import os
-import argparse
 import numpy as np
 import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
@@ -29,19 +26,10 @@ class Train(Subcommand):
         help_message = '''deepnet <subcommand> [<args>]
             Train a model on preprocessed files.
             '''
-
         parser = self.create_parser(help_message)
-        self.args = parser.parse_args(sys.argv[2:])
+        super().__init__(parser)
 
-        # TODO move to Subcommand (common with other modules)
-        # TODO create dir "training" or something like that and inside hierarchy
-        if self.args.output:
-            self.output_folder = self.args.output
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.args.output)
-        else:
-            self.output_folder = os.path.join(os.getcwd(), 'output')
-            os.makedirs(self.output_folder)
+        # TODO create dir "training" in the output folder, or something like that, and the inside hierarchy
 
         self.branches = self.args.branches
         if self.args.datasets == '-':

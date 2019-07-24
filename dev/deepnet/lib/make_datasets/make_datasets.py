@@ -23,19 +23,13 @@ class MakeDatasets(Subcommand):
             '''
 
         parser = self.create_parser(help_message)
+        super().__init__(parser)
+
         if default_args is not None:
             self.args = parser.parse_args(default_args)
         else:
             self.args = parser.parse_args(sys.argv[2:])
         logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
-
-        if self.args.output:
-            self.output_folder = self.args.output
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.args.output)
-        else:
-            self.output_folder = os.path.join(os.getcwd(), 'output')
-            os.makedirs(self.output_folder)
 
         self.encoded_alphabet = None
         self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
