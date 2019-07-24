@@ -14,6 +14,7 @@ from hyperopt import Trials, STATUS_OK, tpe
 from setup import random_argument_generator, make_datasets
 from ..utils.subcommand import Subcommand
 
+
 # TODO fix imports in all the files to be consistent (relative vs. absolute)
 # sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'make_datasets/tests'))
 
@@ -34,9 +35,23 @@ class Train(Subcommand):
         self.branches = self.args.branches
         if self.args.datasets == '-':
             # TODO read from STDIN ?
+            pass
         else:
-            self.train_x, self.test_x, self.valid_x, \
-            self.train_y, self.valid_y, self.test_y = self.parse_data(self.args.datasets)
+            self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = self.parse_data(
+                self.args.datasets)
+
+        self.hyper_tuning = self.args.hyper_tuning
+
+        self.hyperparams = {
+            "batch_size": self.args.batch_size,
+            "dropout": self.args.dropout,
+            "learn_rate": self.args.lr,
+            "conv_num": self.args.conv_num,
+            "dense_num": self.args.dense_num,
+            "filter_num": self.args.filter_num,
+            "epochs": self.args.epochs,
+            "nodes": self.args.nodes
+        }
 
     def create_parser(self, message):
         parser = self.initialize_parser(message)
@@ -116,33 +131,54 @@ class Train(Subcommand):
         )
         return parser
 
-    def run(self):
-        # hyperparameter tuning (+ export/import)
-        # model definition (separate class)
-        # model compilation
-        # training (fit)
-        # save results to the files
-        # saving resulting model
-
     @staticmethod
     def parse_data(dataset_files):
         # TODO read in datasets from the files and divide them to data (x) and labels (y), call the method per branch?
+        train_x, valid_x, test_x, train_y, valid_y, test_y = dataset_files
 
-        # What is the meaning of the random_argument_generator ?
-        for argument in random_argument_generator(shuffles=1):
-            data = make_datasets(argument)
-            train_x, valid_x, test_x, train_y, valid_y, test_y = data  # ... how to correctly assign datasets?
-            return train_x, valid_x, test_x, train_y, valid_y, test_y
+        # TODO D What was the meaning of the random_argument_generator ?
+        # for argument in random_argument_generator(shuffles=1):
 
-    def tune_hyperparameters(self):
+        return [train_x, valid_x, test_x, train_y, valid_y, test_y]
+
+    def run(self):
+        # hyperparameter tuning (+ export/import)
+        if self.hyper_tuning:
+            hyperparams = self.tune_hyperparameters()
+        else:
+            hyperparams = self.hyperparams
+
+        # define model (separate class)
+        model = self.build_model()
+
+        # model compilation
+        compiled = self.compile(model)
+
+        # training & testing the model (fit)
+        callbacks = self.create_callbacks
+        history = self.train(compiled, self.hyperparameters, callbacks,
+                             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y)
+        test_results = self.test(model, hyperparams['batch_size'], self.test_x, self.test_y)
+
+        # plot metrics
+        self.plot_graph(history, 'acc', 'Accuracy', self.out_dir)
+        self.plot_graph(history, 'loss', 'Categorical crossentropy loss', self.out_dir)
+
+        # export results
+
+        # TODO save results & plots to the files
+        # TODO save test results
+        # TODO save resulting model
+
+    @staticmethod
+    def tune_hyperparameters(model, trials, data):
         # using hyperas
         # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
-        params, self.best_model = optim.minimize(model=self.build_model, data=create_data,
+        params, best_model = optim.minimize(model=model, data=data,
                                                  algo=tpe.suggest,
                                                  max_evals=5,
                                                  trials=Trials())
-        return params
-
+        return params   # best_model?
 
     # TODO move to separate class, probably create our object representing the model?
     # TODO prepare several (for now two, plus maybe one for regression) models with different architectures
@@ -185,18 +221,14 @@ class Train(Subcommand):
             model = Model(input_data, model)
 
         # TODO should not be here? It's part of the model compilation
-        sgd = SGD(
-            lr={{choice([0.0001, 0.005])}},
-            decay=1e-6,
-            momentum=0.9,
-            nesterov=True)
 
-        model.compile(
-            optimizer=sgd,
-            loss="categorical_crossentropy",
-            metrics=["accuracy"])
+        validation_acc = np.amax(history.history['val_acc'])
+        return {'loss': -validation_acc, 'status': STATUS_OK, 'model': model}
 
-        mcp = ModelCheckpoint(filepath=Config.tmp_output_directory + "/CNNonRaw.hdf5",
+    @staticmethod
+    def create_callbacks(dir):
+        # TODO replace "/CNNonRaw.hdf5" with something dynamic (something like an inst var model_name)
+        mcp = ModelCheckpoint(filepath=dir + "/CNNonRaw.hdf5",
                               verbose=0,
                               save_best_only=True)
 
@@ -206,47 +238,29 @@ class Train(Subcommand):
                                      verbose=1,
                                      mode='auto')
 
-        csv_logger = CSVLogger(Config.tmp_output_directory + "/CNNonRaw.log.csv",
+        csv_logger = CSVLogger(dir + "/CNNonRaw.log.csv",
                                append=True,
                                separator='\t')
 
-        history = model.fit(
-            self.train_x[0],
-            self.train_y,
-            batch_size={{choice([16, 32, 64, 128])}},
-            epochs={{choice([50, 100, 150])}},
-            verbose=1,
-            validation_data=(self.test_x, self.test_y),
-            callbacks=[mcp, earlystopper, csv_logger])
-        validation_acc = np.amax(history.history['val_acc'])
-        return {'loss': -validation_acc, 'status': STATUS_OK, 'model': model}
+        return [mcp, earlystopper, csv_logger]
 
     @staticmethod
-    def train(model):
-        super().__init__()
-        self.x_train, self.y_train = Config.data_file_path  # !
-        self.params = {
-            "batch_size": args.batch_size,
-            "dropout": args.dropout,
-            "learn_rate": args.lr,
-            "conv_num": args.conv_num,
-            "dense_num": args.dense_num,
-            "filter_num": args.filter_num,
-            "epochs": args.epochs,
-            "nodes": args.nodes
-        }
-        if args.hyper_tuning:
-            self.params = self.tune()
-            # TODO move the rest outside the if statement?
-            # TODO use more explicit approach? (return the values from compile and pass them to plot)
-            self.model = self.compile_model()
-            self.plot_graph()
-        else:
-            self.model = self.compile_model()
-            self.plot_graph()
+    def compile(model):
+        # TODO allow using Adam etc.? Probably let the choice of optimizer to argument, with default = sgd
+        # (define methods per each optimizer and call based on the arg)
+        sgd = SGD(
+            lr=self.params['learn_rate'],
+            decay=1e-6,
+            momentum=0.9,  # TODO adjust too?
+            nesterov=True)
 
-    @staticmethod
-    def compile_model(model):
+        model.compile(
+            optimizer=sgd,
+            loss="categorical_crossentropy",  # TODO allow different one?
+            metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
+        # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
+        # as arguments and return a single tensor value.
+
         input_data = []
         branches_models = []
         for branch in self.BRANCHES:
@@ -273,72 +287,54 @@ class Train(Subcommand):
             model = Dense(units=len(self.BRANCHES), activation="softmax")(model)
             model = Model(input_data, model)
 
-        # TODO allow using Adam etc.? Probably let the choice of optimizer to argument, with default = sgd
-        # (define methods per each optimizer and call based on the arg)
-        sgd = SGD(
-            lr=self.params['learn_rate'],
-            decay=1e-6,
-            momentum=0.9,  # TODO adjust too?
-            nesterov=True)
-
-        model.compile(
-            optimizer=sgd,
-            loss="categorical_crossentropy",  # TODO allow different one?
-            metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
-        # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
-        # as arguments and return a single tensor value.
-
-        # TODO replace "/CNNonRaw.hdf5" with something dynamic (something like an inst var model_name)
-        mcp = ModelCheckpoint(filepath=Config.tmp_output_directory + "/CNNonRaw.hdf5",
-                              verbose=0,
-                              save_best_only=True)
-
-        earlystopper = EarlyStopping(monitor='val_loss',
-                                     patience=40,
-                                     min_delta=0,
-                                     verbose=1,
-                                     mode='auto')
-
-        csv_logger = CSVLogger(Config.tmp_output_directory + "/CNNonRaw.log.csv",
-                               append=True,
-                               separator='\t')
-
-        # TODO fit should not be part of compile (compile returns compiled model used by fit)
-        self.history = model.fit(
-            self.train_x[0],  # what is train_x ? - data (values)
-            self.train_y,  # what is train_y? - labels (keys)
-            batch_size=self.params['batch_size'],
-            epochs=self.params['epochs'],
-            verbose=1,
-            validation_data=(self.test_x, self.test_y),  # valid_x, valid_y ?
-            callbacks=[mcp, earlystopper, csv_logger])
+        return model
 
     @staticmethod
-    def plot_graph(value, name):
+    def train(model, hyperparameters, callbacks, train_x, valid_x, train_y, valid_y):
+        history = model.fit(
+            train_x,
+            train_y,
+            batch_size=hyperparameters['batch_size'],
+            epochs=hyperparameters['epochs'],
+            verbose=1,
+            validation_data=(valid_x, valid_y),
+            callbacks=callbacks)
+
+        return history
+
+    @staticmethod
+    def test(model, batch_size, test_x, test_y):
+        test_results = model.evaluate(
+            test_x,
+            test_y,
+            batch_size=batch_size,
+            verbose=1,
+            sample_weight=None)
+
+        return test_results
+
+    @staticmethod
+    def plot_graph(history, metric, title, out_dir):
         # TODO separate class for plotting? probably combined with the Evaluate module
-        # TODO make dynamic based on used metric (may not be just accuracy)
-        plt.plot(self.history.history['acc'])
-        plt.plot(self.history.history['val_acc'])
-        plt.ylim(0.0, 1.0)
-        plt.title('Model Accuracy')
-        plt.ylabel('Accuracy')
+        val_metric = "val_{}".format(metric)
+
+        plt.plot(history[metric])
+        plt.plot(history[val_metric])
+
+        # TODO is it necessary?
+        if metric == 'acc':
+            plt.ylim(0.0, 1.0)
+        elif metric == 'loss':
+            plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
+
+        plt.title("Model {}".format(title))
+        plt.ylabel(title)
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'], loc='lower right')
-        plt.savefig(Config.tmp_output_directory + "/CNNonRaw.acc.png", dpi=300)
-        plt.clf()
-
-        plt.plot(self.history.history['loss'])
-        plt.plot(self.history.history['val_loss'])
-        plt.ylim(0.0, max(max(self.history.history['loss']), max(self.history.history['val_loss'])))
-        plt.title('Model Loss')
-        plt.ylabel('Categorical Crossentropy')
-        plt.xlabel('Epoch')
-        plt.legend(['Train', 'Validation'], loc='upper right')
-        plt.savefig(Config.tmp_output_directory + "/CNNonRaw.loss.png", dpi=300)
+        plt.savefig(out_dir + "/CNNonRaw.acc.png", dpi=300)
         plt.clf()
 
 # TODO Is this class needed?
 # class Config:
 #     data_file_path = None
 #     tmp_output_directory = None
-
