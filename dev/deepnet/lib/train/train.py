@@ -51,6 +51,8 @@ class Train(Subcommand):
             "nodes": self.args.nodes
         }
 
+        self.optimizer = self.args.optimizer
+
     def create_parser(self, message):
         parser = self.initialize_parser(message)
 
@@ -131,7 +133,14 @@ class Train(Subcommand):
             "--tune_rounds",
             action="store",
             default=5,
-            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True.",
+            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
+        )
+        parser.add_argument(
+            "--optimizer",
+            action='store',
+            choices=['sgd', 'rmsprop', 'adam'],  # TODO allow all Keras optimizers or choose just some?
+            default='sgd',
+            help="Optimizer to be used. Default = 'sgd'."
         )
         return parser
 
@@ -160,12 +169,20 @@ class Train(Subcommand):
             model = network.build_model(tune=False)
             hyperparams = self.hyperparams
 
+        # optimizer definition
+        optimizer = self.create_optimizer(self.optimizer)
+
         # model compilation
-        compiled_model = self.compile(model)
+        model.compile(
+            optimizer=optimizer,
+            loss="categorical_crossentropy",  # TODO allow different one?
+            metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
+        # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
+        # as arguments and return a single tensor value.
 
         # training & testing the model (fit)
         callbacks = self.create_callbacks
-        history = self.train(compiled_model, self.hyperparameters, callbacks,
+        history = self.train(model, hyperparams, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
         test_results = self.test(model, hyperparams['batch_size'], self.test_x, self.test_y)
 
@@ -210,24 +227,32 @@ class Train(Subcommand):
         return [mcp, earlystopper, csv_logger]
 
     @staticmethod
-    def compile(model, learning_rate):
-        # TODO allow using Adam etc.? Probably let the choice of optimizer to argument, with default = sgd
-        # (define methods per each optimizer and call based on the arg)
-        sgd = SGD(
-            lr=learning_rate,
-            decay=1e-6,
-            momentum=0.9,  # TODO adjust too?
-            nesterov=True)
+    def create_optimizer(chosen, learning_rate):
+        if chosen == 'sgd':
+            optimizer = SGD(
+                lr=learning_rate,
+                decay=1e-6,
+                momentum=0.9,
+                nesterov=True)
+        elif chosen == 'rmsprop':
+            optimizer = RMSprop(
+                lr=learning_rate,
+                rho=0.9,
+                epsilon=None,
+                decay=0.0
+            )
+        elif chosen == 'adam':
+            optimizer = Adam(
+                lr=learning_rate,
+                beta_1=0.9,
+                beta_2=0.999,
+                epsilon=None,
+                decay=0.0,
+                amsgrad=False
+            )
+        # define other ...
 
-        # TODO does compile return something or does it change the model object?
-        model.compile(
-            optimizer=sgd,
-            loss="categorical_crossentropy",  # TODO allow different one?
-            metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
-        # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
-        # as arguments and return a single tensor value.
-
-        return model
+        return optimizer
 
     @staticmethod
     def train(model, hyperparameters, callbacks, train_x, valid_x, train_y, valid_y):
