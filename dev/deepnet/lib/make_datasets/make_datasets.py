@@ -226,34 +226,27 @@ class MakeDatasets(Subcommand):
                     split_subsets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
                 split_datasets[branch].append(split_subsets)
 
-
         # Separate positives and negatives (classes) within all the categories across the branches
         datasets_to_merge = {}
         for branch, dsets in split_datasets.items():
             if branch not in datasets_to_merge.keys(): datasets_to_merge.update({branch: {}})
             for split_subsets in dsets:
                 for category, dataset in split_subsets.items():
-                    klass = dataset.klass
                     if category not in datasets_to_merge[branch].keys():
-                        datasets_to_merge[branch].update({category: {}})
-                    if klass not in datasets_to_merge[branch][category].keys():
-                        datasets_to_merge[branch][category].update({klass: []})
-                    datasets_to_merge[branch][category][klass].append(dataset)
+                        datasets_to_merge[branch].update({category: []})
+                    datasets_to_merge[branch][category].append(dataset)
 
         # Merge datasets of the same klass within all the branch (e.g. pos + neg)
         final_datasets = set()
         for branch, dictionary in datasets_to_merge.items():
-            for category, dictionary2 in dictionary.items():
-                for klass, list_of_datasets in dictionary2.items():
-                    final_datasets.add(Dataset.merge(list_of_datasets))
+            for category, list_of_datasets in dictionary.items():
+                print(category, list_of_datasets)
+                final_datasets.add(Dataset.merge(list_of_datasets))
 
         # Export final datasets to files
         for dataset in final_datasets:
             branch_folder = os.path.join(self.output_folder, 'datasets', dataset.branch)
             if not os.path.exists(branch_folder): os.makedirs(branch_folder)
             dataset.save_to_file(branch_folder)
-
-
-        # Final datasets dictionary in format {branch: {'train': dataset, 'test': dataset2, ...}}
 
         return final_datasets
