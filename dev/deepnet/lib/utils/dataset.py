@@ -15,12 +15,13 @@ class Dataset:
         datapoint_set = set()
 
         branch = cls.branch_from_filepath(file_path)
+        category = os.path.basename(file_path)
 
         for line in file:
             key, string_value = line.split("\t")
             datapoint_set.add(DataPoint.load(key, string_value))
 
-        return cls(branch, datapoint_set=datapoint_set)
+        return cls(branch, category=category, datapoint_set=datapoint_set)
 
     @classmethod
     def branch_from_filepath(cls, file_path):
