@@ -1,4 +1,5 @@
 import os
+import platform
 import random
 
 from .data_point import DataPoint
@@ -26,7 +27,10 @@ class Dataset:
     @classmethod
     def branch_from_filepath(cls, file_path):
         dirname = os.path.dirname(file_path)
-        dirs = dirname.split('\\')
+        if platform.system() == 'Windows':
+            dirs = dirname.split('\\')
+        else:
+            dirs = dirname.split('/')
         return dirs[-1]
 
     @classmethod
