@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
@@ -28,7 +29,8 @@ class Train(Subcommand):
         parser = self.create_parser(help_message)
         super().__init__(parser)
 
-        # TODO create dir "training" in the output folder, or something like that, and the inside hierarchy
+        self.train_dir = os.path.join(self.output_folder, 'training')
+        if not os.path.exists(self.train_dir): os.makedirs(self.train_dir)
 
         self.branches = self.args.branches
         if self.args.datasets == '-':
@@ -218,8 +220,8 @@ class Train(Subcommand):
         test_results = self.test(model, hyperparams['batch_size'], self.test_x, self.test_y)
 
         # plot metrics
-        self.plot_graph(history, 'acc', 'Accuracy', self.out_dir)
-        self.plot_graph(history, 'loss', 'Categorical crossentropy loss', self.out_dir)
+        self.plot_graph(history, 'acc', 'Accuracy', self.train_dir)
+        self.plot_graph(history, 'loss', 'Categorical crossentropy loss', self.train_dir)
 
         # export results
 
