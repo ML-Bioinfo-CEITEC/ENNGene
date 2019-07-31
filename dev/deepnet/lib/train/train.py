@@ -8,6 +8,8 @@ from hyperopt import Trials, STATUS_OK, tpe
 
 from setup import random_argument_generator, make_datasets
 from ..networks.simple_conv_class import SimpleConvClass
+from ..utils.dataset import Dataset
+from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
 
@@ -33,8 +35,10 @@ class Train(Subcommand):
             # TODO read from STDIN ?
             pass
         else:
-            self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = self.parse_data(
-                self.args.datasets)
+            # labels are the same in all the datasets, it is sufficient to read and encode them only once
+            self.labels = seq.onehot_encode_alphabet(self.args.datasets[0].labels)
+            self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = \
+                self.parse_data(self.args.datasets, self.branches, self.labels)
 
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
@@ -146,12 +150,38 @@ class Train(Subcommand):
         return parser
 
     @staticmethod
-    def parse_data(dataset_files):
-        # TODO read in datasets from the files and divide them to data (x) and labels (y), call the method per branch?
-        train_x, valid_x, test_x, train_y, valid_y, test_y = dataset_files
-
+    def parse_data(dataset_files, branches, alphabet):
         # TODO D What was the meaning of the random_argument_generator ?
         # for argument in random_argument_generator(shuffles=1):
+
+        datasets = set()
+        for file in dataset_files:
+            datasets.add(Dataset.load_from_file(file))
+
+        train_x = []
+        valid_x = []
+        test_x = []
+        train_y = []
+        valid_y = []
+        test_y = []
+
+        for branch in branches:
+            for dataset in datasets:
+                # to ensure the right order of data within arrays
+                if dataset.branch != branch: next
+                values = dataset.values
+                labels = dataset.labels(alphabet=alphabet)
+
+                # TODO is there a dynamic way in Python to that?  "{}_x".format(dataset.category).call or something
+                if dataset.category == 'train':
+                    train_x.append(values)
+                    train_y.append(labels)
+                elif dataset.category == 'valid':
+                    valid_x.append(values)
+                    valid_y.append(labels)
+                elif dataset.category == 'test':
+                    test_x.append(values)
+                    test_y.append(labels)
 
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
