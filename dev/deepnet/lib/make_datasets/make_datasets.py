@@ -79,6 +79,7 @@ class MakeDatasets(Subcommand):
             action="store",
             required=True,
             nargs='+',
+            # TODO allow naming the classes differently?
             help="Coordinates BED File per each class, omit for STDIN, class name = file name",
             default='-'
         )
@@ -174,7 +175,7 @@ class MakeDatasets(Subcommand):
             return self.seq_ref
 
     def run(self):
-        super().run(self.args)
+        # super().run(self.args)
         datasets = {}
 
         if self.args.onehot:

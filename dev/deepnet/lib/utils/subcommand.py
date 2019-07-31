@@ -18,9 +18,9 @@ class Subcommand:
 
         self.verbose = self.args.verbose
 
-    def run(self, args):
+    # def run(self, args):
         # TODO define generic parts of running the subcommand
-        return args
+        # pass
 
     # private method for Subcommand descendants use only
     @staticmethod

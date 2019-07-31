@@ -135,8 +135,9 @@ def onehot_encode_alphabet(alphabet):
     for i, char in enumerate(alphabet):
         # array = numpy.zeros([len(alphabet)])
         array = []
+        # TODO probably needs to be numpy array for Tensorflow purposes (?)
         for x in range(len(alphabet)):
-            array.append(0)
+            array.append(0.0)
         array[i] = 1.0
         encoded_alphabet.update({str(char).lower(): array})
 

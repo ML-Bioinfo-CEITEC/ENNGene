@@ -48,7 +48,7 @@ class SimpleConvClass(Network):
 
             for convolution in range(0, self.hyperparams['conv_num']):
                 x = Conv1D(filters=conv_filters, kernel_size=conv_kernels, strides=1,
-                           padding="same")(x)
+                           padding="same")(x)  # TODO what about number of nodes?
                 x = LeakyReLU()(x)
                 x = BatchNormalization()(x)
                 x = MaxPooling1D(pool_size=2, padding="same")(x)
@@ -67,8 +67,8 @@ class SimpleConvClass(Network):
             x = BatchNormalization()(x)
             x = Dropout(rate=do_rate, noise_shape=None, seed=None)(x)
 
-        x = Dense(units=len(self.branches), activation="softmax")(x)
-        model = Model(input_data, x)
+        x = Dense(units=len(self.labels), activation="softmax")(x)
+        model = Model(inputs, x)
 
         # validation_metric = np.amax(history[val_metric])
         # return {'loss': -validation_metric, 'status': STATUS_OK, 'model': model}
