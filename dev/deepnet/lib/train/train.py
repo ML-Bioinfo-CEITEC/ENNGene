@@ -72,10 +72,11 @@ class Train(Subcommand):
         )
         parser.add_argument(
             "--branches",
-            action="store",
-            help="Names of branches",
-            required=True,
-            type=list
+            action='store',
+            choices=['seq', 'cons', 'fold'],
+            nargs='+',
+            default='seq',
+            help="Branches. [default: 'seq']"
         )
         parser.add_argument(
             "--dropout",
