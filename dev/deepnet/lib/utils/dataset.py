@@ -147,6 +147,26 @@ class Dataset:
         self.datapoint_set = reduced_dp_set
         return self
 
+    def values(self):
+        # return ordered list of values of datapoints
+        values = []
+        for datapoint in self.datapoint_set:
+            values.append(datapoint.value)
+
+        return values
+
+    def labels(self, alphabet=None):
+        # return ordered list of values of datapoints
+        labels = []
+        for datapoint in self.datapoint_set:
+            labels.append(datapoint.klass)
+
+        if alphabet:
+            encoded_labels = [seq.translate(item, alphabet) for item in labels]
+            return encoded_labels
+        else:
+            return labels
+
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
     #
