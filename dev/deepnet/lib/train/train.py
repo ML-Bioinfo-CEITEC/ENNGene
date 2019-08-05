@@ -41,6 +41,7 @@ class Train(Subcommand):
             self.labels = seq.onehot_encode_alphabet(self.args.datasets[0].labels)
             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = \
                 self.parse_data(self.args.datasets, self.branches, self.labels)
+        self.dims = self.get_dims(self.train_x, self.branches)
 
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
@@ -187,11 +188,24 @@ class Train(Subcommand):
 
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
+    @staticmethod
+    def get_dims(data, branches):
+        # TODO for now, only 1D data are taken into account
+        # Assuming fixed order of the branches
+        dims = {}
+        for i, branch in enumerate(branches):
+            seq_no = len(data[i])
+            seq_len = len(data[i][0])
+            dims.update({branch: [seq_no, seq_len]})
+
+        return dims
+
     def run(self):
         # define model (separate class)
         # TODO use arg to choose the network architecture
-        data = [self.train_x, self.valid_x, self.train_y, self.valid_y]
-        network = SimpleConvClass(data=data, branches=self.branches, hyperparams=self.hyperparams)
+
+        # data = [self.train_x, self.valid_x, self.train_y, self.valid_y]
+        network = SimpleConvClass(dims=self.dims, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
 
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:

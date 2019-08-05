@@ -11,8 +11,8 @@ from .network import Network
 class SimpleConvClass(Network):
     # Classification network using few convolutional layers
 
-    def __init__(self, data={}, branches=[], hyperparams={}):
-        super().__init__(data=data, branches=branches, hyperparams=hyperparams)
+    def __init__(self, dims={}, branches=[], hyperparams={}, labels=[]):
+        super().__init__(dims=dims, branches=branches, hyperparams=hyperparams, labels=labels)
         # TODO omit completely or add something above just super call?
         return
 
@@ -37,14 +37,13 @@ class SimpleConvClass(Network):
             dense_units = self.hyperparams['dense_units']  # TODO keep it fixed or allow arg? Dependent on layer index?
             do_rate = self.hyperparams['dropout']
 
-        input_data = []
+        inputs = []
         branches_models = []
         for branch in self.branches:
             # Create convolutional network for each branch separately
 
-            # TODO What kind of data it needs here?
-            x = Input(shape=self.data[branch]['train'].dictionary.shape)
-            input_data.append(x)
+            x = Input(shape=(self.dims[branch][0], self.dims[branch][1]))
+            inputs.append(x)
 
             for convolution in range(0, self.hyperparams['conv_num']):
                 x = Conv1D(filters=conv_filters, kernel_size=conv_kernels, strides=1,

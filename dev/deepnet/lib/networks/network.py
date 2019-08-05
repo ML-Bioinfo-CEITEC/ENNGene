@@ -1,10 +1,11 @@
 class Network:
     # parent network class for all defined architecture
 
-    def __init__(self, data={}, branches=[], hyperparams={}):
-        self.data = data
+    def __init__(self, dims={}, branches=[], hyperparams={}, labels=[]):
+        self.dims = dims
         self.branches = branches
         self.hyperparams = hyperparams
+        self.labels = labels
 
         # self.hyperparams = {
         #     "batch_size": self.args.batch_size,
