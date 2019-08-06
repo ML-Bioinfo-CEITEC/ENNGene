@@ -43,6 +43,7 @@ class Train(Subcommand):
                 self.parse_data(self.args.datasets, self.branches, self.labels)
         self.dims = self.get_dims(self.train_x, self.branches)
 
+        self.network = self.args.network
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
@@ -150,6 +151,13 @@ class Train(Subcommand):
             default='sgd',
             help="Optimizer to be used. Default = 'sgd'."
         )
+        parser.add_argument(
+            "--network",
+            action='store',
+            choices=['simpleconv'],
+            default='simpleconv',
+            help="Predefined network architecture tobe used. Default = 'simpleconv' (simple convolutional network)."
+        )
         return parser
 
     @staticmethod
@@ -202,11 +210,12 @@ class Train(Subcommand):
         return dims
 
     def run(self):
-        # define model (separate class)
-        # TODO use arg to choose the network architecture
-
-        # data = [self.train_x, self.valid_x, self.train_y, self.valid_y]
-        network = SimpleConvClass(dims=self.dims, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
+        # define model based on chosen architecture
+        if self.network == 'simpleconv':
+            network = SimpleConvClass(
+                dims=self.dims, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
+        else:
+            raise Exception  # should not be possible to happen, later add other architectures here
 
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
