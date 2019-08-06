@@ -32,7 +32,7 @@ class SimpleConvClass(Network):
             do_rate = {{uniform(0, 1)}}
         else:
             conv_filters = self.hyperparams['filter_num']
-            conv_kernels = self.hyperparams['kernel_num']
+            conv_kernels = self.hyperparams['kernel_size']
             dense_num = self.hyperparams['dense_num']
             dense_units = self.hyperparams['dense_units']  # TODO keep it fixed or allow arg? Dependent on layer index?
             do_rate = self.hyperparams['dropout']
@@ -42,6 +42,7 @@ class SimpleConvClass(Network):
         for branch in self.branches:
             # Create convolutional network for each branch separately
 
+            # batch size left undefined, thus variable
             x = Input(shape=(self.dims[branch][0], self.dims[branch][1]))
             inputs.append(x)
 

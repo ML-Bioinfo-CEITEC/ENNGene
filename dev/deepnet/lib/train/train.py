@@ -47,16 +47,19 @@ class Train(Subcommand):
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
+        else:
+            self.hyper_tuning = False
 
         self.hyperparams = {
             "batch_size": self.args.batch_size,
             "dropout": self.args.dropout,
             "learn_rate": self.args.lr,
             "conv_num": self.args.conv_num,
+            "kernel_size": self.args.kernel_size,
             "dense_num": self.args.dense_num,
+            "dense_units": self.args.dense_units,
             "filter_num": self.args.filter_num,
-            "epochs": self.args.epochs,
-            "nodes": self.args.nodes
+            "epochs": self.args.epochs
         }
 
         self.optimizer = self.args.optimizer
@@ -117,6 +120,13 @@ class Train(Subcommand):
             type=int
         )
         parser.add_argument(
+            "--kernel_size",
+            action="store",
+            default=4,
+            help="Kernel size for convolutional layers. Default=4",
+            type=int
+        )
+        parser.add_argument(
             "--dense_num",
             action="store",
             default=3,
@@ -124,13 +134,19 @@ class Train(Subcommand):
             type=int
         )
         parser.add_argument(
+            "--dense_units",
+            action="store",
+            default=50,
+            help="Number of units in dense layers. Default=50",
+            type=int
+        )
+        parser.add_argument(
             "--epochs",
             action="store",
-            default=600,
+            default=3,  # 600,
             help="Number of epochs to train",
             type=int
         )
-        # TODO allow also defining number of hyperparameter tuning trials for Hyperas?
         parser.add_argument(
             "--hyper_tuning",
             action="store",
@@ -204,7 +220,6 @@ class Train(Subcommand):
         for i, branch in enumerate(branches):
             seq_len = len(data[i][0])  # e.g. 10 for a sequence of 10 bases
             seq_size = len(data[i][0][0])  # e.g. 5 for one-hot encoded bases or 1 for conservation score
-            print(branch, seq_len, seq_size)
             dims.update({branch: [seq_len, seq_size]})
 
         return dims
@@ -219,15 +234,16 @@ class Train(Subcommand):
 
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            model = network.build_model(tune=True)
-            hyperparams = self.tune_hyperparameters(model, self.tune_rounds, data)
+            # TODO what is the model returned by hyperas? Can we use it?
+            # Or I'm going to create new model using the given hyperparameters?
+            hyperparams, model = self.tune_hyperparameters(network, self.tune_rounds, self.dims)
             # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
         else:
             model = network.build_model(tune=False)
             hyperparams = self.hyperparams
 
         # optimizer definition
-        optimizer = self.create_optimizer(self.optimizer)
+        optimizer = self.create_optimizer(self.optimizer, self.hyperparams["learn_rate"])
 
         # model compilation
         model.compile(
@@ -256,13 +272,14 @@ class Train(Subcommand):
         # TODO return something that can be passed on to the next module
 
     @staticmethod
-    def tune_hyperparameters(model, tune_rounds, data):
+    def tune_hyperparameters(network, tune_rounds, data):
         # using hyperas package
+        model = network.build_model(tune=True)
         params, best_model = optim.minimize(model=model, data=data,
                                             algo=tpe.suggest,
                                             max_evals=tune_rounds,
                                             trials=Trials())
-        return params  # best_model?
+        return params, best_model
 
     @staticmethod
     def create_callbacks(out_dir):
