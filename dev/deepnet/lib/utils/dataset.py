@@ -19,7 +19,7 @@ class Dataset:
         category = os.path.basename(file_path)
 
         for line in file:
-            key, string_value = line.split("\t")
+            key, string_value = line.split("\t", 1)
             datapoint_set.add(DataPoint.load(key, string_value))
 
         return cls(branch, category=category, datapoint_set=datapoint_set)

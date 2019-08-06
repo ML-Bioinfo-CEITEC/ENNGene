@@ -9,7 +9,7 @@ class DataPoint:
 
     @classmethod
     def value_from_string(cls, string_value):
-        parts = string_value.split(' | ')
+        parts = string_value.split('\t')
         new_parts = []
 
         for part in parts:
@@ -19,13 +19,7 @@ class DataPoint:
                 new_part.append(float(subpart))
             new_parts.append(new_part)
 
-        # TODO resolve this by saving not-encoded values also as a list of lists to keep the formatting the same?
-        if len(new_parts) == 1:
-            value = new_parts[0]
-        else:
-            value = new_parts
-
-        return value
+        return new_parts
 
     @classmethod
     def attrs_from_key(cls, key):
@@ -67,9 +61,9 @@ class DataPoint:
                 for el in e:
                     substring += str(el) + ", "
                 substring = substring.strip(', ')
-                substring += " | "
+                substring += "\t"
                 string += substring
             else:
-                string += str(e) + ", "
+                string += str(e) + "\t"
 
-        return string.strip(' | ').strip(', ')
+        return string.strip('\t').strip(', ')
