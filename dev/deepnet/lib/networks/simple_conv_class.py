@@ -66,8 +66,8 @@ class SimpleConvClass(Network):
             x = BatchNormalization()(x)
             x = Dropout(rate=do_rate, noise_shape=None, seed=None)(x)
 
-        x = Dense(units=len(self.labels), activation="softmax")(x)
-        model = Model(inputs, x)
+        output = Dense(units=len(self.labels), activation="softmax")(x)
+        model = Model(inputs, output)
 
         # validation_metric = np.amax(history[val_metric])
         # return {'loss': -validation_metric, 'status': STATUS_OK, 'model': model}

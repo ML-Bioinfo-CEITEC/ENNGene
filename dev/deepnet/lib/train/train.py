@@ -38,7 +38,7 @@ class Train(Subcommand):
             pass
         else:
             # labels are the same in all the datasets, it is sufficient to read and encode them only once
-            self.labels = seq.onehot_encode_alphabet(self.args.datasets[0].labels)
+            self.labels = seq.onehot_encode_alphabet(Dataset.load_from_file(self.args.datasets[0]).labels())
             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = \
                 self.parse_data(self.args.datasets, self.branches, self.labels)
         self.dims = self.get_dims(self.train_x, self.branches)
@@ -171,8 +171,8 @@ class Train(Subcommand):
         for branch in branches:
             for dataset in datasets:
                 # to ensure the right order of data within arrays
-                if dataset.branch != branch: next
-                values = dataset.values
+                if dataset.branch != branch: continue
+                values = dataset.values()
                 labels = dataset.labels(alphabet=alphabet)
 
                 # TODO is there a dynamic way in Python to that?  "{}_x".format(dataset.category).call or something

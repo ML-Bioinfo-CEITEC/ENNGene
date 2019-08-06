@@ -53,6 +53,8 @@ class MakeDatasets(Subcommand):
                 self.reduceratio = [float(x) for x in self.args.reduceratio]
             if self.args.reduceseed:
                 self.reduceseed = self.args.reduceseed
+        else:
+            self.reducelist = None
 
         self.split = self.args.split
         if self.split == 'by_chr':
