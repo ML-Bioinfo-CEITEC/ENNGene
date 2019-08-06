@@ -194,9 +194,10 @@ class Train(Subcommand):
         # Assuming fixed order of the branches
         dims = {}
         for i, branch in enumerate(branches):
-            seq_no = len(data[i])
-            seq_len = len(data[i][0])
-            dims.update({branch: [seq_no, seq_len]})
+            seq_len = len(data[i][0])  # e.g. 10 for a sequence of 10 bases
+            seq_size = len(data[i][0][0])  # e.g. 5 for one-hot encoded bases or 1 for conservation score
+            print(branch, seq_len, seq_size)
+            dims.update({branch: [seq_len, seq_size]})
 
         return dims
 
