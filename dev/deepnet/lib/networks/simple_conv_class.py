@@ -20,21 +20,20 @@ class SimpleConvClass(Network):
         super().build_model(tune=tune)
 
         if tune:
-            # TODO Is it really good idea to leave the number of convolutional layers random?
-            # Maybe use fixed number from an argument? Also it should be probably the same for all the branches.
-            # conv_num = {{choice([1, 2, 3, 4])}}
+            # conv_num = {{choice([1, 2, 3, 4])}} # Kept fixed for now to lower tuning time. default = 3
 
             # TODO kernel size and no. of filters does/not depend on the index of the convolutional layer?
-            conv_filters = {{choice([8, 16, 32, 64])}}
+            conv_filters = {{choice([16, 32, 64])}}
+            # TODO in mustard the kernel sizes were 16, 30 and 20 per branch and decreasing with each layer
             conv_kernels = {{choice([1, 3, 5])}}
             dense_num = {{choice([1, 2, 3, 4])}}
-            dense_units = {{choice([16, 32, 64])}}
-            do_rate = {{uniform(0, 1)}}
+            dense_units = {{choice([32, 64, 128])}}
+            do_rate = {{uniform(0.2, 0.4)}}
         else:
             conv_filters = self.hyperparams['filter_num']
             conv_kernels = self.hyperparams['kernel_size']
             dense_num = self.hyperparams['dense_num']
-            dense_units = self.hyperparams['dense_units']  # TODO keep it fixed or allow arg? Dependent on layer index?
+            dense_units = self.hyperparams['dense_units']
             do_rate = self.hyperparams['dropout']
 
         inputs = []
@@ -48,7 +47,7 @@ class SimpleConvClass(Network):
 
             for convolution in range(0, self.hyperparams['conv_num']):
                 x = Conv1D(filters=conv_filters, kernel_size=conv_kernels, strides=1,
-                           padding="same")(x)  # TODO what about number of nodes?
+                           padding="same")(x)
                 x = LeakyReLU()(x)
                 x = BatchNormalization()(x)
                 x = MaxPooling1D(pool_size=2, padding="same")(x)
@@ -62,7 +61,12 @@ class SimpleConvClass(Network):
 
         # Continue to dense layers using concatenated results from convolution of the branches
         for dense in range(0, dense_num):
-            x = Dense(dense_units)(x)
+            units = dense_units / pow(2, dense)
+            # Just ensure the number does not drop bellow the number of classes
+            if units < len(self.labels):
+                units = len(self.labels)
+
+            x = Dense(units)(x)
             x = LeakyReLU()(x)
             x = BatchNormalization()(x)
             x = Dropout(rate=do_rate, noise_shape=None, seed=None)(x)

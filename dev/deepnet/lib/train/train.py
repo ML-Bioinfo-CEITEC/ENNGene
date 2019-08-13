@@ -50,16 +50,19 @@ class Train(Subcommand):
         else:
             self.hyper_tuning = False
 
+        self.metric = self.args.metric
+        self.loss = self.args.loss
+        self.lr = self.args.lr
+        self.batch_size = self.args.batch_size
+        self.epochs = self.args.epochs
+
         self.hyperparams = {
-            "batch_size": self.args.batch_size,
             "dropout": self.args.dropout,
-            "learn_rate": self.args.lr,
             "conv_num": self.args.conv_num,
             "kernel_size": self.args.kernel_size,
             "dense_num": self.args.dense_num,
             "dense_units": self.args.dense_units,
-            "filter_num": self.args.filter_num,
-            "epochs": self.args.epochs
+            "filter_num": self.args.filter_num
         }
 
         self.optimizer = self.args.optimizer
@@ -98,7 +101,7 @@ class Train(Subcommand):
             type=int
         )
         parser.add_argument(
-            "--lr",
+            "--lr",  # TODO use LR scheduler ?
             action="store",
             default=0.0001,
             help="Learning Rate. Default=0.0001",
@@ -136,8 +139,8 @@ class Train(Subcommand):
         parser.add_argument(
             "--dense_units",
             action="store",
-            default=50,
-            help="Number of units in dense layers. Default=50",
+            default=64,
+            help="Number of units in first dense layer. Each next dense layer gets half the units. Default=64",
             type=int
         )
         parser.add_argument(
@@ -163,7 +166,7 @@ class Train(Subcommand):
         parser.add_argument(
             "--optimizer",
             action='store',
-            choices=['sgd', 'rmsprop', 'adam'],  # TODO allow all Keras optimizers or choose just some?
+            choices=['sgd', 'rmsprop', 'adam'],
             default='sgd',
             help="Optimizer to be used. Default = 'sgd'."
         )
@@ -172,7 +175,21 @@ class Train(Subcommand):
             action='store',
             choices=['simpleconv'],
             default='simpleconv',
-            help="Predefined network architecture tobe used. Default = 'simpleconv' (simple convolutional network)."
+            help="Predefined network architecture to be used. Default = 'simpleconv' (simple convolutional network)."
+        )
+        parser.add_argument(
+            "--metric",
+            action='store',
+            choices=['accuracy'],
+            default='accuracy',
+            help="Metric to be used during training. Default = 'accuracy'."
+        )
+        parser.add_argument(
+            "--loss",
+            action='store',
+            choices=['cat_crossentropy'],
+            default='cat_crossentropy',
+            help="Loss function to be used during training. Default = 'cat_crossentropy' (categorical crossentropy)."
         )
         return parser
 
@@ -243,25 +260,23 @@ class Train(Subcommand):
             hyperparams = self.hyperparams
 
         # optimizer definition
-        optimizer = self.create_optimizer(self.optimizer, self.hyperparams["learn_rate"])
+        optimizer = self.create_optimizer(self.optimizer, self.lr)
 
         # model compilation
         model.compile(
             optimizer=optimizer,
-            loss="categorical_crossentropy",  # TODO allow different one?
-            metrics=["accuracy"])  # TODO use more useful metric? Define our own metrics (separate class)
-        # Custom metrics can be passed at the compilation step. The function would need to take (y_true, y_pred)
-        # as arguments and return a single tensor value.
+            loss=self.loss,
+            metrics=self.metric)
 
         # training & testing the model (fit)
         callbacks = self.create_callbacks
-        history = self.train(model, hyperparams, callbacks,
+        history = self.train(model, self.epochs, self.batch_size, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
-        test_results = self.test(model, hyperparams['batch_size'], self.test_x, self.test_y)
+        test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
 
         # plot metrics
-        self.plot_graph(history, 'acc', 'Accuracy', self.train_dir)
-        self.plot_graph(history, 'loss', 'Categorical crossentropy loss', self.train_dir)
+        self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir)
+        self.plot_graph(history, self.loss, self.loss.capitalize(), self.train_dir)
 
         # export results
 
@@ -324,17 +339,16 @@ class Train(Subcommand):
                 decay=0.0,
                 amsgrad=False
             )
-        # define other ...
 
         return optimizer
 
     @staticmethod
-    def train(model, hyperparameters, callbacks, train_x, valid_x, train_y, valid_y):
+    def train(model, epochs, batch_size, callbacks, train_x, valid_x, train_y, valid_y):
         history = model.fit(
             train_x,
             train_y,
-            batch_size=hyperparameters['batch_size'],
-            epochs=hyperparameters['epochs'],
+            batch_size=batch_size,
+            epochs=epochs,
             verbose=1,
             validation_data=(valid_x, valid_y),
             callbacks=callbacks)
@@ -361,10 +375,10 @@ class Train(Subcommand):
         plt.plot(history[val_metric])
 
         # TODO is it necessary?
-        if metric == 'acc':
-            plt.ylim(0.0, 1.0)
-        elif metric == 'loss':
-            plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
+        # if metric == 'acc':
+        #     plt.ylim(0.0, 1.0)
+        # elif metric == 'loss':
+        #     plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
 
         plt.title("Model {}".format(title))
         plt.ylabel(title)
