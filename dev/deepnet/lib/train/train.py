@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import keras
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from keras.optimizers import SGD, RMSprop, Adam
+import math
 import matplotlib.pyplot as plt
 from hyperas import optim
 from hyperopt import Trials, STATUS_OK, tpe
@@ -53,6 +54,7 @@ class Train(Subcommand):
         self.metric = self.args.metric
         self.loss = self.args.loss
         self.lr = self.args.lr
+        self.lr_scheduler = self.args.lr_scheduler
         self.batch_size = self.args.batch_size
         self.epochs = self.args.epochs
 
@@ -101,13 +103,21 @@ class Train(Subcommand):
             type=int
         )
         parser.add_argument(
-            "--lr",  # TODO use LR scheduler ?
+            "--lr",
             action="store",
             default=0.0001,
             help="Learning Rate. Default=0.0001",
             required=False,
             type=int
         )
+        parser.add_argument(
+            "--lr_scheduler",
+            action="store",
+            default=False,
+            help="Whether to use learning rate scheduler (decreasing lr from 0.1). Default=False",
+            type=bool
+        )
+
         parser.add_argument(
             "--filter_num",
             action="store",
@@ -269,7 +279,7 @@ class Train(Subcommand):
             metrics=self.metric)
 
         # training & testing the model (fit)
-        callbacks = self.create_callbacks
+        callbacks = self.create_callbacks(self.train_dir, self.lr_scheduler)
         history = self.train(model, self.epochs, self.batch_size, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
         test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
@@ -297,7 +307,17 @@ class Train(Subcommand):
         return params, best_model
 
     @staticmethod
-    def create_callbacks(out_dir):
+    def step_decay(epoch):
+        drop = 0.5
+        epochs_drop = 10.0
+        initial_lr = 0.01
+
+        lr = initial_lr * math.pow(drop, math.floor(epoch + 1)/epochs_drop)
+
+        return lr
+
+    @staticmethod
+    def create_callbacks(out_dir, scheduler):
         # TODO replace "/CNNonRaw.hdf5" with something dynamic
         mcp = ModelCheckpoint(filepath=out_dir + "/CNNonRaw.hdf5",
                               verbose=0,
@@ -312,8 +332,13 @@ class Train(Subcommand):
         csv_logger = CSVLogger(out_dir + "/CNNonRaw.log.csv",
                                append=True,
                                separator='\t')
+        callbacks = [mcp, earlystopper, csv_logger]
 
-        return [mcp, earlystopper, csv_logger]
+        if scheduler:
+            lr_scheduler = LearningRateScheduler(step_decay)
+            callbacks.append(lr_scheduler)
+
+        return callbacks
 
     @staticmethod
     def create_optimizer(chosen, learning_rate):
