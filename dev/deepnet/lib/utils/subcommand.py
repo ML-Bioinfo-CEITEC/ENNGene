@@ -14,7 +14,8 @@ class Subcommand:
                 os.makedirs(self.args.output)
         else:
             self.output_folder = os.path.join(os.getcwd(), 'output')
-            os.makedirs(self.output_folder)
+            if not os.path.exists(self.output_folder):
+                os.makedirs(self.output_folder)
 
         self.verbose = self.args.verbose
 

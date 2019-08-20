@@ -233,7 +233,8 @@ class MakeDatasets(Subcommand):
         # Separate positives and negatives (classes) within all the categories across the branches
         datasets_to_merge = {}
         for branch, dsets in split_datasets.items():
-            if branch not in datasets_to_merge.keys(): datasets_to_merge.update({branch: {}})
+            if branch not in datasets_to_merge.keys():
+                datasets_to_merge.update({branch: {}})
             for split_subsets in dsets:
                 for category, dataset in split_subsets.items():
                     if category not in datasets_to_merge[branch].keys():
@@ -250,7 +251,8 @@ class MakeDatasets(Subcommand):
         # Export final datasets to files
         for dataset in final_datasets:
             branch_folder = os.path.join(self.output_folder, 'datasets', dataset.branch)
-            if not os.path.exists(branch_folder): os.makedirs(branch_folder)
+            if not os.path.exists(branch_folder):
+                os.makedirs(branch_folder)
             dataset.save_to_file(branch_folder)
 
         return final_datasets

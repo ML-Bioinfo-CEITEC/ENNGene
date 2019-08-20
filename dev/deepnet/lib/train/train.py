@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
@@ -8,7 +9,6 @@ import matplotlib.pyplot as plt
 from hyperas import optim
 from hyperopt import Trials, STATUS_OK, tpe
 
-from setup import random_argument_generator, make_datasets
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
 from ..utils import sequence as seq
@@ -33,7 +33,11 @@ class Train(Subcommand):
         self.train_dir = os.path.join(self.output_folder, 'training')
         if not os.path.exists(self.train_dir): os.makedirs(self.train_dir)
 
-        self.branches = self.args.branches
+        if type(self.args.branches) == list:
+            self.branches = self.args.branches
+        else:
+            self.branches = [self.args.branches]
+
         if self.args.datasets == '-':
             # TODO read from STDIN ?
             pass
@@ -91,7 +95,7 @@ class Train(Subcommand):
             action='store',
             choices=['seq', 'cons', 'fold'],
             nargs='+',
-            default='seq',
+            default="seq",
             help="Branches. [default: 'seq']"
         )
         parser.add_argument(
