@@ -5,6 +5,9 @@ import os
 import sys
 import logging
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 sys.path.append(os.getcwd())
 logging.basicConfig(filename='app.log',
                     filemode='a',
