@@ -13,7 +13,7 @@ class SimpleConvClass(Network):
 
     def __init__(self, dims={}, branches=[], hyperparams={}, labels=[]):
         super().__init__(dims=dims, branches=branches, hyperparams=hyperparams, labels=labels)
-        # TODO omit completely or add something above just super call?
+        self.name = 'simpleCNN'
         return
 
     def build_model(self, tune=False):

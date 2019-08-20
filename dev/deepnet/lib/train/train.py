@@ -278,7 +278,7 @@ class Train(Subcommand):
             metrics=self.metric)
 
         # training & testing the model (fit)
-        callbacks = self.create_callbacks(self.train_dir, self.lr_scheduler)
+        callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
         history = self.train(model, self.epochs, self.batch_size, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
         test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
@@ -316,9 +316,8 @@ class Train(Subcommand):
         return lr
 
     @staticmethod
-    def create_callbacks(out_dir, scheduler):
-        # TODO replace "/CNNonRaw.hdf5" with something dynamic
-        mcp = ModelCheckpoint(filepath=out_dir + "/CNNonRaw.hdf5",
+    def create_callbacks(out_dir, net_name, scheduler):
+        mcp = ModelCheckpoint(filepath=out_dir + "/{}.hdf5".format(net_name),
                               verbose=0,
                               save_best_only=True)
 
@@ -328,7 +327,7 @@ class Train(Subcommand):
                                      verbose=1,
                                      mode='auto')
 
-        csv_logger = CSVLogger(out_dir + "/CNNonRaw.log.csv",
+        csv_logger = CSVLogger(out_dir + "/{}.log.csv".format(net_name),
                                append=True,
                                separator='\t')
         callbacks = [mcp, earlystopper, csv_logger]
