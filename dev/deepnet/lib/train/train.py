@@ -222,6 +222,8 @@ class Train(Subcommand):
         train_y = []
         valid_y = []
         test_y = []
+        dictionary = {'train': {'x': train_x, 'y': train_y}, 'validation': {'x': valid_x, 'y': valid_y},
+             'test': {'x': test_x, 'y': test_y}}
 
         for branch in branches:
             for dataset in datasets:
@@ -230,16 +232,8 @@ class Train(Subcommand):
                 values = dataset.values()
                 labels = dataset.labels(alphabet=alphabet)
 
-                # TODO is there a dynamic way in Python to that?  "{}_x".format(dataset.category).call or something
-                if dataset.category == 'train':
-                    train_x.append(values)
-                    train_y.append(labels)
-                elif dataset.category == 'valid':
-                    valid_x.append(values)
-                    valid_y.append(labels)
-                elif dataset.category == 'test':
-                    test_x.append(values)
-                    test_y.append(labels)
+                dictionary[dataset.category]['x'].append(values)
+                dictionary[dataset.category]['y'].append(labels)
 
         print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
