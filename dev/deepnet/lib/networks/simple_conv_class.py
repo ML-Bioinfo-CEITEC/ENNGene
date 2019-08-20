@@ -61,10 +61,10 @@ class SimpleConvClass(Network):
 
         # Continue to dense layers using concatenated results from convolution of the branches
         for dense in range(0, dense_num):
-            units = dense_units / pow(2, dense)
+            units = int(dense_units / pow(2, dense))
             # Just ensure the number does not drop bellow the number of classes
             if units < len(self.labels):
-                units = len(self.labels)
+                units = int(len(self.labels))
 
             x = Dense(units)(x)
             x = LeakyReLU()(x)
