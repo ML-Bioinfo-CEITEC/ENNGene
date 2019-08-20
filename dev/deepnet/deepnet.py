@@ -7,6 +7,7 @@ import logging
 
 from tensorflow.python.util import deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 sys.path.append(os.getcwd())
 logging.basicConfig(filename='app.log',

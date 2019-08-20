@@ -195,15 +195,15 @@ class Train(Subcommand):
             "--metric",
             action='store',
             choices=['accuracy'],
-            default='accuracy',
+            default=['accuracy'],
             help="Metric to be used during training. Default = 'accuracy'."
         )
         parser.add_argument(
             "--loss",
             action='store',
-            choices=['cat_crossentropy'],
-            default='cat_crossentropy',
-            help="Loss function to be used during training. Default = 'cat_crossentropy' (categorical crossentropy)."
+            choices=['categorical_crossentropy'],
+            default=['categorical_crossentropy'],
+            help="Loss function to be used during training. Default = 'categorical_crossentropy'."
         )
         return parser
 
@@ -241,6 +241,7 @@ class Train(Subcommand):
                     test_x.append(values)
                     test_y.append(labels)
 
+        print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
     @staticmethod
