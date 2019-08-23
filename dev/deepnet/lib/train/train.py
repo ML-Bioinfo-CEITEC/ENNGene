@@ -216,14 +216,12 @@ class Train(Subcommand):
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
 
-        train_x = []
-        valid_x = []
-        test_x = []
-        train_y = []
-        valid_y = []
-        test_y = []
-        dictionary = {'train': {'x': train_x, 'y': train_y}, 'validation': {'x': valid_x, 'y': valid_y},
-             'test': {'x': test_x, 'y': test_y}}
+        split_datasets = ['train_x', 'train_y', 'valid_x', 'valid_y', 'test_x', 'test_y']
+        split_datasets_dict = dict(zip(split_datasets, [[] for _ in range(len(split_datasets))]))
+
+        dictionary = {'train': {'x': split_datasets_dict['train_x'], 'y': split_datasets_dict['train_y']},
+                      'validation': {'x': split_datasets_dict['valid_x'], 'y': split_datasets_dict['valid_y']},
+                      'test': {'x': split_datasets_dict['test_x'], 'y': split_datasets_dict['test_y']}}
 
         for branch in branches:
             for dataset in datasets:
@@ -234,6 +232,9 @@ class Train(Subcommand):
 
                 dictionary[dataset.category]['x'].append(values)
                 dictionary[dataset.category]['y'].append(labels)
+
+        train_x, train_y, valid_x, valid_y, test_x, test_y = \
+            [np.array(split_dataset) for split_dataset in split_datasets_dict.values()]
 
         print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
