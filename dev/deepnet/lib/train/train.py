@@ -307,14 +307,10 @@ class Train(Subcommand):
         return params, best_model
 
     @staticmethod
-    def step_decay(epoch):
-        drop = 0.5
-        epochs_drop = 10.0
-        initial_lr = 0.01
-
-        lr = initial_lr * math.pow(drop, math.floor(epoch + 1)/epochs_drop)
-
-        return lr
+    def step_decay_schedule(initial_lr=1e-3, drop = 0.5, epochs_drop = 10.0):
+        def schedule(epoch):
+            return initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
+        return LearningRateScheduler(schedule)
 
     @staticmethod
     def create_callbacks(out_dir, net_name, scheduler):
@@ -334,8 +330,7 @@ class Train(Subcommand):
         callbacks = [mcp, earlystopper, csv_logger]
 
         if scheduler:
-            lr_scheduler = LearningRateScheduler(step_decay)
-            callbacks.append(lr_scheduler)
+            callbacks.append(Train.step_decay_schedule())
 
         return callbacks
 
