@@ -1,9 +1,10 @@
 import keras
+import numpy as np
 from hyperas.distributions import choice, uniform
+from hyperopt import STATUS_OK
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D, \
-    Activation, LSTM, Bidirectional, Input, BatchNormalization
-from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D, Input, BatchNormalization
+from keras.models import Model
 
 from .network import Network
 
@@ -16,25 +17,10 @@ class SimpleConvClass(Network):
         self.name = 'simpleCNN'
         return
 
-    def build_model(self, tune=False):
-        super().build_model(tune=tune)
-
-        if tune:
-            # conv_num = {{choice([1, 2, 3, 4])}} # Kept fixed for now to lower tuning time. default = 3
-
-            # TODO kernel size and no. of filters does/not depend on the index of the convolutional layer?
-            conv_filters = {{choice([16, 32, 64])}}
-            # TODO in mustard the kernel sizes were 16, 30 and 20 per branch and decreasing with each layer
-            conv_kernels = {{choice([1, 3, 5])}}
-            dense_num = {{choice([1, 2, 3, 4])}}
-            dense_units = {{choice([32, 64, 128])}}
-            do_rate = {{uniform(0.2, 0.4)}}
-        else:
-            conv_filters = self.hyperparams['filter_num']
-            conv_kernels = self.hyperparams['kernel_size']
-            dense_num = self.hyperparams['dense_num']
-            dense_units = self.hyperparams['dense_units']
-            do_rate = self.hyperparams['dropout']
+    def build_model(self):
+        super().build_model()
+        # TODO kernel size and no. of filters does/not depend on the index of the convolutional layer?
+        # TODO in mustard the kernel sizes were 16, 30 and 20 per branch and decreasing with each layer
 
         inputs = []
         branches_models = []
@@ -46,12 +32,12 @@ class SimpleConvClass(Network):
             inputs.append(x)
 
             for convolution in range(0, self.hyperparams['conv_num']):
-                x = Conv1D(filters=conv_filters, kernel_size=conv_kernels, strides=1,
+                x = Conv1D(filters=self.hyperparams['filter_num'], kernel_size=self.hyperparams['kernel_size'], strides=1,
                            padding="same")(x)
                 x = LeakyReLU()(x)
                 x = BatchNormalization()(x)
                 x = MaxPooling1D(pool_size=2, padding="same")(x)
-                x = Dropout(rate=do_rate, noise_shape=None, seed=None)(x)
+                x = Dropout(rate=self.hyperparams['dropout'], noise_shape=None, seed=None)(x)
             branches_models.append(Flatten()(x))
 
         if len(self.branches) == 1:
@@ -60,8 +46,8 @@ class SimpleConvClass(Network):
             x = keras.layers.concatenate(branches_models)
 
         # Continue to dense layers using concatenated results from convolution of the branches
-        for dense in range(0, dense_num):
-            units = int(dense_units / pow(2, dense))
+        for dense in range(0, self.hyperparams['dense_num']):
+            units = int(self.hyperparams['dense_units'] / pow(2, dense))
             # Just ensure the number does not drop bellow the number of classes
             if units < len(self.labels):
                 units = int(len(self.labels))
@@ -69,11 +55,68 @@ class SimpleConvClass(Network):
             x = Dense(units)(x)
             x = LeakyReLU()(x)
             x = BatchNormalization()(x)
-            x = Dropout(rate=do_rate, noise_shape=None, seed=None)(x)
+            x = Dropout(rate=self.hyperparams['dropout'], noise_shape=None, seed=None)(x)
 
         output = Dense(units=len(self.labels), activation="softmax")(x)
         model = Model(inputs, output)
 
-        # validation_metric = np.amax(history[val_metric])
-        # return {'loss': -validation_metric, 'status': STATUS_OK, 'model': model}
         return model
+
+    def tune_model(x_train, y_train, x_test, y_test):
+        # TODO
+        # conv_num = {{choice([1, 2, 3, 4])}} # Kept fixed for now to lower tuning time. default = 3
+
+        args = my_args()
+
+        inputs = []
+        branches_models = []
+        for branch in self.branches:
+            # Create convolutional network for each branch separately
+
+            # batch size left undefined, thus variable
+            x = Input(shape=(self.dims[branch][0], self.dims[branch][1]))
+            inputs.append(x)
+
+            for convolution in range(0, self.hyperparams['conv_num']):
+                x = Conv1D(filters={{choice([16, 32, 64])}}, kernel_size={{choice([1, 3, 5])}}, strides=1,
+                           padding="same")(x)
+                x = LeakyReLU()(x)
+                x = BatchNormalization()(x)
+                x = MaxPooling1D(pool_size=2, padding="same")(x)
+                x = Dropout(rate={{uniform(0.2, 0.4)}}, noise_shape=None, seed=None)(x)
+            branches_models.append(Flatten()(x))
+
+        if len(self.branches) == 1:
+            x = branches_models[0]
+        else:
+            x = keras.layers.concatenate(branches_models)
+
+        # Continue to dense layers using concatenated results from convolution of the branches
+        for dense in range(0, {{choice([1, 2, 3, 4])}}):
+            units = int({{choice([32, 64, 128])}} / pow(2, dense))
+            # Just ensure the number does not drop bellow the number of classes
+            if units < len(self.labels):
+                units = int(len(self.labels))
+
+            x = Dense(units)(x)
+            x = LeakyReLU()(x)
+            x = BatchNormalization()(x)
+            x = Dropout(rate={{uniform(0.2, 0.4)}}, noise_shape=None, seed=None)(x)
+
+        output = Dense(units=len(self.labels), activation="softmax")(x)
+        model = Model(inputs, output)
+
+        model.compile(loss='categorical_crossentropy', metrics=['accuracy'],
+                      optimizer={{choice(['rmsprop', 'adam', 'sgd'])}})
+
+        result = model.fit(x_train, y_train,
+                           batch_size={{choice([64, 128, 256])}},
+                           epochs=2,
+                           verbose=2,
+                           validation_split=0.1)
+
+        #get the highest validation accuracy of the training epochs
+        validation_acc = np.amax(result.history['val_acc'])
+        print('Best validation acc of epoch:', validation_acc)
+
+        return {'loss': -validation_acc, 'status': STATUS_OK, 'model': model}

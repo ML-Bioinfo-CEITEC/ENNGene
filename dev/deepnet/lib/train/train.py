@@ -1,13 +1,11 @@
 import os
 
-import numpy as np
-import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from keras.optimizers import SGD, RMSprop, Adam
 import math
 import matplotlib.pyplot as plt
 from hyperas import optim
-from hyperopt import Trials, STATUS_OK, tpe
+from hyperopt import Trials, tpe
 
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
@@ -223,7 +221,7 @@ class Train(Subcommand):
         valid_y = []
         test_y = []
         dictionary = {'train': {'x': train_x, 'y': train_y}, 'validation': {'x': valid_x, 'y': valid_y},
-             'test': {'x': test_x, 'y': test_y}}
+                      'test': {'x': test_x, 'y': test_y}}
 
         for branch in branches:
             for dataset in datasets:
@@ -235,8 +233,16 @@ class Train(Subcommand):
                 dictionary[dataset.category]['x'].append(values)
                 dictionary[dataset.category]['y'].append(labels)
 
-        print(train_x.shape)
+        # print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
+
+    @staticmethod
+    def parse_tuning_args():
+        return args
+
+    @staticmethod
+    def data():
+        return x_train, y_train, x_test, y_test
 
     @staticmethod
     def get_dims(data, branches):
@@ -260,10 +266,14 @@ class Train(Subcommand):
 
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            # TODO what is the model returned by hyperas? Can we use it?
-            # Or I'm going to create new model using the given hyperparameters?
-            hyperparams, model = self.tune_hyperparameters(network, self.tune_rounds, self.dims)
             # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
+
+            best_run, best_model = optim.minimize(model=network.tune_model,
+                                                  data=self.data,
+                                                  functions=[parse_tuning_data],
+                                                  algo=tpe.suggest,
+                                                  max_evals=self.tune_rounds,
+                                                  trials=Trials())
         else:
             model = network.build_model(tune=False)
             hyperparams = self.hyperparams
@@ -296,22 +306,13 @@ class Train(Subcommand):
         # TODO return something that can be passed on to the next module
 
     @staticmethod
-    def tune_hyperparameters(network, tune_rounds, data):
-        # using hyperas package
-        model = network.build_model(tune=True)
-        params, best_model = optim.minimize(model=model, data=data,
-                                            algo=tpe.suggest,
-                                            max_evals=tune_rounds,
-                                            trials=Trials())
-        return params, best_model
-
-    @staticmethod
     def step_decay(epoch):
+        # TODO define as lambda within create_callbacks method? or make it instance call
         drop = 0.5
         epochs_drop = 10.0
         initial_lr = 0.01
 
-        lr = initial_lr * math.pow(drop, math.floor(epoch + 1)/epochs_drop)
+        lr = initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
 
         return lr
 
