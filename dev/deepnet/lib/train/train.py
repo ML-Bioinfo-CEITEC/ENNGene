@@ -1,13 +1,11 @@
 import os
 
-import numpy as np
-import keras
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from keras.optimizers import SGD, RMSprop, Adam
 import math
 import matplotlib.pyplot as plt
 from hyperas import optim
-from hyperopt import Trials, STATUS_OK, tpe
+from hyperopt import Trials, tpe
 
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
@@ -240,6 +238,14 @@ class Train(Subcommand):
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
     @staticmethod
+    def parse_tuning_args():
+        return args
+
+    @staticmethod
+    def data():
+        return x_train, y_train, x_test, y_test
+
+    @staticmethod
     def get_dims(data, branches):
         # TODO for now, only 1D data are taken into account
         # Assuming fixed order of the branches
@@ -261,10 +267,14 @@ class Train(Subcommand):
 
         # hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            # TODO what is the model returned by hyperas? Can we use it?
-            # Or I'm going to create new model using the given hyperparameters?
-            hyperparams, model = self.tune_hyperparameters(network, self.tune_rounds, self.dims)
             # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
+
+            best_run, best_model = optim.minimize(model=network.tune_model,
+                                                  data=self.data,
+                                                  functions=[parse_tuning_data],
+                                                  algo=tpe.suggest,
+                                                  max_evals=self.tune_rounds,
+                                                  trials=Trials())
         else:
             model = network.build_model(tune=False)
             hyperparams = self.hyperparams

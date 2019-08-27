@@ -18,6 +18,6 @@ class Network:
         #     "nodes": self.args.nodes
         # }
 
-    def build_model(self, tune=False):
+    def build_model(self):
         # TODO Will there be any generic part or should this method be specific for each architecture?
         return
