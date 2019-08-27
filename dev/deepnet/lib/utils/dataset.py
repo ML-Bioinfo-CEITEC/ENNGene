@@ -41,13 +41,9 @@ class Dataset:
 
         # separate original dictionary by categories
         for datapoint in dataset.datapoint_set:
-            try:
-                category = categories_by_chr[datapoint.chrom_name]
-                if category not in split_sets.keys(): split_sets.update({category: set()})
-                split_sets[category].add(datapoint)
-            except:
-                # probably unnecessary (already checked for valid chromosomes before?)
-                continue
+            category = categories_by_chr[datapoint.chrom_name]
+            if category not in split_sets.keys(): split_sets.update({category: set()})
+            split_sets[category].add(datapoint)
 
         # create Dataset objects from separated dictionaries
         for category, set_ in split_sets.items():
