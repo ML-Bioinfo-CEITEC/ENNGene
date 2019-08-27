@@ -214,14 +214,12 @@ class Train(Subcommand):
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
 
-        train_x = []
-        valid_x = []
-        test_x = []
-        train_y = []
-        valid_y = []
-        test_y = []
-        dictionary = {'train': {'x': train_x, 'y': train_y}, 'validation': {'x': valid_x, 'y': valid_y},
-                      'test': {'x': test_x, 'y': test_y}}
+        split_datasets = ['train_x', 'train_y', 'valid_x', 'valid_y', 'test_x', 'test_y']
+        split_datasets_dict = dict(zip(split_datasets, [[] for _ in range(len(split_datasets))]))
+
+        dictionary = {'train': {'x': split_datasets_dict['train_x'], 'y': split_datasets_dict['train_y']},
+                      'validation': {'x': split_datasets_dict['valid_x'], 'y': split_datasets_dict['valid_y']},
+                      'test': {'x': split_datasets_dict['test_x'], 'y': split_datasets_dict['test_y']}}
 
         for branch in branches:
             for dataset in datasets:
@@ -233,7 +231,10 @@ class Train(Subcommand):
                 dictionary[dataset.category]['x'].append(values)
                 dictionary[dataset.category]['y'].append(labels)
 
-        # print(train_x.shape)
+        train_x, train_y, valid_x, valid_y, test_x, test_y = \
+            [np.array(split_dataset) for split_dataset in split_datasets_dict.values()]
+
+        print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
     @staticmethod
@@ -306,15 +307,20 @@ class Train(Subcommand):
         # TODO return something that can be passed on to the next module
 
     @staticmethod
-    def step_decay(epoch):
-        # TODO define as lambda within create_callbacks method? or make it instance call
-        drop = 0.5
-        epochs_drop = 10.0
-        initial_lr = 0.01
+    def tune_hyperparameters(network, tune_rounds, data):
+        # using hyperas package
+        model = network.build_model(tune=True)
+        params, best_model = optim.minimize(model=model, data=data,
+                                            algo=tpe.suggest,
+                                            max_evals=tune_rounds,
+                                            trials=Trials())
+        return params, best_model
 
-        lr = initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
-
-        return lr
+    @staticmethod
+    def step_decay_schedule(initial_lr=1e-3, drop = 0.5, epochs_drop = 10.0):
+        def schedule(epoch):
+            return initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
+        return LearningRateScheduler(schedule)
 
     @staticmethod
     def create_callbacks(out_dir, net_name, scheduler):
@@ -334,8 +340,7 @@ class Train(Subcommand):
         callbacks = [mcp, earlystopper, csv_logger]
 
         if scheduler:
-            lr_scheduler = LearningRateScheduler(step_decay)
-            callbacks.append(lr_scheduler)
+            callbacks.append(Train.step_decay_schedule())
 
         return callbacks
 
