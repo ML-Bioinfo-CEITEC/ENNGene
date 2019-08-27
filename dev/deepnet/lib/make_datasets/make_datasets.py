@@ -223,7 +223,6 @@ class MakeDatasets(Subcommand):
             if branch not in split_datasets.keys(): split_datasets.update({branch: []})
             for dataset in dsets:
                 if self.split == 'by_chr':
-                    # FIXME for some reason returns empty sets
                     split_subsets = Dataset.split_by_chr(dataset, self.chromosomes)
                 elif self.split == 'rand':
                     # TODO export before random separation
