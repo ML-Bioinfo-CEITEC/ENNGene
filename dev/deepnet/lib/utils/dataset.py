@@ -8,7 +8,6 @@ from . import sequence as seq
 
 
 class Dataset:
-    # TODO E - implement dataset.key a dataset.value to divide it for train_x and train_y (data and labels)
 
     @classmethod
     def load_from_file(cls, file_path):

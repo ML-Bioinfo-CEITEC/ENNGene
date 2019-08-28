@@ -1,4 +1,5 @@
 import os
+import sys
 
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from keras.optimizers import SGD, RMSprop, Adam
@@ -125,7 +126,8 @@ class Train(Subcommand):
             action="store",
             default=40,
             help="Filter Number. Default=40",
-            required=False
+            required=False,
+            type=int
         )
         parser.add_argument(
             "--conv_num",
@@ -158,7 +160,7 @@ class Train(Subcommand):
         parser.add_argument(
             "--epochs",
             action="store",
-            default=3,  # 600,
+            default=600,
             help="Number of epochs to train",
             type=int
         )
@@ -173,6 +175,7 @@ class Train(Subcommand):
             "--tune_rounds",
             action="store",
             default=5,
+            type=int,
             help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
         )
         parser.add_argument(
@@ -207,9 +210,6 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
-        # TODO D What was the meaning of the random_argument_generator ?
-        # for argument in random_argument_generator(shuffles=1):
-
         datasets = set()
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
@@ -348,6 +348,7 @@ class Train(Subcommand):
         callbacks = [mcp, earlystopper, csv_logger]
 
         if scheduler:
+            # TODO probably does not make sense to use with ADAM and RMSProp?
             callbacks.append(Train.step_decay_schedule())
 
         return callbacks
@@ -372,7 +373,7 @@ class Train(Subcommand):
                 lr=learning_rate,
                 beta_1=0.9,
                 beta_2=0.999,
-                epsilon=None,
+                epsilon=None,  # 10−8 for ϵ
                 decay=0.0,
                 amsgrad=False
             )
@@ -423,8 +424,3 @@ class Train(Subcommand):
         plt.legend(['Train', 'Validation'], loc='lower right')
         plt.savefig(out_dir + "/CNNonRaw.acc.png", dpi=300)
         plt.clf()
-
-    # TODO Is this class needed?
-    # class Config:
-    #     data_file_path = None
-    #     tmp_output_directory = None
