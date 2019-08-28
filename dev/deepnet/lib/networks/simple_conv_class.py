@@ -62,11 +62,8 @@ class SimpleConvClass(Network):
 
         return model
 
-    def tune_model(x_train, y_train, x_test, y_test):
-        # TODO
+    def tune_model(self, x_train, y_train):
         # conv_num = {{choice([1, 2, 3, 4])}} # Kept fixed for now to lower tuning time. default = 3
-
-        args = my_args()
 
         inputs = []
         branches_models = []

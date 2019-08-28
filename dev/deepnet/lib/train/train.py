@@ -237,13 +237,24 @@ class Train(Subcommand):
         print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]
 
-    @staticmethod
-    def parse_tuning_args():
-        return args
+    def get_data_model(self, network):
+        def data():
+            return self.train_x, self.train_y, self.test_x, self.test_y
 
-    @staticmethod
-    def data():
-        return x_train, y_train, x_test, y_test
+        # FIXME why dous hyperas has issue with the indentation?
+        def create_model(x_train, y_train, x_test, y_test):
+            return network.tune_model(x_train, y_train)
+
+        return data, create_model
+
+    def tune_params(self, network):
+        data, create_model = self.get_data_model(network)
+        best_run, best_model = optim.minimize(model=create_model,
+                                              data=data,
+                                              algo=tpe.suggest,
+                                              max_evals=self.tune_rounds,
+                                              trials=Trials())
+        return best_run, best_model
 
     @staticmethod
     def get_dims(data, branches):
@@ -269,14 +280,11 @@ class Train(Subcommand):
         if self.hyper_tuning:
             # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
 
-            best_run, best_model = optim.minimize(model=network.tune_model,
-                                                  data=self.data,
-                                                  functions=[parse_tuning_data],
-                                                  algo=tpe.suggest,
-                                                  max_evals=self.tune_rounds,
-                                                  trials=Trials())
+            best_run, best_model = self.tune_params(network)
+            print("Finished hyperparam tuning")
+            sys.exit()
         else:
-            model = network.build_model(tune=False)
+            model = network.build_model()
             hyperparams = self.hyperparams
 
         # optimizer definition
