@@ -72,3 +72,7 @@ class DataPoint:
                 string += str(e) + "\t"
 
         return string.strip('\t').strip(', ')
+
+    def translate_value(self, encoding):
+        new_value = np.array([seq.translate(item, encoding) for item in self.value])
+        self.value = new_value

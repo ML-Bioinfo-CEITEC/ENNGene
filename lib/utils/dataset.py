@@ -122,8 +122,7 @@ class Dataset:
         # TODO apply one-hot encoding also to the fold branch?
         if encoding and branch == 'seq':
             for datapoint in self.datapoint_set:
-                new_value = [seq.translate(item, encoding) for item in datapoint.value]
-                datapoint.value = new_value
+                datapoint.translate_value(encoding)
 
     def save_to_file(self, branch_dir_path):
         file_name = self.category
