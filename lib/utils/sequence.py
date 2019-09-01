@@ -127,7 +127,7 @@ def complement(sequence_list, dictionary):
 
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
-    if class_name != 'list':
+    if class_name != 'list' and class_name != 'ndarray':
         logger.exception('Exception occurred.')
         raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
 

@@ -231,8 +231,7 @@ class Train(Subcommand):
                 dictionary[dataset.category]['x'].append(values)
                 dictionary[dataset.category]['y'].append(labels)
 
-        train_x, train_y, valid_x, valid_y, test_x, test_y = \
-            [np.array(split_dataset) for split_dataset in split_datasets_dict.values()]
+        train_x, train_y, valid_x, valid_y, test_x, test_y = split_datasets_dict.values()
 
         print(train_x.shape)
         return [train_x, valid_x, test_x, train_y, valid_y, test_y]

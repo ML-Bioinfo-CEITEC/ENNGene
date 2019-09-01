@@ -1,3 +1,8 @@
+import numpy as np
+
+from . import sequence as seq
+
+
 class DataPoint:
 
     @classmethod
@@ -17,9 +22,9 @@ class DataPoint:
             subparts = part.split(',')
             for subpart in subparts:
                 new_part.append(float(subpart))
-            new_parts.append(new_part)
+            new_parts.append(np.array(new_part))
 
-        return new_parts
+        return np.array(new_parts)
 
     @classmethod
     def attrs_from_key(cls, key):
@@ -56,7 +61,7 @@ class DataPoint:
     def string_value(self):
         string = ""
         for e in self.value:
-            if type(e) == list:
+            if type(e) == np.ndarray:
                 substring = ""
                 for el in e:
                     substring += str(el) + ", "

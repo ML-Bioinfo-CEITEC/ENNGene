@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import platform
 import random
@@ -152,7 +153,7 @@ class Dataset:
         for datapoint in self.datapoint_set:
             values.append(datapoint.value)
 
-        return values
+        return np.array(values)
 
     def labels(self, alphabet=None):
         # return ordered list of values of datapoints
@@ -162,9 +163,9 @@ class Dataset:
 
         if alphabet:
             encoded_labels = [seq.translate(item, alphabet) for item in labels]
-            return encoded_labels
+            return np.array(encoded_labels)
         else:
-            return labels
+            return np.array(labels)
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)
@@ -199,6 +200,8 @@ class Dataset:
 
                 if complement and strand and strand_sign == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
+
+                sequence = np.array(sequence)
 
                 final_set.add(DataPoint(chrom_name, seq_start, seq_end, strand_sign, klass, sequence))
 
