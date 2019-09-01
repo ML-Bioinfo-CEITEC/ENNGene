@@ -45,7 +45,7 @@ class Train(Subcommand):
             self.labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.args.datasets[0]).labels())))
             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = \
                 self.parse_data(self.args.datasets, self.branches, self.labels)
-        self.dims = self.get_dims(self.train_x, self.branches)
+        self.branch_shapes = self.get_shapes(self.train_x, self.branches)
 
         self.network = self.args.network
         if self.args.hyper_tuning:
@@ -256,22 +256,20 @@ class Train(Subcommand):
         return best_run, best_model
 
     @staticmethod
-    def get_dims(data, branches):
+    def get_shapes(data, branches):
         # TODO for now, only 1D data are taken into account
         # Assuming fixed order of the branches
-        dims = {}
+        shapes = {}
         for i, branch in enumerate(branches):
-            seq_len = len(data[i][0])  # e.g. 10 for a sequence of 10 bases
-            seq_size = len(data[i][0][0])  # e.g. 5 for one-hot encoded bases or 1 for conservation score
-            dims.update({branch: [seq_len, seq_size]})
+            shapes.update({branch: data[i].shape})
 
-        return dims
+        return shapes
 
     def run(self):
         # define model based on chosen architecture
         if self.network == 'simpleconv':
             network = SimpleConvClass(
-                dims=self.dims, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
+                branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
         else:
             raise Exception  # should not be possible to happen, later add other architectures here
 

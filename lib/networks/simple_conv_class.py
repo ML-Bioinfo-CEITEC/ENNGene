@@ -12,8 +12,8 @@ from .network import Network
 class SimpleConvClass(Network):
     # Classification network using few convolutional layers
 
-    def __init__(self, dims={}, branches=[], hyperparams={}, labels=[]):
-        super().__init__(dims=dims, branches=branches, hyperparams=hyperparams, labels=labels)
+    def __init__(self, branch_shapes={}, branches=[], hyperparams={}, labels=[]):
+        super().__init__(branch_shapes=branch_shapes, branches=branches, hyperparams=hyperparams, labels=labels)
         self.name = 'simpleCNN'
         return
 
@@ -28,7 +28,7 @@ class SimpleConvClass(Network):
             # Create convolutional network for each branch separately
 
             # batch size left undefined, thus variable
-            x = Input(shape=(self.dims[branch][0], self.dims[branch][1]))
+            x = Input(shape=(self.branch_shapes[branch][1:]))
             inputs.append(x)
 
             for convolution in range(0, self.hyperparams['conv_num']):
@@ -71,7 +71,7 @@ class SimpleConvClass(Network):
             # Create convolutional network for each branch separately
 
             # batch size left undefined, thus variable
-            x = Input(shape=(self.dims[branch][0], self.dims[branch][1]))
+            x = Input(shape=(self.branch_shapes[branch][1:]))
             inputs.append(x)
 
             for convolution in range(0, self.hyperparams['conv_num']):
