@@ -223,18 +223,19 @@ class Train(Subcommand):
 
         for branch in branches:
             for dataset in datasets:
-                # to ensure the right order of data within arrays
+                # to ensure the right order of branches within arrays
                 if dataset.branch != branch: continue
                 values = dataset.values()
-                labels = dataset.labels(alphabet=alphabet)
-
                 dictionary[dataset.category]['x'].append(values)
-                dictionary[dataset.category]['y'].append(labels)
+
+                # parse labels only once together for all the branches
+                if not dictionary[dataset.category]['y']:
+                    labels = dataset.labels(alphabet=alphabet)
+                    dictionary[dataset.category]['y'].append(labels)
 
         train_x, train_y, valid_x, valid_y, test_x, test_y = split_datasets_dict.values()
 
-        print(train_x.shape)
-        return [train_x, valid_x, test_x, train_y, valid_y, test_y]
+        return [train_x, valid_x, test_x, train_y[0], valid_y[0], test_y[0]]
 
     def get_data_model(self, network):
         def data():
