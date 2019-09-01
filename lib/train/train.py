@@ -1,10 +1,10 @@
-import os
-import sys
-
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from keras.optimizers import SGD, RMSprop, Adam
 import math
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+import sys
 from hyperas import optim
 from hyperopt import Trials, tpe
 
@@ -210,6 +210,8 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
+        # TODO clean up
+        # TODO if there is only one branch do not return list
         datasets = set()
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
@@ -241,7 +243,7 @@ class Train(Subcommand):
         def data():
             return self.train_x, self.train_y, self.test_x, self.test_y
 
-        # FIXME why dous hyperas has issue with the indentation?
+        # FIXME why does hyperas have issue with the indentation?
         def create_model(x_train, y_train, x_test, y_test):
             return network.tune_model(x_train, y_train)
 

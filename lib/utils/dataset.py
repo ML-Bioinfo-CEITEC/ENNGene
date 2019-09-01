@@ -174,6 +174,8 @@ class Dataset:
 
     @staticmethod
     def map_bed_to_ref(bed_file, ref_dictionary, strand, klass, complement):
+        # TODO deal with not found regions - in case one sequence can not be mapped to conservatino file, its index
+        # should marked and later removed from all branches datasets
         file = f.filehandle_for(bed_file)
         final_set = set()
 

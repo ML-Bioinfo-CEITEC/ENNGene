@@ -21,6 +21,8 @@ class SimpleConvClass(Network):
         super().build_model()
         # TODO kernel size and no. of filters does/not depend on the index of the convolutional layer?
         # TODO in mustard the kernel sizes were 16, 30 and 20 per branch and decreasing with each layer
+        # TODO should the filter numbers increase with each convolution?
+        #  to progressively learn more discriminative features
 
         inputs = []
         branches_models = []

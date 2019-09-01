@@ -207,6 +207,7 @@ class MakeDatasets(Subcommand):
                 if branch not in reduced_datasets.keys(): reduced_datasets.update({branch: set()})
                 for dataset in dsets:
                     if dataset.klass in self.reducelist:
+                        # TODO ensure all branches get reduced by the same samples
                         print("reducing klass {} for branch {}".format(dataset.klass, branch))
                         ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
                         reduced_datasets[branch].add(dataset.reduce(ratio, self.reduceseed))
@@ -225,6 +226,8 @@ class MakeDatasets(Subcommand):
                 if self.split == 'by_chr':
                     split_subsets = Dataset.split_by_chr(dataset, self.chromosomes)
                 elif self.split == 'rand':
+                    # FIXME ensure all branches must by split by the same samples. Is usign the same seed enough?
+                    # or use e.g. sklearn train_test_split or something like that?
                     # TODO export before random separation
                     split_subsets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
                 split_datasets[branch].append(split_subsets)
