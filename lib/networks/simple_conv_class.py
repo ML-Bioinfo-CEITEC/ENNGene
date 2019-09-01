@@ -58,7 +58,12 @@ class SimpleConvClass(Network):
             x = Dropout(rate=self.hyperparams['dropout'], noise_shape=None, seed=None)(x)
 
         output = Dense(units=len(self.labels), activation="softmax")(x)
-        model = Model(inputs, output)
+
+        # TODO adjust data parsing as well
+        if len(self.branches) == 1:
+            model = Model(inputs[0], output)
+        else:
+            model = Model(inputs, output)
 
         return model
 
