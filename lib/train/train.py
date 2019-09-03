@@ -303,10 +303,9 @@ class Train(Subcommand):
         test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
 
         # plot metrics
-        self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir)
-        # self.plot_graph(history, self.loss, self.loss.capitalize(), self.train_dir)
+        self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
         # It does not return name of the loss, just 'loss' ...
-        self.plot_graph(history, 'loss', self.loss.capitalize(), self.train_dir)
+        self.plot_graph(history, 'loss', self.loss.capitalize(), self.train_dir, network.name)
 
         # export results
 
@@ -407,13 +406,14 @@ class Train(Subcommand):
         return test_results
 
     @staticmethod
-    def plot_graph(history, metric, title, out_dir):
+    def plot_graph(history, metric, title, out_dir, network_name):
         # TODO separate class for plotting? probably combined with the Evaluate module
 
         # for some reason here it calls accuracy just 'acc'
         if metric == 'accuracy':
             metric = 'acc'
         val_metric = "val_{}".format(metric)
+        file_name = "/{}.{}.png".format(network_name, metric)
 
         plt.plot(history.history[metric])
         plt.plot(history.history[val_metric])
@@ -428,5 +428,5 @@ class Train(Subcommand):
         plt.ylabel(title)
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'], loc='lower right')
-        plt.savefig(out_dir + "/CNNonRaw.acc.png", dpi=300)
+        plt.savefig(out_dir + file_name, dpi=300)
         plt.clf()
