@@ -196,14 +196,14 @@ class Train(Subcommand):
             "--metric",
             action='store',
             choices=['accuracy'],
-            default=['accuracy'],
+            default='accuracy',
             help="Metric to be used during training. Default = 'accuracy'."
         )
         parser.add_argument(
             "--loss",
             action='store',
             choices=['categorical_crossentropy'],
-            default=['categorical_crossentropy'],
+            default='categorical_crossentropy',
             help="Loss function to be used during training. Default = 'categorical_crossentropy'."
         )
         return parser
@@ -293,8 +293,8 @@ class Train(Subcommand):
         # model compilation
         model.compile(
             optimizer=optimizer,
-            loss=self.loss,
-            metrics=self.metric)
+            loss=[self.loss],
+            metrics=[self.metric])
 
         # training & testing the model (fit)
         callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
@@ -304,7 +304,9 @@ class Train(Subcommand):
 
         # plot metrics
         self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir)
-        self.plot_graph(history, self.loss, self.loss.capitalize(), self.train_dir)
+        # self.plot_graph(history, self.loss, self.loss.capitalize(), self.train_dir)
+        # It does not return name of the loss, just 'loss' ...
+        self.plot_graph(history, 'loss', self.loss.capitalize(), self.train_dir)
 
         # export results
 
@@ -407,10 +409,14 @@ class Train(Subcommand):
     @staticmethod
     def plot_graph(history, metric, title, out_dir):
         # TODO separate class for plotting? probably combined with the Evaluate module
+
+        # for some reason here it calls accuracy just 'acc'
+        if metric == 'accuracy':
+            metric = 'acc'
         val_metric = "val_{}".format(metric)
 
-        plt.plot(history[metric])
-        plt.plot(history[val_metric])
+        plt.plot(history.history[metric])
+        plt.plot(history.history[val_metric])
 
         # TODO is it necessary?
         # if metric == 'acc':
