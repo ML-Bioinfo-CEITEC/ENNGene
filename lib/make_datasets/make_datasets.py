@@ -223,13 +223,13 @@ class MakeDatasets(Subcommand):
             reduced_datasets = full_datasets
 
         # Split datasets into train, validation, test and blackbox datasets
-        split_datasets = set()  # TODO creates kind of pool of all datasets that will be sorted out later
+        split_datasets = set()
         for dataset in reduced_datasets:
             if self.split == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
             elif self.split == 'rand':
                 split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
-            split_datasets.add(*split_subdatasets)
+            split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same klass within all the branch (e.g. train = pos + neg)
         final_datasets = Dataset.merge_by_klass(split_datasets)

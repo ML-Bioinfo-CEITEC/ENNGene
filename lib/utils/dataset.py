@@ -35,20 +35,20 @@ class Dataset:
 
     @classmethod
     def split_by_chr(cls, dataset, chrs_by_category):
-        split_sets = {}
-        final_datasets = {}
         categories_by_chr = cls.reverse_chrs_dictionary(chrs_by_category)
 
         # separate original dictionary by categories
+        split_sets = {}
         for datapoint in dataset.datapoint_set:
             category = categories_by_chr[datapoint.chrom_name]
             if category not in split_sets.keys(): split_sets.update({category: set()})
             split_sets[category].add(datapoint)
 
         # create Dataset objects from separated dictionaries
-        for category, set_ in split_sets.items():
-            # TODO maybe unnecessary to use category as a key, as it's saved as datasets attribute
-            final_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=set_)})
+        final_datasets = set()
+        for category, dp_set in split_sets.items():
+            final_datasets.add(
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_set=dp_set))
 
         return final_datasets
 
@@ -75,16 +75,18 @@ class Dataset:
 
         dataset_size = len(dataset.datapoint_set)
         total = sum(categories_ratio.values())
-        split_datasets = {}
         start = 0
         end = 0
 
         # TODO ? to assure whole numbers, we round down the division, which leads to lost of several samples. Fix it?
+        split_datasets = set()
         for category, ratio in categories_ratio.items():
             size = int(dataset_size * ratio / total)
             end += (size - 1)
             dp_set = set(randomized[start:end])
-            split_datasets.update({category: Dataset(dataset.branch, category=category, datapoint_set=dp_set)})
+
+            split_datasets.add(
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_set=dp_set))
             start += size
 
         return split_datasets
