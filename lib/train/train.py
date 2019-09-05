@@ -210,34 +210,27 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
-        # TODO clean up
-        # TODO if there is only one branch do not return list
         datasets = set()
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
 
-        split_datasets = ['train_x', 'train_y', 'valid_x', 'valid_y', 'test_x', 'test_y']
-        split_datasets_dict = dict(zip(split_datasets, [[] for _ in range(len(split_datasets))]))
+        dictionary = {}
+        for dataset in datasets:
+            dictionary.update({dataset.category: {}})
+            values = []
+            for branch in branches:
+                values.append = dataset.values(branch)
 
-        dictionary = {'train': {'x': split_datasets_dict['train_x'], 'y': split_datasets_dict['train_y']},
-                      'validation': {'x': split_datasets_dict['valid_x'], 'y': split_datasets_dict['valid_y']},
-                      'test': {'x': split_datasets_dict['test_x'], 'y': split_datasets_dict['test_y']}}
+            # Do not return data in an extra array if there's only one branch
+            if len(values) == 1:
+                values = values[0]
 
-        for branch in branches:
-            for dataset in datasets:
-                # to ensure the right order of branches within arrays
-                if dataset.branch != branch: continue
-                values = dataset.values()
-                dictionary[dataset.category]['x'].append(values)
+            dictionary[dataset.category].update({'values': values})
+            dictionary[dataset.category].update({'labels': dataset.labels(alphabet=alphabet)})
 
-                # parse labels only once together for all the branches
-                if not dictionary[dataset.category]['y']:
-                    labels = dataset.labels(alphabet=alphabet)
-                    dictionary[dataset.category]['y'].append(labels)
-
-        train_x, train_y, valid_x, valid_y, test_x, test_y = split_datasets_dict.values()
-
-        return [train_x, valid_x, test_x, train_y[0], valid_y[0], test_y[0]]
+        # return [train_x, valid_x, test_x, train_y[0], valid_y[0], test_y[0]]
+        return [dictionary['train']['values'], dictionary['valid']['values'], dictionary['test']['values'],
+                dictionary['train']['labels'], dictionary['valid']['labels'], dictionary['test']['labels']]
 
     def get_data_model(self, network):
         def data():
