@@ -13,25 +13,20 @@ class Dataset:
     @classmethod
     def load_from_file(cls, file_path):
         file = open(file_path)
-        datapoint_set = set()
 
-        branch = cls.branch_from_filepath(file_path)
+        head = file.readline().strip()
+        branches = head.split("\t")[1:]
         category = os.path.basename(file_path)
 
+        datapoint_set = set()
         for line in file:
-            key, string_value = line.split("\t", 1)
-            datapoint_set.add(DataPoint.load(key, string_value))
+            key, *values = line.strip().split("\t")
+            branches_string_values = {}
+            for i, value in enumerate(values):
+                branches_string_values.update({branches[i]: value})
+            datapoint_set.add(DataPoint.load(key, branches_string_values))
 
-        return cls(branch, category=category, datapoint_set=datapoint_set)
-
-    @classmethod
-    def branch_from_filepath(cls, file_path):
-        dirname = os.path.dirname(file_path)
-        if platform.system() == 'Windows':
-            dirs = dirname.split('\\')
-        else:
-            dirs = dirname.split('/')
-        return dirs[-1]
+        return cls(branches=branches, category=category, datapoint_set=datapoint_set)
 
     @classmethod
     def split_by_chr(cls, dataset, chrs_by_category):

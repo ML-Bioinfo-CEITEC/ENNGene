@@ -6,15 +6,19 @@ from . import sequence as seq
 class DataPoint:
 
     @classmethod
-    def load(cls, key, string_value):
-        value = cls.value_from_string(string_value)
+    def load(cls, key, branches_string_values):
         chrom_name, seq_start, seq_end, strand_sign, klass = cls.attrs_from_key(key)
 
-        return cls(chrom_name, seq_start, seq_end, strand_sign, klass, value)
+        branches_values = {}
+        for branch, string_value in branches_string_values.items():
+            value = cls.value_from_string(string_value)
+            branches_values.update({branch: value})
+
+        return cls(branches_values.keys(), klass, chrom_name, seq_start, seq_end, strand_sign, branches_values)
 
     @classmethod
     def value_from_string(cls, string_value):
-        parts = string_value.split('\t')
+        parts = string_value.split('|')
         new_parts = []
 
         for part in parts:
