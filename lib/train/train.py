@@ -403,7 +403,7 @@ class Train(Subcommand):
     def plot_graph(history, metric, title, out_dir, network_name):
         # TODO separate class for plotting? probably combined with the Evaluate module
 
-        # for some reason here it calls accuracy just 'acc'
+        # For some reason here it calls accuracy just 'acc'
         if metric == 'accuracy':
             metric = 'acc'
         val_metric = "val_{}".format(metric)

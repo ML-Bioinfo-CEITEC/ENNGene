@@ -11,7 +11,7 @@ logger = logging.getLogger('main')
 
 class MakeDatasets(Subcommand):
 
-    # TODO allow skipping steps, e.g. datasets separation or size reduction
+    # TODO allow skipping steps during batch run, instead use saved files
 
     def __init__(self, default_args=None):
         help_message = '''deepnet <subcommand> [<args>]

@@ -105,23 +105,24 @@ class Dataset:
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
                  datapoint_set=None):
+        # FIXME should the datapoint set be a list to keep the same order of the points? (so that when we read values
+        # or labels we can be sure the order is the same)
+
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
 
-        # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
         # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
-
         if datapoint_set:
             self.datapoint_set = datapoint_set
         else:
             self.datapoint_set = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
 
         # TODO make it work
-        if self.branch == 'fold' and not datapoint_set:
+        if 'fold' in self.branches and not datapoint_set:
             # can the result really be a dictionary? probably should
-            file_name = self.branch + "_" + klass
-            self.datapoint_set = seq.fold(self.datapoint_set, self.branch, file_name)
+            file_name = 'fold' + '_' + klass
+            self.datapoint_set = seq.fold(self.datapoint_set, file_name)
 
     def save_to_file(self, dir_path, file_name):
         content = ""
@@ -196,7 +197,7 @@ class Dataset:
                 ref_dictionary = ref_files[branch]
 
                 if chrom_name in ref_dictionary.keys():
-                    # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
+                    # first position in chr in bed file is assigned as 0 (thus it fits the python indexing from 0)
                     start_position = int(seq_start)
                     # both bed file coordinates and python range exclude the last position
                     end_position = int(seq_end)
