@@ -43,13 +43,14 @@ class DataPoint:
 
         return [chrom_name, seq_start, seq_end, strand_sign, klass]
 
-    def __init__(self, chrom_name, seq_start, seq_end, strand_sign, klass, value):
+    def __init__(self, branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values):
+        self.branches = branches
+        self.klass = klass
         self.chrom_name = chrom_name
         self.seq_start = seq_start
         self.seq_end = seq_end
         self.strand_sign = strand_sign  # may be None
-        self.klass = klass
-        self.value = value
+        self.branches_values = branches_values
 
     def key(self):
         try:

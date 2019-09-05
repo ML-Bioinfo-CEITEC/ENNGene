@@ -113,12 +113,11 @@ class Dataset:
         else:
             self.datapoint_set = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
 
-        # FIXME adjust to new dataset format
         # TODO make it work
         if self.branch == 'fold' and not datapoint_set:
             # can the result really be a dictionary? probably should
             file_name = self.branch + "_" + klass
-            self.datapoint_set = seq.fold(self.datapoint_set, file_name)
+            self.datapoint_set = seq.fold(self.datapoint_set, self.branch, file_name)
 
     def save_to_file(self, branch_dir_path):
         # TODO adjust to export new (multicolumn) format
@@ -143,11 +142,11 @@ class Dataset:
         self.datapoint_set = reduced_dp_set
         return self
 
-    def values(self):
+    def values(self, branch):
         # return ordered list of values of datapoints
         values = []
         for datapoint in self.datapoint_set:
-            values.append(datapoint.value)
+            values.append(datapoint.branches_value[branch])
 
         return np.array(values)
 

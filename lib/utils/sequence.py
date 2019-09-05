@@ -46,12 +46,12 @@ def fasta_to_dictionary(fasta_file):
     return seq_dict
 
 
-def datapoint_set_to_fasta(datapoint_set, path, name):
+def datapoint_set_to_fasta(datapoint_set, branch, path, name):
     filepath = os.path.join(path, (name + ".fa"))
     content = ""
     for datapoint in datapoint_set:
         line1 = ">" + datapoint.key + "\n"
-        line2 = datapoint.value + "\n"
+        line2 = datapoint.branches_values[branch] + "\n"
         content += line1
         content += line2
 
@@ -167,24 +167,15 @@ def translate(char, encoding):
         raise Exception(warning.format(char))
 
 
-# TODO place the method somewhere else? divide it more?
 def fold(datapoint_set, name, dna=True):
-    if dna:
-        rna_set = {}
-        for datapoint in datapoint_set:
-            new_value = [dna_to_rna(char) for char in datapoint.value]
-            new_datapoint = deepcopy(datapoint)
-            new_datapoint.value = new_value
-            rna_set.add(new_datapoint)
-    else:
-        rna_set = datapoint_set
-
     # TODO decide where to save the intermediate files
     path = os.getcwd()
-    fasta_file = datapoint_set_to_fasta(rna_set, path, name)
+    fasta_file = datapoint_set_to_fasta(datapoint_set, 'fold', path, name)
 
-    # TODO without --noconv it substitutes T > U, maybe the dna to rna conversion beforehand is than unnecessary?
     folded_file = os.path.join(path, name + "folded")
-    subprocess.run("RNAfold -i {} --jobs=10 --noPS --noconv -o {}".format(fasta_file, folded_file), check=True, )
+    if dna:
+        subprocess.run("RNAfold -i {} --jobs=10 --noPS -o {}".format(fasta_file, folded_file), check=True, )
+    else:
+        subprocess.run("RNAfold -i {} --jobs=10 --noPS --noconv -o {}".format(fasta_file, folded_file), check=True, )
 
     return folded_file
