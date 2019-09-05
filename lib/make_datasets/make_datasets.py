@@ -202,8 +202,6 @@ class MakeDatasets(Subcommand):
             file_name = dataset.klass + '_' + '_'.join(dataset.branches)
             dataset.save_to_file(dir_path, file_name)
 
-
-
         # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
         if self.reducelist:
             reduced_datasets = set()
@@ -212,10 +210,15 @@ class MakeDatasets(Subcommand):
                     print("Reducing number of samples in klass {}".format(dataset.klass))
                     ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
                     reduced_datasets.add(dataset.reduce(ratio, self.reduceseed))
+                    # Save the reduced datasets
+                    dir_path = os.path.join(self.output_folder, 'datasets', 'reduced_datasets')
+                    if not os.path.exists(dir_path):
+                        os.makedirs(dir_path)
+                    file_name = dataset.klass + '_' + '_'.join(dataset.branches)
+                    dataset.save_to_file(dir_path, file_name)
                 else:
                     print("Keeping full number of samples for klass {}".format(dataset.klass))
                     reduced_datasets.add(dataset)
-            # TODO maybe want to export datasets that have been reduced
         else:
             reduced_datasets = full_datasets
 
