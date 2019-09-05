@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
-from hyperas import optim
-from hyperopt import Trials, tpe
+# from hyperas import optim
+# from hyperopt import Trials, tpe
 
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
@@ -232,24 +232,24 @@ class Train(Subcommand):
         return [dictionary['train']['values'], dictionary['valid']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['valid']['labels'], dictionary['test']['labels']]
 
-    def get_data_model(self, network):
-        def data():
-            return self.train_x, self.train_y, self.test_x, self.test_y
-
-        # FIXME why does hyperas have issue with the indentation?
-        def create_model(x_train, y_train, x_test, y_test):
-            return network.tune_model(x_train, y_train)
-
-        return data, create_model
-
-    def tune_params(self, network):
-        data, create_model = self.get_data_model(network)
-        best_run, best_model = optim.minimize(model=create_model,
-                                              data=data,
-                                              algo=tpe.suggest,
-                                              max_evals=self.tune_rounds,
-                                              trials=Trials())
-        return best_run, best_model
+    # def get_data_model(self, network):
+    #     def data():
+    #         return self.train_x, self.train_y, self.test_x, self.test_y
+    #
+    #     # FIXME why does hyperas have issue with the indentation?
+    #     def create_model(x_train, y_train, x_test, y_test):
+    #         return network.tune_model(x_train, y_train)
+    #
+    #     return data, create_model
+    #
+    # def tune_params(self, network):
+    #     data, create_model = self.get_data_model(network)
+    #     best_run, best_model = optim.minimize(model=create_model,
+    #                                           data=data,
+    #                                           algo=tpe.suggest,
+    #                                           max_evals=self.tune_rounds,
+    #                                           trials=Trials())
+    #     return best_run, best_model
 
     @staticmethod
     def get_shapes(data, branches):
@@ -311,12 +311,13 @@ class Train(Subcommand):
     @staticmethod
     def tune_hyperparameters(network, tune_rounds, data):
         # using hyperas package
-        model = network.build_model(tune=True)
-        params, best_model = optim.minimize(model=model, data=data,
-                                            algo=tpe.suggest,
-                                            max_evals=tune_rounds,
-                                            trials=Trials())
-        return params, best_model
+        # model = network.build_model(tune=True)
+        # params, best_model = optim.minimize(model=model, data=data,
+        #                                     algo=tpe.suggest,
+        #                                     max_evals=tune_rounds,
+        #                                     trials=Trials())
+        # return params, best_model
+        pass
 
     @staticmethod
     def step_decay_schedule(initial_lr=1e-3, drop = 0.5, epochs_drop = 10.0):
