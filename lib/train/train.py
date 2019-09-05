@@ -253,11 +253,14 @@ class Train(Subcommand):
 
     @staticmethod
     def get_shapes(data, branches):
-        # TODO for now, only 1D data are taken into account
-        # Assuming fixed order of the branches
         shapes = {}
-        for i, branch in enumerate(branches):
-            shapes.update({branch: data[i].shape})
+
+        if len(branches) == 1:
+            shapes.update({branches[0]: data.shape})
+        else:
+            # Assuming fixed order of the branches
+            for i, branch in enumerate(branches):
+                shapes.update({branch: data[i].shape})
 
         return shapes
 
