@@ -32,14 +32,17 @@ class MakeDatasets(Subcommand):
         logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
 
         self.encoded_alphabet = None
-        self.seq_ref = seq.fasta_to_dictionary(self.args.ref)
+
+        seq_dictionary = seq.fasta_to_dictionary(self.args.ref)
+        self.reference_files = {'seq': seq_dictionary, 'fold': seq_dictionary}
+
         self.branches = self.args.branches
         if 'cons' in self.branches:
             if not self.args.consdir:
                 logger.exception('Exception occurred.')
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
-                self.cons_ref = seq.wig_to_dictionary(self.args.consdir)
+                self.reference_files.update({'cons': seq.wig_to_dictionary(self.args.consdir)})
 
         if self.args.coord:
             self.input_files = self.args.coord
@@ -170,22 +173,14 @@ class MakeDatasets(Subcommand):
         )
         return parser
 
-    def reference(self, branch):
-        if branch == 'cons':
-            return self.cons_ref
-        elif branch == 'seq' or branch == 'fold':
-            return self.seq_ref
-
     def run(self):
-        # super().run(self.args)
-        datasets = {}
-
         if self.args.onehot:
             encoding = seq.onehot_encode_alphabet(self.args.onehot)
         else:
             encoding = None
 
-        # Accept one file per class nad then generate requested branches from that
+        # Accept one file per class and create one Dataset per each
+        full_datasets = set()
         for file in self.input_files:
             file_name = os.path.basename(file)
             if '.bed' in file_name:
@@ -193,62 +188,47 @@ class MakeDatasets(Subcommand):
             else:
                 klass = file_name
 
-            for branch in self.branches:
-                if branch not in datasets.keys(): datasets.update({branch: set()})
-                datasets[branch].add(Dataset(branch, klass=klass, bed_file=file,
-                                             ref_dict=self.reference(branch), strand=self.args.strand,
-                                             encoding=encoding))
+            full_datasets.add(Dataset(klass=klass,
+                                      branches=self.branches,
+                                      bed_file=file,
+                                      ref_files=self.reference_files,
+                                      strand=self.args.strand,
+                                      encoding=encoding))
 
-        # TODO export before random selection
-        # Randomly select smaller datasets
+        for dataset in full_datasets:
+            # TODO export whole translated datasets
+            # (one per each class containing all intervals translated to all the branches)
+            # for future use in case of random reduction or separation
+
+            dir_path = os.path.join(self.output_folder, 'datasets', "full_".format(dataset.klass))
+            dataset.save_to_file(dir_path)
+
+        # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
         if self.reducelist:
-            reduced_datasets = {}
-            for branch, dsets in datasets.items():
-                if branch not in reduced_datasets.keys(): reduced_datasets.update({branch: set()})
-                for dataset in dsets:
-                    if dataset.klass in self.reducelist:
-                        # TODO ensure all branches get reduced by the same samples
-                        print("reducing klass {} for branch {}".format(dataset.klass, branch))
-                        ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
-                        reduced_datasets[branch].add(dataset.reduce(ratio, self.reduceseed))
-                    else:
-                        print("keeping klass {} for branch {}".format(dataset.klass, branch))
-                        reduced_datasets[branch].add(dataset)
+            reduced_datasets = set()
+            for dataset in full_datasets:
+                if dataset.klass in self.reducelist:
+                    print("Reducing number of samples in klass {}".format(dataset.klass))
+                    ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
+                    reduced_datasets.add(dataset.reduce(ratio, self.reduceseed))
+                else:
+                    print("Keeping full number of samples for klass {}".format(dataset.klass))
+                    reduced_datasets.add(dataset)
+            # TODO maybe want to export datasets that have been reduced
         else:
-            reduced_datasets = datasets
+            reduced_datasets = full_datasets
 
-        # Split data into train, validation, test and blackbox datasets
-        split_datasets = {}
+        # Split datasets into train, validation, test and blackbox datasets
+        split_datasets = set()  # TODO creates kind of pool of all datasets that will be sorted out later
+        for dataset in reduced_datasets:
+            if self.split == 'by_chr':
+                split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
+            elif self.split == 'rand':
+                split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
+            split_datasets.add(*split_subdatasets)
 
-        for branch, dsets in reduced_datasets.items():
-            if branch not in split_datasets.keys(): split_datasets.update({branch: []})
-            for dataset in dsets:
-                if self.split == 'by_chr':
-                    split_subsets = Dataset.split_by_chr(dataset, self.chromosomes)
-                elif self.split == 'rand':
-                    # FIXME ensure all branches must by split by the same samples. Is usign the same seed enough?
-                    # or use e.g. sklearn train_test_split or something like that?
-                    # TODO export before random separation
-                    split_subsets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
-                split_datasets[branch].append(split_subsets)
-
-        # Separate positives and negatives (classes) within all the categories across the branches
-        datasets_to_merge = {}
-        for branch, dsets in split_datasets.items():
-            if branch not in datasets_to_merge.keys():
-                datasets_to_merge.update({branch: {}})
-            for split_subsets in dsets:
-                for category, dataset in split_subsets.items():
-                    if category not in datasets_to_merge[branch].keys():
-                        datasets_to_merge[branch].update({category: []})
-                    datasets_to_merge[branch][category].append(dataset)
-
-        # Merge datasets of the same klass within all the branch (e.g. pos + neg)
-        final_datasets = set()
-        for branch, dictionary in datasets_to_merge.items():
-            for category, list_of_datasets in dictionary.items():
-                # print(category, list_of_datasets)
-                final_datasets.add(Dataset.merge(list_of_datasets))
+        # Merge datasets of the same klass within all the branch (e.g. train = pos + neg)
+        final_datasets = Dataset.merge_by_klass(split_datasets)
 
         # Export final datasets to files
         for dataset in final_datasets:
