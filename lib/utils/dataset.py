@@ -99,32 +99,29 @@ class Dataset:
 
         return cls(branch, category=category, datapoint_set=merged_datapoint_set)
 
-    def __init__(self, branch, klass=None, category=None, bed_file=None, ref_dict=None, strand=None, encoding=None,
+    def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
                  datapoint_set=None):
-        self.branch = branch  # seq, cons or fold
-        self.klass = klass  # e.g. positive and negative
-        self.category = category  # train, validation, test or blackbox
+        self.branches = branches  # list of seq, cons or fold branches
+        self.klass = klass  # e.g. positive or negative
+        self.category = category  # train, validation, test or blackbox for separated datasets
 
         # TODO is there a way a folding branch could use already converted datasets from seq branch, if available?
         # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
-        complement = branch == 'seq' or branch == 'fold'
 
         if datapoint_set:
             self.datapoint_set = datapoint_set
         else:
-            self.datapoint_set = self.map_bed_to_ref(bed_file, ref_dict, strand, klass, complement)
+            self.datapoint_set = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
 
+        # FIXME adjust to new dataset format
+        # TODO make it work
         if self.branch == 'fold' and not datapoint_set:
             # can the result really be a dictionary? probably should
-            file_name = branch + "_" + klass
+            file_name = self.branch + "_" + klass
             self.datapoint_set = seq.fold(self.datapoint_set, file_name)
 
-        # TODO apply one-hot encoding also to the fold branch?
-        if encoding and branch == 'seq':
-            for datapoint in self.datapoint_set:
-                datapoint.translate_value(encoding)
-
     def save_to_file(self, branch_dir_path):
+        # TODO adjust to export new (multicolumn) format
         file_name = self.category
         content = ""
         for datapoint in self.datapoint_set:
@@ -173,9 +170,7 @@ class Dataset:
     #     return f.dictionary_to_fasta(self.dictionary, path)
 
     @staticmethod
-    def map_bed_to_ref(bed_file, ref_dictionary, strand, klass, complement):
-        # TODO deal with not found regions - in case one sequence can not be mapped to conservatino file, its index
-        # should marked and later removed from all branches datasets
+    def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand):
         file = f.filehandle_for(bed_file)
         final_set = set()
 
@@ -189,21 +184,32 @@ class Dataset:
                 strand_sign = values[5]
             except:
                 strand_sign = None
+            branches_values = {}
 
-            if chrom_name in ref_dictionary.keys():
-                # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
-                start_position = int(seq_start)
-                # both bed file coordinates and python range exclude the last position
-                end_position = int(seq_end)
-                sequence = []
-                for i in range(start_position, end_position):
-                    sequence.append(ref_dictionary[chrom_name][i])
+            for branch in branches:
+                # TODO adjust so that it gets translated only once for seq and branch together
+                complement = branch == 'seq' or branch == 'fold'
+                ref_dictionary = ref_files[branch]
 
-                if complement and strand and strand_sign == '-':
-                    sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
+                if chrom_name in ref_dictionary.keys():
+                    # first position in chromosome in bed file is assigned as 0 (thus it fits the python indexing from 0)
+                    start_position = int(seq_start)
+                    # both bed file coordinates and python range exclude the last position
+                    end_position = int(seq_end)
+                    sequence = []
+                    for i in range(start_position, end_position):
+                        sequence.append(ref_dictionary[chrom_name][i])
 
-                sequence = np.array(sequence)
+                    if complement and strand and strand_sign == '-':
+                        sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
 
-                final_set.add(DataPoint(chrom_name, seq_start, seq_end, strand_sign, klass, sequence))
+                    if encoding and branch == 'seq':
+                        sequence = [seq.translate(item, encoding) for item in sequence]
+
+                    branches_values.update({branch: np.array(sequence)})
+
+            # Save the point only if the value is available for all the branches
+            if len(branches_values) == len(branches):
+                final_set.add(DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values))
 
         return final_set
