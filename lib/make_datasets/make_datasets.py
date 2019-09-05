@@ -231,14 +231,15 @@ class MakeDatasets(Subcommand):
                 split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
             split_datasets = split_datasets.union(split_subdatasets)
 
-        # Merge datasets of the same klass within all the branch (e.g. train = pos + neg)
-        final_datasets = Dataset.merge_by_klass(split_datasets)
+        # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
+        final_datasets = Dataset.merge_by_category(split_datasets)
 
         # Export final datasets to files
         for dataset in final_datasets:
-            branch_folder = os.path.join(self.output_folder, 'datasets', dataset.branch)
-            if not os.path.exists(branch_folder):
-                os.makedirs(branch_folder)
-            dataset.save_to_file(branch_folder)
+            dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            file_name = dataset.category
+            dataset.save_to_file(dir_path, file_name)
 
         return final_datasets

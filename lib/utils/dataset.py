@@ -92,14 +92,21 @@ class Dataset:
         return split_datasets
 
     @classmethod
-    def merge(cls, list_of_datasets):
-        merged_datapoint_set = set()
-        branch = list_of_datasets[0].branch
-        category = list_of_datasets[0].category
-        for dataset in list_of_datasets:
-            merged_datapoint_set.update(dataset.datapoint_set)
+    def merge_by_category(cls, set_of_datasets):
+        datasets_by_category = {}
+        for dataset in set_of_datasets:
+            if dataset.category not in datasets_by_category.keys(): datasets_by_category.update({dataset.category: []})
+            datasets_by_category[dataset.category].append(dataset)
 
-        return cls(branch, category=category, datapoint_set=merged_datapoint_set)
+        final_datasets = set()
+        for category, datasets in datasets_by_category.items():
+            merged_datapoint_set = set()
+            for dataset in datasets:
+                merged_datapoint_set = merged_datapoint_set.union(dataset.datapoint_set)
+            final_datasets.add(
+                cls(branches=datasets[0].branches, category=category, datapoint_set=merged_datapoint_set))
+
+        return final_datasets
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
                  datapoint_set=None):
