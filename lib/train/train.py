@@ -265,49 +265,46 @@ class Train(Subcommand):
         return shapes
 
     def run(self):
-        # define model based on chosen architecture
+        # Define model based on chosen architecture
         if self.network == 'simpleconv':
             network = SimpleConvClass(
                 branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
         else:
             raise Exception  # should not be possible to happen, later add other architectures here
 
-        # hyperparameter tuning (+ export/import)
+        # Hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
             # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
-
             best_run, best_model = self.tune_params(network)
-            print("Finished hyperparam tuning")
-            sys.exit()
         else:
             model = network.build_model()
             hyperparams = self.hyperparams
 
-        # optimizer definition
+        # Optimizer definition
         optimizer = self.create_optimizer(self.optimizer, self.lr)
 
-        # model compilation
+        # Model compilation
         model.compile(
             optimizer=optimizer,
             loss=[self.loss],
             metrics=[self.metric])
 
-        # training & testing the model (fit)
+        # Training & testing the model (fit)
         callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
+
+        print('Training the network')
         history = self.train(model, self.epochs, self.batch_size, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
-        test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
 
-        # plot metrics
+        # Plot metrics
         self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
-        # It does not return name of the loss, just 'loss' ...
         self.plot_graph(history, 'loss', self.loss.capitalize(), self.train_dir, network.name)
 
-        # export results
-
-        # TODO save results & plots to the files
-        # TODO save test results
-        # TODO save resulting model
+        print('Testing the network')
+        test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
+        print('[loss, acc]')
+        print(test_results)
+        # TODO save the test results ? (did not find that in the old code)
 
         # TODO return something that can be passed on to the next module
 
