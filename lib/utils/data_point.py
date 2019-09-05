@@ -59,20 +59,21 @@ class DataPoint:
             key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + '_' + self.klass
         return key
 
-    def string_value(self):
+    def string_value(self, branch):
         string = ""
-        for e in self.value:
-            if type(e) == np.ndarray:
+        for e in self.branches_values[branch]:
+            if type(e) == list:
+            # if type(e) == np.ndarray:
                 substring = ""
                 for el in e:
                     substring += str(el) + ", "
                 substring = substring.strip(', ')
-                substring += "\t"
+                substring += '|'
                 string += substring
             else:
-                string += str(e) + "\t"
+                string += str(e) + '|'
 
-        return string.strip('\t').strip(', ')
+        return string.strip('|').strip(', ')
 
     def translate_value(self, encoding):
         new_value = np.array([seq.translate(item, encoding) for item in self.value])

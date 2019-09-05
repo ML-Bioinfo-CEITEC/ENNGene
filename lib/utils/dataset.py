@@ -119,15 +119,16 @@ class Dataset:
             file_name = self.branch + "_" + klass
             self.datapoint_set = seq.fold(self.datapoint_set, self.branch, file_name)
 
-    def save_to_file(self, branch_dir_path):
-        # TODO adjust to export new (multicolumn) format
-        file_name = self.category
+    def save_to_file(self, dir_path, file_name):
         content = ""
+        content += 'key' + "\t" + "\t".join(self.branches) + "\n"
         for datapoint in self.datapoint_set:
             content += datapoint.key() + "\t"
-            content += datapoint.string_value() + "\n"
+            for branch in self.branches:
+                content += datapoint.string_value(branch) + "\t"
+            content += "\n"
 
-        file_path = os.path.join(branch_dir_path, file_name)
+        file_path = os.path.join(dir_path, file_name)
         f.write(file_path, content.strip())
         return file_path
 

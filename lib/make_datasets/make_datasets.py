@@ -196,12 +196,13 @@ class MakeDatasets(Subcommand):
                                       encoding=encoding))
 
         for dataset in full_datasets:
-            # TODO export whole translated datasets
-            # (one per each class containing all intervals translated to all the branches)
-            # for future use in case of random reduction or separation
+            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            file_name = dataset.klass + '_' + '_'.join(dataset.branches)
+            dataset.save_to_file(dir_path, file_name)
 
-            dir_path = os.path.join(self.output_folder, 'datasets', "full_".format(dataset.klass))
-            dataset.save_to_file(dir_path)
+
 
         # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
         if self.reducelist:
