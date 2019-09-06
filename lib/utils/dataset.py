@@ -18,15 +18,15 @@ class Dataset:
         branches = head.split("\t")[1:]
         category = os.path.basename(file_path)
 
-        datapoint_set = set()
+        datapoint_list = []
         for line in file:
             key, *values = line.strip().split("\t")
             branches_string_values = {}
             for i, value in enumerate(values):
                 branches_string_values.update({branches[i]: value})
-            datapoint_set.add(DataPoint.load(key, branches_string_values))
+            datapoint_list.append(DataPoint.load(key, branches_string_values))
 
-        return cls(branches=branches, category=category, datapoint_set=datapoint_set)
+        return cls(branches=branches, category=category, datapoint_list=datapoint_list)
 
     @classmethod
     def split_by_chr(cls, dataset, chrs_by_category):
@@ -34,16 +34,16 @@ class Dataset:
 
         # separate original dictionary by categories
         split_sets = {}
-        for datapoint in dataset.datapoint_set:
+        for datapoint in dataset.datapoint_list:
             category = categories_by_chr[datapoint.chrom_name]
-            if category not in split_sets.keys(): split_sets.update({category: set()})
-            split_sets[category].add(datapoint)
+            if category not in split_sets.keys(): split_sets.update({category: []})
+            split_sets[category].append(datapoint)
 
         # create Dataset objects from separated dictionaries
         final_datasets = set()
-        for category, dp_set in split_sets.items():
+        for category, dp_list in split_sets.items():
             final_datasets.add(
-                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_set=dp_set))
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_list=dp_list))
 
         return final_datasets
 
@@ -65,10 +65,8 @@ class Dataset:
                             'blackbox': float(ratio_list[3])}
 
         random.seed(seed)
-        randomized = list(dataset.datapoint_set)
-        random.shuffle(randomized)
-
-        dataset_size = len(dataset.datapoint_set)
+        random.shuffle(dataset.datapoint_list)
+        dataset_size = len(dataset.datapoint_list)
         total = sum(categories_ratio.values())
         start = 0
         end = 0
@@ -78,10 +76,10 @@ class Dataset:
         for category, ratio in categories_ratio.items():
             size = int(dataset_size * ratio / total)
             end += (size - 1)
-            dp_set = set(randomized[start:end])
+            dp_list = dataset.datapoint_list[start:end]
 
             split_datasets.add(
-                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_set=dp_set))
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_list=dp_list))
             start += size
 
         return split_datasets
@@ -95,39 +93,36 @@ class Dataset:
 
         final_datasets = set()
         for category, datasets in datasets_by_category.items():
-            merged_datapoint_set = set()
+            merged_datapoint_list = []
             for dataset in datasets:
-                merged_datapoint_set = merged_datapoint_set.union(dataset.datapoint_set)
+                merged_datapoint_list += dataset.datapoint_list
             final_datasets.add(
-                cls(branches=datasets[0].branches, category=category, datapoint_set=merged_datapoint_set))
+                cls(branches=datasets[0].branches, category=category, datapoint_list=merged_datapoint_list))
 
         return final_datasets
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
-                 datapoint_set=None):
-        # FIXME should the datapoint set be a list to keep the same order of the points? (so that when we read values
-        # or labels we can be sure the order is the same)
-
+                 datapoint_list=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
 
         # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
-        if datapoint_set:
-            self.datapoint_set = datapoint_set
+        if datapoint_list:
+            self.datapoint_list = datapoint_list
         else:
-            self.datapoint_set = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
+            self.datapoint_list = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
 
         # TODO make it work
-        if 'fold' in self.branches and not datapoint_set:
+        if 'fold' in self.branches and not datapoint_list:
             # can the result really be a dictionary? probably should
             file_name = 'fold' + '_' + klass
-            self.datapoint_set = seq.fold(self.datapoint_set, file_name)
+            self.datapoint_list = self.fold_branch(self.datapoint_list, file_name)
 
     def save_to_file(self, dir_path, file_name):
         content = ""
         content += 'key' + "\t" + "\t".join(self.branches) + "\n"
-        for datapoint in self.datapoint_set:
+        for datapoint in self.datapoint_list:
             content += datapoint.key() + "\t"
             for branch in self.branches:
                 content += datapoint.string_value(branch) + "\t"
@@ -139,19 +134,18 @@ class Dataset:
 
     def reduce(self, ratio, seed=84):
         random.seed(seed)
-        randomized = list(self.datapoint_set)
-        random.shuffle(randomized)
-        last = int(len(randomized) * ratio)
+        random.shuffle(self.datapoint_list)
+        last = int(len(self.datapoint_list) * ratio)
 
-        reduced_dp_set = set(randomized[0:last])
+        reduced_dp_list = self.datapoint_list[0:last]
 
-        self.datapoint_set = reduced_dp_set
+        self.datapoint_list = reduced_dp_list
         return self
 
     def values(self, branch):
         # return ordered list of values of datapoints
         values = []
-        for datapoint in self.datapoint_set:
+        for datapoint in self.datapoint_list:
             values.append(datapoint.branches_values[branch])
 
         return np.array(values)
@@ -159,7 +153,7 @@ class Dataset:
     def labels(self, alphabet=None):
         # return ordered list of values of datapoints
         labels = []
-        for datapoint in self.datapoint_set:
+        for datapoint in self.datapoint_list:
             labels.append(datapoint.klass)
 
         if alphabet:
@@ -177,7 +171,7 @@ class Dataset:
     @staticmethod
     def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand):
         file = f.filehandle_for(bed_file)
-        final_set = set()
+        datapoint_list = []
 
         for line in file:
             values = line.split()
@@ -215,6 +209,7 @@ class Dataset:
 
             # Save the point only if the value is available for all the branches
             if len(branches_values) == len(branches):
-                final_set.add(DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values))
+                datapoint_list.append(
+                    DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values))
 
-        return final_set
+        return datapoint_list
