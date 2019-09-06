@@ -296,8 +296,8 @@ class Train(Subcommand):
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
 
         # Plot metrics
-        self.plot_graph(history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
-        self.plot_graph(history, 'loss', self.loss.capitalize(), self.train_dir, network.name)
+        self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
+        self.plot_graph(history.history, 'loss', "Loss: {}".format(self.loss.capitalize()), self.train_dir, network.name)
 
         print('Testing the network')
         test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
@@ -401,23 +401,21 @@ class Train(Subcommand):
     @staticmethod
     def plot_graph(history, metric, title, out_dir, network_name):
         # TODO separate class for plotting? probably combined with the Evaluate module
-
         # For some reason here it calls accuracy just 'acc'
         if metric == 'accuracy':
             metric = 'acc'
         val_metric = "val_{}".format(metric)
         file_name = "/{}.{}.png".format(network_name, metric)
 
-        plt.plot(history.history[metric])
-        plt.plot(history.history[val_metric])
+        plt.plot(history[metric])
+        plt.plot(history[val_metric])
 
-        # TODO is it necessary?
-        # if metric == 'acc':
-        #     plt.ylim(0.0, 1.0)
-        # elif metric == 'loss':
-        #     plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
+        if metric == 'acc':
+            plt.ylim(0.0, 1.0)
+        elif metric == 'loss':
+            plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
 
-        plt.title("Model {}".format(title))
+        plt.title(title)
         plt.ylabel(title)
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'], loc='lower right')
