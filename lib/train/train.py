@@ -57,7 +57,11 @@ class Train(Subcommand):
         self.metric = self.args.metric
         self.loss = self.args.loss
         self.lr = self.args.lr
-        self.lr_scheduler = self.args.lr_scheduler
+        self.optimizer = self.args.optimizer
+        if self.optimizer == 'sgd':
+            self.lr_scheduler = self.args.lr_scheduler
+        else:
+            self.lr_scheduler = False
         self.batch_size = self.args.batch_size
         self.epochs = self.args.epochs
 
@@ -69,8 +73,6 @@ class Train(Subcommand):
             "dense_units": self.args.dense_units,
             "filter_num": self.args.filter_num
         }
-
-        self.optimizer = self.args.optimizer
 
     def create_parser(self, message):
         parser = self.initialize_parser(message)
@@ -117,10 +119,10 @@ class Train(Subcommand):
             "--lr_scheduler",
             action="store",
             default=False,
-            help="Whether to use learning rate scheduler (decreasing lr from 0.1). Default=False",
+            help="Whether to use learning rate scheduler (decreasing lr from 0.1). Applied only in combination \
+                 with SGD optimizer. Default=False",
             type=bool
         )
-
         parser.add_argument(
             "--filter_num",
             action="store",
@@ -342,7 +344,6 @@ class Train(Subcommand):
         callbacks = [mcp, earlystopper, csv_logger]
 
         if scheduler:
-            # TODO probably does not make sense to use with ADAM and RMSProp?
             callbacks.append(Train.step_decay_schedule())
 
         return callbacks
