@@ -219,7 +219,7 @@ class Train(Subcommand):
             dictionary.update({dataset.category: {}})
             values = []
             for branch in branches:
-                values.append = dataset.values(branch)
+                values.append(dataset.values(branch))
 
             # Do not return data in an extra array if there's only one branch
             if len(values) == 1:
@@ -228,9 +228,8 @@ class Train(Subcommand):
             dictionary[dataset.category].update({'values': values})
             dictionary[dataset.category].update({'labels': dataset.labels(alphabet=alphabet)})
 
-        # return [train_x, valid_x, test_x, train_y[0], valid_y[0], test_y[0]]
-        return [dictionary['train']['values'], dictionary['valid']['values'], dictionary['test']['values'],
-                dictionary['train']['labels'], dictionary['valid']['labels'], dictionary['test']['labels']]
+        return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
+                dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
 
     # def get_data_model(self, network):
     #     def data():

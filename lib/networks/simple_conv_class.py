@@ -61,7 +61,6 @@ class SimpleConvClass(Network):
 
         output = Dense(units=len(self.labels), activation="softmax")(x)
 
-        # TODO adjust data parsing as well
         if len(self.branches) == 1:
             model = Model(inputs[0], output)
         else:

@@ -152,7 +152,7 @@ class Dataset:
         # return ordered list of values of datapoints
         values = []
         for datapoint in self.datapoint_set:
-            values.append(datapoint.branches_value[branch])
+            values.append(datapoint.branches_values[branch])
 
         return np.array(values)
 
