@@ -18,15 +18,18 @@ class DataPoint:
 
     @classmethod
     def value_from_string(cls, string_value):
-        parts = string_value.split('|')
+        parts = string_value.strip().split('|')
         new_parts = []
 
         for part in parts:
-            new_part = []
-            subparts = part.split(',')
-            for subpart in subparts:
-                new_part.append(float(subpart))
-            new_parts.append(np.array(new_part))
+            if '[' in part:
+                subparts = part.strip('[').strip(']').split()
+                new_part = []
+                for subpart in subparts:
+                    new_part.append(float(subpart))
+                new_parts.append(np.array(new_part))
+            else:
+                new_parts.append(float(part))
 
         return np.array(new_parts)
 
