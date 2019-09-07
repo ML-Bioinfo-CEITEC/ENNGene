@@ -169,6 +169,20 @@ class Dataset:
     #     return f.dictionary_to_fasta(self.dictionary, path)
 
     @staticmethod
+    def datapoints_to_fasta(datapoint_list, branch, path, name):
+        path_to_fasta = os.path.join(path, (name + ".fa"))
+        content = ""
+        for datapoint in datapoint_list:
+            line1 = ">" + datapoint.key() + "\n"
+            # Assuming the branch contains valid sequence (e.g. ['A', 'T', 'C', 'G']
+            line2 = ''.join(datapoint.branches_values[branch]) + "\n"
+            content += line1
+            content += line2
+
+        f.write(path_to_fasta, content.strip())
+        return path_to_fasta
+
+    @staticmethod
     def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand):
         file = f.filehandle_for(bed_file)
         datapoint_list = []

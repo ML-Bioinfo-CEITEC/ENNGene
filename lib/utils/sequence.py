@@ -46,19 +46,6 @@ def fasta_to_dictionary(fasta_file):
     return seq_dict
 
 
-def datapoint_set_to_fasta(datapoint_set, branch, path, name):
-    filepath = os.path.join(path, (name + ".fa"))
-    content = ""
-    for datapoint in datapoint_set:
-        line1 = ">" + datapoint.key + "\n"
-        line2 = datapoint.branches_values[branch] + "\n"
-        content += line1
-        content += line2
-
-    f.write(filepath, content.strip())
-    return filepath
-
-
 def wig_to_dictionary(ref_path):
     # TODO for now converting everything without taking VALID_CHRS into account
     zipped = f.list_files_in_dir(ref_path, '.wig')
