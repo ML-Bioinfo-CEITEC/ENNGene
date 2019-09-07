@@ -22,8 +22,8 @@ class DataPoint:
         new_parts = []
 
         for part in parts:
-            if '[' in part:
-                subparts = part.strip('[').strip(']').split()
+            if ',' in part:
+                subparts = part.strip().split(',')
                 new_part = []
                 for subpart in subparts:
                     new_part.append(float(subpart))
@@ -69,8 +69,7 @@ class DataPoint:
     def string_value(self, branch):
         string = ""
         for e in self.branches_values[branch]:
-            if type(e) == list:
-            # if type(e) == np.ndarray:
+            if type(e) == np.ndarray:
                 substring = ""
                 for el in e:
                     substring += str(el) + ", "
