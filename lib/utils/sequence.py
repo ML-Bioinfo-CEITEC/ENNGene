@@ -1,9 +1,7 @@
-# import numpy
+import numpy
 from copy import deepcopy
-import os
-from re import sub
-import subprocess
 import logging
+from re import sub
 
 from . import file_utils as f
 
@@ -150,17 +148,3 @@ def translate(char, encoding):
                   "Provided encoding must contain all possible characters (case-insensitive)."
         logger.exception('Exception occurred.')
         raise Exception(warning.format(char))
-
-
-def fold(datapoint_set, name, dna=True):
-    # TODO decide where to save the intermediate files
-    path = os.getcwd()
-    fasta_file = datapoint_set_to_fasta(datapoint_set, 'fold', path, name)
-
-    folded_file = os.path.join(path, name + "folded")
-    if dna:
-        subprocess.run("RNAfold -i {} --jobs=10 --noPS -o {}".format(fasta_file, folded_file), check=True, )
-    else:
-        subprocess.run("RNAfold -i {} --jobs=10 --noPS --noconv -o {}".format(fasta_file, folded_file), check=True, )
-
-    return folded_file

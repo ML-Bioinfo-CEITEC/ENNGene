@@ -2,6 +2,8 @@ import numpy as np
 import os
 import platform
 import random
+import subprocess
+import tempfile
 
 from .data_point import DataPoint
 from . import file_utils as f
@@ -117,7 +119,8 @@ class Dataset:
         if 'fold' in self.branches and not datapoint_list:
             # can the result really be a dictionary? probably should
             file_name = 'fold' + '_' + klass
-            self.datapoint_list = self.fold_branch(self.datapoint_list, file_name)
+            # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
+            self.datapoint_list = self.fold_branch(self.datapoint_list, file_name, dna=True)
 
     def save_to_file(self, dir_path, file_name):
         content = ""
@@ -161,6 +164,42 @@ class Dataset:
             return np.array(encoded_labels)
         else:
             return np.array(labels)
+
+    def fold_branch(self, datapoint_list, name, dna=True):
+        tmp_dir = tempfile.gettempdir()
+        fasta_file = self.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, name)
+
+        out_path = os.path.join(tmp_dir, name + "_folded")
+        out_file = open(out_path, 'w+')
+        if dna:
+            subprocess.run(["RNAfold", "--noPS", "--jobs=10", fasta_file], stdout=out_file, check=True)
+        else:
+            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=10", fasta_file], stdout=out_file, check=True)
+
+        # TODO zip output file? can it help when reading large file??
+        out_file = open(out_path)
+        lines = out_file.readlines()
+        out_file.close()
+
+        if (len(lines) / 3) == len(datapoint_list):
+            updated_datapoint_list = []
+            for i, line in enumerate(lines):
+                # TODO check that the order of datapoints is ok
+                # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
+                if (i+1) % 3 == 0:
+                    datapoint = datapoint_list[int(i/3)]
+                    value = []
+                    # line format: '.... (  0.00)'
+                    part1 = line.split('(')[0].strip()
+                    for char in part1:
+                        value.append(char)
+                    datapoint.branches_values.update({'fold': np.array(value)})
+                    updated_datapoint_list.append(datapoint)
+        else:
+            raise Exception('Did not fold all the datapoints!')
+            sys.exit()
+
+        return updated_datapoint_list
 
     # def export_to_bed(self, path):
     #     return f.dictionary_to_bed(self.dictionary, path)

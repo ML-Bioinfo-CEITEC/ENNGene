@@ -8,6 +8,7 @@ conda activate deepnet
 conda install -c conda-forge keras
 conda install -c anaconda numpy
 conda install -c conda-forge matplotlib
+conda install -c bioconda viennarna
 
 pip install hyperas
 
