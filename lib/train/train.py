@@ -1,23 +1,25 @@
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
-from keras.optimizers import SGD, RMSprop, Adam
-import math
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import sys
-# from hyperas import optim
-# from hyperopt import Trials, tpe
+import logging
+import math
+
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
+from keras.optimizers import SGD, RMSprop, Adam
+import matplotlib.pyplot as plt
+import numpy as np
 
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
+# from hyperas import optim
+# from hyperopt import Trials, tpe
 
 # TODO fix imports in all the files to be consistent (relative vs. absolute)
 # sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'make_datasets/tests'))
 
-# TODO add logger
+logger = logging.getLogger('main')
 
 
 class Train(Subcommand):
@@ -212,6 +214,13 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
+        
+        #TODO include metadata in the dataset names using hash
+        logger_datasets = []
+        for i in range(len(dataset_files)):
+            logger_datasets.append(dataset_files[i].split('/')[-1])
+        #TODO add hash to the dataset names so that we can distinguish between the datasets?
+        logger.info('Using the following datasets: ' + str(logger_datasets))
         datasets = set()
         for file in dataset_files:
             datasets.add(Dataset.load_from_file(file))
@@ -267,6 +276,21 @@ class Train(Subcommand):
 
     def run(self):
         # Define model based on chosen architecture
+        logger.info('Hyperparameters: ' + str(list(self.hyperparams.items())))
+        logger.info('Chosen network architecture: ' + str(self.network))
+        logger.info('Using the following branches: ' + str(self.branches))
+        logger.info('Using hyperparameter tuning: ' + str(self.hyper_tuning))
+        if self.hyper_tuning:
+            logger.info('Tune rounds: ' + str(self.tune_rounds))
+        logger.info('Learning rate: ' + str(self.lr))
+        logger.info('Optimizer: ' + str(self.optimizer))
+        if self.optimizer == 'adam':
+            logger.info('Learning rate scheduler: ' + str(self.lr_scheduler))
+        logger.info('Batch size: ' + str(self.batch_size))
+        logger.info('Epoch rounds: ' + str(self.epochs))
+        logger.info('Loss function: ' + str(self.loss))
+        logger.info('Metric function: ' + str(self.metric))
+        
         if self.network == 'simpleconv':
             network = SimpleConvClass(
                 branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
@@ -296,18 +320,18 @@ class Train(Subcommand):
         print('Training the network')
         history = self.train(model, self.epochs, self.batch_size, callbacks,
                              self.train_x, self.valid_x, self.train_y, self.valid_y)
-
         # Plot metrics
         self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
         self.plot_graph(history.history, 'loss', "Loss: {}".format(self.loss.capitalize()), self.train_dir, network.name)
 
         print('Testing the network')
         test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
-        print('[loss, acc]')
-        print(test_results)
+        
         # TODO save the test results ? (did not find that in the old code)
 
-        # TODO return something that can be passed on to the next module
+        model_json = model.to_json()
+        with open("output/training/{}_model.json".format(self.network), "w") as json_file:
+            json_file.write(model_json)
 
     @staticmethod
     def tune_hyperparameters(network, tune_rounds, data):
@@ -321,7 +345,7 @@ class Train(Subcommand):
         pass
 
     @staticmethod
-    def step_decay_schedule(initial_lr=1e-3, drop = 0.5, epochs_drop = 10.0):
+    def step_decay_schedule(initial_lr=1e-3, drop=0.5, epochs_drop=10.0):
         def schedule(epoch):
             return initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
         return LearningRateScheduler(schedule)
@@ -397,6 +421,9 @@ class Train(Subcommand):
             verbose=1,
             sample_weight=None)
 
+        logger.info('Evaluation loss: ' + str(round(test_results[0],4)))
+        logger.info('Evaluation acc: ' + str(round(test_results[1],4)))
+    
         return test_results
 
     @staticmethod
@@ -416,6 +443,9 @@ class Train(Subcommand):
         elif metric == 'loss':
             plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
 
+        logger.info('Best achieved ' + metric + ' - ' + str(round(max(history[metric]),4)))
+        logger.info('Best achieved ' + val_metric + ' - ' + str(round(max(history[val_metric]),4)))
+        
         plt.title(title)
         plt.ylabel(title)
         plt.xlabel('Epoch')
