@@ -11,12 +11,9 @@ class Subcommand:
 
         if self.args.output:
             self.output_folder = self.args.output
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.args.output)
         else:
             self.output_folder = os.path.join(os.getcwd(), 'output')
-            if not os.path.exists(self.output_folder):
-                os.makedirs(self.output_folder)
+        self.ensure_dir(self.output_folder)
 
         self.verbose = self.args.verbose
 
@@ -58,3 +55,8 @@ class Subcommand:
         time2 = datetime.now()
         t = time2 - time1
         return t
+
+    @staticmethod
+    def ensure_dir(dir_path):
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)

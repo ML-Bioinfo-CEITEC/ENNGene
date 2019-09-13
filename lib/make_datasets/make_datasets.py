@@ -217,8 +217,6 @@ class MakeDatasets(Subcommand):
         time1 = datetime.now()
         for dataset in full_datasets:
             dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
             file_name = dataset.klass + '_' + '_'.join(dataset.branches)
             logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
             dataset.save_to_file(dir_path, file_name)
@@ -236,8 +234,7 @@ class MakeDatasets(Subcommand):
                     reduced_datasets.add(dataset.reduce(ratio, self.reduceseed))
                     # Save the reduced datasets
                     dir_path = os.path.join(self.output_folder, 'datasets', 'reduced_datasets')
-                    if not os.path.exists(dir_path):
-                        os.makedirs(dir_path)
+                    self.ensure_dir(dir_path)
                     file_name = dataset.klass + '_' + '_'.join(dataset.branches)
                     logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
                     dataset.save_to_file(dir_path, file_name)
@@ -273,8 +270,7 @@ class MakeDatasets(Subcommand):
         time1 = datetime.now()
         for dataset in final_datasets:
             dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
+            self.ensure_dir(dir_path)
             file_name = dataset.category
             logger.debug('Saving {} to: {}...'.format(dataset.category, dir_path))
             dataset.save_to_file(dir_path, file_name)

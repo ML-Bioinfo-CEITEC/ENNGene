@@ -32,7 +32,7 @@ class Train(Subcommand):
         super().__init__(parser)
 
         self.train_dir = os.path.join(self.output_folder, 'training')
-        if not os.path.exists(self.train_dir): os.makedirs(self.train_dir)
+        self.ensure_dir(self.train_dir)
 
         if type(self.args.branches) == list:
             self.branches = self.args.branches
