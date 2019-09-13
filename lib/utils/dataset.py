@@ -9,6 +9,9 @@ from .data_point import DataPoint
 from . import file_utils as f
 from . import sequence as seq
 
+import logging
+logger = logging.getLogger('main')
+
 
 class Dataset:
 
@@ -113,14 +116,17 @@ class Dataset:
         if datapoint_list:
             self.datapoint_list = datapoint_list
         else:
+            logger.debug('Mapping bed file for klass {} onto {} reference files.'.format(self.klass, len(branches)))
             self.datapoint_list = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
+            logger.debug('Finished mapping the file.')
 
-        # TODO make it work
         if 'fold' in self.branches and not datapoint_list:
+            logger.debug('Folding sequences...')
             # can the result really be a dictionary? probably should
             file_name = 'fold' + '_' + klass
             # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
             self.datapoint_list = self.fold_branch(self.datapoint_list, file_name, dna=True)
+            logger.debug('Finished folding sequences.')
 
     def save_to_file(self, dir_path, file_name):
         content = ""

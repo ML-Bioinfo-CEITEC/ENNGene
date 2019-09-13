@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import os
 import sys
 
@@ -52,3 +53,8 @@ class Subcommand:
         )
         return parser
 
+    @staticmethod
+    def spent_time(time1):
+        time2 = datetime.now()
+        t = time2 - time1
+        return t

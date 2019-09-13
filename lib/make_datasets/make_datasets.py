@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sys
 import logging
@@ -22,6 +23,7 @@ class MakeDatasets(Subcommand):
             is used for training.
             '''
 
+        self.total_time1 = datetime.now()
         parser = self.create_parser(help_message)
         super().__init__(parser)
 
@@ -33,7 +35,10 @@ class MakeDatasets(Subcommand):
 
         self.encoded_alphabet = None
 
+        logger.debug('Converting reference fasta file into dictionary.')
+        time1 = datetime.now()
         seq_dictionary = seq.fasta_to_dictionary(self.args.ref)
+        logger.debug('Finished converting reference file in {}.'.format(self.spent_time(time1)))
         self.reference_files = {'seq': seq_dictionary, 'fold': seq_dictionary}
 
         self.branches = self.args.branches
@@ -42,7 +47,10 @@ class MakeDatasets(Subcommand):
                 logger.exception('Exception occurred.')
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
+                logger.debug('Converting reference wig files into dictionary.')
+                time1 = datetime.now()
                 self.reference_files.update({'cons': seq.wig_to_dictionary(self.args.consdir)})
+                logger.debug('Finished converting reference files in {}.'.format(self.spent_time(time1)))
 
         if self.args.coord:
             self.input_files = self.args.coord
@@ -73,6 +81,7 @@ class MakeDatasets(Subcommand):
                 raise Exception("Provide ratio for all four categories (train, validation, test and blackbox). \
                                  Default: '10:2:2:1'.")
 
+        logger.debug('Finished initialization.')
         logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
 
     def create_parser(self, message):
@@ -175,12 +184,17 @@ class MakeDatasets(Subcommand):
 
     def run(self):
         if self.args.onehot:
+            logger.debug('Encoding alphabet.')
+            time1 = datetime.now()
             encoding = seq.onehot_encode_alphabet(self.args.onehot)
+            logger.debug('Finished encoding alphabet in {}.'.format(self.spent_time(time1)))
         else:
             encoding = None
 
         # Accept one file per class and create one Dataset per each
         full_datasets = set()
+        logger.debug('Preparing initial datasets per each input file.')
+        time1 = datetime.now()
         for file in self.input_files:
             file_name = os.path.basename(file)
             if '.bed' in file_name:
@@ -188,26 +202,36 @@ class MakeDatasets(Subcommand):
             else:
                 klass = file_name
 
+            logger.debug('Preparing initial dataset for klass {}.'.format(klass))
+            sub_time1 = datetime.now()
             full_datasets.add(Dataset(klass=klass,
                                       branches=self.branches,
                                       bed_file=file,
                                       ref_files=self.reference_files,
                                       strand=self.args.strand,
                                       encoding=encoding))
+            logger.debug('Finished creating the dataset in {}.'.format(self.spent_time(sub_time1)))
+        logger.debug('Finished creating initial datasets in {}.'.format(self.spent_time(time1)))
 
+        logger.debug('Writing initial datasets into files...')
+        time1 = datetime.now()
         for dataset in full_datasets:
             dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             file_name = dataset.klass + '_' + '_'.join(dataset.branches)
+            logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
             dataset.save_to_file(dir_path, file_name)
+        logger.debug('Finished saving the files in {}.'.format(self.spent_time(time1)))
 
         # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
         if self.reducelist:
+            logger.debug('Reducing selected datasets...')
+            time1 = datetime.now()
             reduced_datasets = set()
             for dataset in full_datasets:
                 if dataset.klass in self.reducelist:
-                    print("Reducing number of samples in klass {}".format(dataset.klass))
+                    logger.info("Reducing number of samples in klass {}...".format(dataset.klass))
                     ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
                     reduced_datasets.add(dataset.reduce(ratio, self.reduceseed))
                     # Save the reduced datasets
@@ -215,31 +239,46 @@ class MakeDatasets(Subcommand):
                     if not os.path.exists(dir_path):
                         os.makedirs(dir_path)
                     file_name = dataset.klass + '_' + '_'.join(dataset.branches)
+                    logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
                     dataset.save_to_file(dir_path, file_name)
                 else:
-                    print("Keeping full number of samples for klass {}".format(dataset.klass))
+                    logger.info("Keeping full number of samples for klass {}".format(dataset.klass))
                     reduced_datasets.add(dataset)
+            logger.debug('Finished reducing datasets in {}.'.format(self.spent_time(time1)))
         else:
             reduced_datasets = full_datasets
 
         # Split datasets into train, validation, test and blackbox datasets
         split_datasets = set()
+        logger.debug('Splitting datasets into train, test, validation and blackbox categories...')
+        time1 = datetime.now()
         for dataset in reduced_datasets:
+            logger.debug('Splitting dataset for {}...'.format(dataset.klass))
             if self.split == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
             elif self.split == 'rand':
                 split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
+            logger.debug('Finished splitting the dataset.')
             split_datasets = split_datasets.union(split_subdatasets)
+        logger.debug('Finished splitting all the datasets in {}.'.format(self.spent_time(time1)))
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
+        logger.debug('Merging datasets of different klasses by categories...')
+        time1 = datetime.now()
         final_datasets = Dataset.merge_by_category(split_datasets)
+        logger.debug('Finished merging the datasets in {}.'.format(self.spent_time(time1)))
 
         # Export final datasets to files
+        logger.debug('Writing final datasets into files...')
+        time1 = datetime.now()
         for dataset in final_datasets:
             dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             file_name = dataset.category
+            logger.debug('Saving {} to: {}...'.format(dataset.category, dir_path))
             dataset.save_to_file(dir_path, file_name)
+        logger.debug('Finished saving the files in {}.'.format(self.spent_time(time1)))
 
+        logger.debug('Finished running make_datasets in {}.'.format(self.spent_time(self.total_time1)))
         return final_datasets
