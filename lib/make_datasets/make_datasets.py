@@ -62,8 +62,13 @@ class MakeDatasets(Subcommand):
             self.reducelist = self.args.reducelist
             if self.args.reduceratio:
                 self.reduceratio = [float(x) for x in self.args.reduceratio]
+            else:
+                logger.exception('Exception occurred.')
+                raise Exception("To reduce selected klasses you must provide reduce ratio per each such klass.")
             if self.args.reduceseed:
                 self.reduceseed = self.args.reduceseed
+            else:
+                self.reduceseed = None
         else:
             self.reducelist = None
 
