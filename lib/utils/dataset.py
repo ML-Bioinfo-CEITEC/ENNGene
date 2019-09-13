@@ -90,7 +90,7 @@ class Dataset:
         return split_datasets
 
     @classmethod
-    def merge_by_category(cls, set_of_datasets):
+    def merge_by_category(cls, set_of_datasets, outdir_path):
         datasets_by_category = {}
         for dataset in set_of_datasets:
             if dataset.category not in datasets_by_category.keys(): datasets_by_category.update({dataset.category: []})
@@ -98,16 +98,22 @@ class Dataset:
 
         final_datasets = set()
         for category, datasets in datasets_by_category.items():
+            file_path = os.path.join(outdir_path, category)
+            branches = datasets[0].branches
+            out_file = cls.initialize_file(file_path, branches)
             merged_datapoint_list = []
             for dataset in datasets:
                 merged_datapoint_list += dataset.datapoint_list
             final_datasets.add(
-                cls(branches=datasets[0].branches, category=category, datapoint_list=merged_datapoint_list))
+                cls(branches=branches, category=category, datapoint_list=merged_datapoint_list))
+            for datapoint in merged_datapoint_list:
+                cls.write_datapoint(out_file, datapoint, branches)
+            out_file.close()
 
         return final_datasets
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
-                 datapoint_list=None):
+                 datapoint_list=None, outfile_path=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
@@ -116,39 +122,33 @@ class Dataset:
         if datapoint_list:
             self.datapoint_list = datapoint_list
         else:
-            logger.debug('Mapping bed file for klass {} onto {} reference files.'.format(self.klass, len(branches)))
-            self.datapoint_list = self.map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand)
-            logger.debug('Finished mapping the file.')
+            logger.debug('Mapping bed file for klass {} onto {} reference files and exporting.'.format(self.klass, len(branches)))
+            self.datapoint_list = self.map_bed_to_refs(
+                branches, klass, bed_file, ref_files, encoding, strand, outfile_path)
 
         if 'fold' in self.branches and not datapoint_list:
+            # FIXME does not save result of the proper length
             logger.debug('Folding sequences...')
             # can the result really be a dictionary? probably should
             file_name = 'fold' + '_' + klass
             # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
             self.datapoint_list = self.fold_branch(self.datapoint_list, file_name, dna=True)
-            logger.debug('Finished folding sequences.')
 
-    def save_to_file(self, dir_path, file_name):
-        content = ""
-        content += 'key' + "\t" + "\t".join(self.branches) + "\n"
-        for datapoint in self.datapoint_list:
-            content += datapoint.key() + "\t"
-            for branch in self.branches:
-                content += datapoint.string_value(branch) + "\t"
-            content += "\n"
+    def save_to_file(self):
+        pass
 
-        file_path = os.path.join(dir_path, file_name)
-        f.write(file_path, content.strip())
-        return file_path
-
-    def reduce(self, ratio, seed=84):
+    def reduce(self, ratio, outfile_path, seed=84):
+        out_file = self.initialize_file(outfile_path, self.branches)
         random.seed(seed)
         random.shuffle(self.datapoint_list)
         last = int(len(self.datapoint_list) * ratio)
 
         reduced_dp_list = self.datapoint_list[0:last]
+        for datapoint in reduced_dp_list:
+            self.write_datapoint(out_file, datapoint, self.branches)
 
         self.datapoint_list = reduced_dp_list
+        out_file.close()
         return self
 
     def values(self, branch):
@@ -228,8 +228,10 @@ class Dataset:
         return path_to_fasta
 
     @staticmethod
-    def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand):
+    def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand, outfile_path):
         file = f.filehandle_for(bed_file)
+        out_file = Dataset.initialize_file(outfile_path, branches)
+
         datapoint_list = []
 
         for line in file:
@@ -268,7 +270,23 @@ class Dataset:
 
             # Save the point only if the value is available for all the branches
             if len(branches_values) == len(branches):
-                datapoint_list.append(
-                    DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values))
+                datapoint = DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values)
+                datapoint_list.append(datapoint)
+                Dataset.write_datapoint(out_file, datapoint, branches)
 
+        out_file.close()
         return datapoint_list
+
+    @staticmethod
+    def initialize_file(path, branches):
+        out_file = open(path, 'w')
+        header = 'key' + '\t' + '\t'.join(branches) + '\n'
+        out_file.write(header)
+        return out_file
+
+    @staticmethod
+    def write_datapoint(out_file, datapoint, branches):
+        out_file.write(datapoint.key() + '\t')
+        for branch in branches:
+            out_file.write(datapoint.string_value(branch) + '\t')
+        out_file.write('\n')

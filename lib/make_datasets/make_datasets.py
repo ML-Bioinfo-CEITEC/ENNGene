@@ -198,51 +198,42 @@ class MakeDatasets(Subcommand):
 
         # Accept one file per class and create one Dataset per each
         full_datasets = set()
-        logger.debug('Preparing initial datasets per each input file.')
-        time1 = datetime.now()
+        logger.debug('Preparing and exporting initial datasets per each input file.')
         for file in self.input_files:
+            time1 = datetime.now()
             file_name = os.path.basename(file)
             if '.bed' in file_name:
                 klass = file_name.replace('.bed', '')
             else:
                 klass = file_name
+            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+            self.ensure_dir(dir_path)
+            file_path = os.path.join(dir_path, file_name)
 
             logger.debug('Preparing initial dataset for klass {}.'.format(klass))
-            sub_time1 = datetime.now()
             full_datasets.add(Dataset(klass=klass,
                                       branches=self.branches,
                                       bed_file=file,
                                       ref_files=self.reference_files,
                                       strand=self.args.strand,
-                                      encoding=encoding))
-            logger.debug('Finished creating the dataset in {}.'.format(self.spent_time(sub_time1)))
-        logger.debug('Finished creating initial datasets in {}.'.format(self.spent_time(time1)))
-
-        logger.debug('Writing initial datasets into files...')
-        time1 = datetime.now()
-        for dataset in full_datasets:
-            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
-            file_name = dataset.klass + '_' + '_'.join(dataset.branches)
-            logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
-            dataset.save_to_file(dir_path, file_name)
-        logger.debug('Finished saving the files in {}.'.format(self.spent_time(time1)))
+                                      encoding=encoding,
+                                      outfile_path=file_path))
+            logger.debug('Finished creating and exporting the dataset in {}.'.format(self.spent_time(time1)))
 
         # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
         if self.reducelist:
-            logger.debug('Reducing selected datasets...')
+            logger.debug('Reducing and exporting selected datasets...')
             time1 = datetime.now()
             reduced_datasets = set()
             for dataset in full_datasets:
                 if dataset.klass in self.reducelist:
                     logger.info("Reducing number of samples in klass {}...".format(dataset.klass))
                     ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
-                    reduced_datasets.add(dataset.reduce(ratio, self.reduceseed))
-                    # Save the reduced datasets
                     dir_path = os.path.join(self.output_folder, 'datasets', 'reduced_datasets')
                     self.ensure_dir(dir_path)
                     file_name = dataset.klass + '_' + '_'.join(dataset.branches)
-                    logger.debug('Saving {} as {} to: {}...'.format(dataset.klass, file_name, dir_path))
-                    dataset.save_to_file(dir_path, file_name)
+                    file_path = os.path.join(dir_path, file_name)
+                    reduced_datasets.add(dataset.reduce(ratio, file_path, seed=self.reduceseed))
                 else:
                     logger.info("Keeping full number of samples for klass {}".format(dataset.klass))
                     reduced_datasets.add(dataset)
@@ -265,21 +256,12 @@ class MakeDatasets(Subcommand):
         logger.debug('Finished splitting all the datasets in {}.'.format(self.spent_time(time1)))
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
-        logger.debug('Merging datasets of different klasses by categories...')
+        logger.debug('Merging and exporting datasets of different klasses by categories...')
         time1 = datetime.now()
-        final_datasets = Dataset.merge_by_category(split_datasets)
-        logger.debug('Finished merging the datasets in {}.'.format(self.spent_time(time1)))
-
-        # Export final datasets to files
-        logger.debug('Writing final datasets into files...')
-        time1 = datetime.now()
-        for dataset in final_datasets:
-            dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
-            self.ensure_dir(dir_path)
-            file_name = dataset.category
-            logger.debug('Saving {} to: {}...'.format(dataset.category, dir_path))
-            dataset.save_to_file(dir_path, file_name)
-        logger.debug('Finished saving the files in {}.'.format(self.spent_time(time1)))
+        dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
+        self.ensure_dir(dir_path)
+        final_datasets = Dataset.merge_by_category(split_datasets, dir_path)
+        logger.debug('Finished merging and exporting the datasets in {}.'.format(self.spent_time(time1)))
 
         logger.debug('Finished running make_datasets in {}.'.format(self.spent_time(self.total_time1)))
         return final_datasets
