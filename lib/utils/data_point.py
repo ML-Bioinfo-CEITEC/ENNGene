@@ -60,9 +60,9 @@ class DataPoint:
         self.branches_values = branches_values
 
     def key(self):
-        try:
+        if self.strand_sign:
             key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + "_" + self.strand_sign + '_' + self.klass
-        except:
+        else:
             key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + '_' + self.klass
         return key
 

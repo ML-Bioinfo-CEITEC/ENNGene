@@ -240,9 +240,10 @@ class Dataset:
             chrom_name = values[0]
             seq_start = values[1]
             seq_end = values[2]
-            try:
+
+            if len(values) >= 6:
                 strand_sign = values[5]
-            except:
+            else:
                 strand_sign = None
             branches_values = {}
 
