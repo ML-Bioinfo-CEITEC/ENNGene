@@ -34,6 +34,8 @@ class MakeDatasets(Subcommand):
         logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
 
         self.encoded_alphabet = None
+        self.window = self.args.win
+        self.winseed = self.args.winseed
         self.strand = self.args.strand
 
         self.branches = self.args.branches
@@ -102,6 +104,18 @@ class MakeDatasets(Subcommand):
             # TODO allow naming the classes differently?
             help="Coordinates BED File per each class, omit for STDIN, class name = file name",
             default='-'
+        )
+        parser.add_argument(
+            "--win",
+            required=True,
+            help="Window size to unify lenghts of the input sequences. Default = 100.",
+            default=100,
+            type=int
+        )
+        parser.add_argument(
+            "--winseed",
+            default=64,
+            help="Seed to replicate window placement upon the sequences. Default = 64.",
         )
         parser.add_argument(
             "--ref",

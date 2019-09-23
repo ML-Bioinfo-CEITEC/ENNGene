@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 from . import sequence as seq
 
@@ -50,14 +51,19 @@ class DataPoint:
 
         return [chrom_name, seq_start, seq_end, strand_sign, klass]
 
-    def __init__(self, branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values):
+    def __init__(self, branches, klass, chrom_name, seq_start, seq_end, strand_sign, win=None, winseed=None,
+                 branches_values={}):
         self.branches = branches
         self.klass = klass
         self.chrom_name = chrom_name
-        self.seq_start = seq_start
-        self.seq_end = seq_end
         self.strand_sign = strand_sign  # may be None
         self.branches_values = branches_values
+
+        if win:
+            self.seq_start, self.seq_end = self.apply_window(seq_start, seq_end, win, winseed)
+        else:
+            self.seq_start = seq_start
+            self.seq_end = seq_end
 
     def key(self):
         if self.strand_sign:
@@ -84,3 +90,22 @@ class DataPoint:
                 string += str(e) + '|'
 
         return string.strip('|').strip(', ')
+
+    @staticmethod
+    def apply_window(seq_start, seq_end, window, seed=64):
+        random.seed(seed)
+        if (seq_end - seq_start) > window:
+            above = (seq_end - seq_start) - window
+            rand = random.randint(0, above)
+            new_start = seq_start + rand
+            new_end = seq_start + rand + window
+        elif (seq_end - seq_start) < window:
+            missing = window - (seq_end - seq_start)
+            rand = random.randint(0, missing)
+            new_start = seq_start - rand
+            new_end = seq_end + (missing - rand)
+        else:
+            new_start = seq_start
+            new_end = seq_end
+
+        return new_start, new_end
