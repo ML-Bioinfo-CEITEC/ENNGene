@@ -91,6 +91,12 @@ class DataPoint:
 
         return string.strip('|').strip(', ')
 
+    def write(self, out_file):
+        out_file.write(self.key() + '\t')
+        for branch in self.branches:
+            out_file.write(self.string_value(branch) + '\t')
+        out_file.write('\n')
+
     @staticmethod
     def apply_window(seq_start, seq_end, window, seed=64):
         random.seed(seed)
