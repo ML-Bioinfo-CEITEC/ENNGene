@@ -63,7 +63,7 @@ class Dataset:
         return reversed_dict
 
     @classmethod
-    def split_random(cls, dataset, ratio_list, seed=56):
+    def split_random(cls, dataset, ratio_list, seed):
         # so far the categories are fixed, not sure if there would be need for custom categories
         categories_ratio = {'train': float(ratio_list[0]),
                             'validation': float(ratio_list[1]),

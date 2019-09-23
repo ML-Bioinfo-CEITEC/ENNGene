@@ -68,10 +68,7 @@ class MakeDatasets(Subcommand):
             else:
                 logger.exception('Exception occurred.')
                 raise Exception("To reduce selected klasses you must provide reduce ratio per each such klass.")
-            if self.args.reduceseed:
-                self.reduceseed = self.args.reduceseed
-            else:
-                self.reduceseed = None
+            self.reduceseed = self.args.reduceseed
         else:
             self.reducelist = None
 
@@ -162,7 +159,8 @@ class MakeDatasets(Subcommand):
         )
         parser.add_argument(
             "--reduceseed",
-            help="You may provide seed for random separation of datasets. --split must be set to 'rand'."
+            default=112,
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 112."
         )
         parser.add_argument(
             "--split",
@@ -172,7 +170,8 @@ class MakeDatasets(Subcommand):
         )
         parser.add_argument(
             "--splitseed",
-            help="You may provide seed for random separation of datasets. --split must be set to 'rand'."
+            default=56,
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 56."
         )
         # TODO what ratio to use as default? What would be better way to define the ratio?
         parser.add_argument(
