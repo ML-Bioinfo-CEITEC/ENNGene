@@ -34,23 +34,24 @@ class MakeDatasets(Subcommand):
         logger.info('Running make_datasets with the following arguments: ' + str(self.args)[10:-1])
 
         self.encoded_alphabet = None
-
-        logger.debug('Converting reference fasta file into dictionary.')
-        time1 = datetime.now()
-        seq_dictionary = seq.fasta_to_dictionary(self.args.ref)
-        logger.debug('Finished converting reference file in {}.'.format(self.spent_time(time1)))
-        self.reference_files = {'seq': seq_dictionary, 'fold': seq_dictionary}
+        self.strand = self.args.strand
 
         self.branches = self.args.branches
+        self.references = {}
+        if 'seq' in self.branches or 'fold' in self.branches:
+            if not self.args.ref:
+                logger.exception('Exception occurred.')
+                raise Exception("Provide reference fasta file to map interval files to.")
+            else:
+                seq_dictionary = seq.fasta_to_dictionary(self.args.ref)
+                self.references.update({'seq': seq_dictionary, 'fold': seq_dictionary})
+
         if 'cons' in self.branches:
             if not self.args.consdir:
                 logger.exception('Exception occurred.')
                 raise Exception("Provide conservation directory for calculating scores for conservation branch.")
             else:
-                logger.debug('Converting reference wig files into dictionary.')
-                time1 = datetime.now()
-                self.reference_files.update({'cons': seq.wig_to_dictionary(self.args.consdir)})
-                logger.debug('Finished converting reference files in {}.'.format(self.spent_time(time1)))
+                self.references.update({'cons': self.args.consdir})
 
         if self.args.coord:
             self.input_files = self.args.coord
@@ -105,8 +106,7 @@ class MakeDatasets(Subcommand):
         parser.add_argument(
             "--ref",
             action="store",
-            required=True,
-            help="Path to reference file or folder, omit for STDIN",
+            help="Path to reference fasta file. Necessary if 'seq' or 'fold' branch is selected.",
             default="-"
         )
         parser.add_argument(
@@ -189,79 +189,53 @@ class MakeDatasets(Subcommand):
 
     def run(self):
         if self.args.onehot:
-            logger.debug('Encoding alphabet.')
-            time1 = datetime.now()
+            logger.debug('Encoding alphabet...')
             encoding = seq.onehot_encode_alphabet(self.args.onehot)
-            logger.debug('Finished encoding alphabet in {}.'.format(self.spent_time(time1)))
         else:
             encoding = None
 
         # Accept one file per class and create one Dataset per each
-        full_datasets = set()
-        logger.debug('Preparing and exporting initial datasets per each input file.')
+        split_datasets = set()
+        logger.debug('Reading in given interval files and applying window...')
         for file in self.input_files:
-            time1 = datetime.now()
             file_name = os.path.basename(file)
             if '.bed' in file_name:
                 klass = file_name.replace('.bed', '')
             else:
                 klass = file_name
-            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
-            self.ensure_dir(dir_path)
-            file_path = os.path.join(dir_path, file_name)
 
-            logger.debug('Preparing initial dataset for klass {}.'.format(klass))
-            full_datasets.add(Dataset(klass=klass,
-                                      branches=self.branches,
-                                      bed_file=file,
-                                      ref_files=self.reference_files,
-                                      strand=self.args.strand,
-                                      encoding=encoding,
-                                      outfile_path=file_path))
-            logger.debug('Finished creating and exporting the dataset in {}.'.format(self.spent_time(time1)))
+            dataset = Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed)
 
-        # Reduce dataset for selected classes to lower the amount of samples in overpopulated classes
-        if self.reducelist:
-            logger.debug('Reducing and exporting selected datasets...')
-            time1 = datetime.now()
-            reduced_datasets = set()
-            for dataset in full_datasets:
-                if dataset.klass in self.reducelist:
-                    logger.info("Reducing number of samples in klass {}...".format(dataset.klass))
-                    ratio = self.reduceratio[self.reducelist.index(dataset.klass)]
-                    dir_path = os.path.join(self.output_folder, 'datasets', 'reduced_datasets')
-                    self.ensure_dir(dir_path)
-                    file_name = dataset.klass + '_' + '_'.join(dataset.branches)
-                    file_path = os.path.join(dir_path, file_name)
-                    reduced_datasets.add(dataset.reduce(ratio, file_path, seed=self.reduceseed))
-                else:
-                    logger.info("Keeping full number of samples for klass {}".format(dataset.klass))
-                    reduced_datasets.add(dataset)
-            logger.debug('Finished reducing datasets in {}.'.format(self.spent_time(time1)))
-        else:
-            reduced_datasets = full_datasets
+            # Reduce size of selected klasses
+            if self.reducelist and klass in self.reducelist:
+                logger.info("Reducing number of samples in klass {}...".format(klass))
+                ratio = self.reduceratio[self.reducelist.index(klass)]
+                dataset = dataset.reduce(ratio, seed=self.reduceseed)
 
-        # Split datasets into train, validation, test and blackbox datasets
-        split_datasets = set()
-        logger.debug('Splitting datasets into train, test, validation and blackbox categories...')
-        time1 = datetime.now()
-        for dataset in reduced_datasets:
-            logger.debug('Splitting dataset for {}...'.format(dataset.klass))
+            # Split datasets into train, validation, test and blackbox datasets
             if self.split == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
             elif self.split == 'rand':
                 split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
-            logger.debug('Finished splitting the dataset.')
             split_datasets = split_datasets.union(split_subdatasets)
-        logger.debug('Finished splitting all the datasets in {}.'.format(self.spent_time(time1)))
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
-        logger.debug('Merging and exporting datasets of different klasses by categories...')
-        time1 = datetime.now()
-        dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
+        logger.debug('Merging and exporting final interval files...')
+        dir_path = os.path.join(self.output_folder, 'datasets', 'intervals')
         self.ensure_dir(dir_path)
-        final_datasets = Dataset.merge_by_category(split_datasets, dir_path)
-        logger.debug('Finished merging and exporting the datasets in {}.'.format(self.spent_time(time1)))
+        final_interval_datasets = Dataset.merge_by_category(split_datasets, dir_path)
 
-        logger.debug('Finished running make_datasets in {}.'.format(self.spent_time(self.total_time1)))
-        return final_datasets
+        mapped_datasets = set()
+        # TODO here either use the datasets or already existing files if chosen
+        # Use intervals from each category and create data for all the branches
+        for dataset in final_interval_datasets:
+            logger.debug('Mapping intervals for klass {} to {} branches and exporting...'.format(
+                dataset.klass, len(self.branches)))
+
+            dir_path = os.path.join(self.output_folder, 'datasets', 'mapped')
+            self.ensure_dir(dir_path)
+            outfile_path = os.path.join(dir_path, dataset.category)
+            mapped_datasets.add(
+                dataset.map_to_branches(self.references, encoding, self.strand, outfile_path))
+
+        return mapped_datasets

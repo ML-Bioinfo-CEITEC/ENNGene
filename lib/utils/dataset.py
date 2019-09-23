@@ -10,6 +10,7 @@ from . import file_utils as f
 from . import sequence as seq
 
 import logging
+
 logger = logging.getLogger('main')
 
 
@@ -112,43 +113,44 @@ class Dataset:
 
         return final_datasets
 
-    def __init__(self, klass=None, branches=None, category=None, bed_file=None, ref_files=None, strand=None, encoding=None,
-                 datapoint_list=None, outfile_path=None):
+    def __init__(self, klass=None, branches=None, category=None, bed_file=None, win=None, winseed=None,
+                 datapoint_list=[]):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
+        self.datapoint_list = datapoint_list
 
-        # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
-        if datapoint_list:
-            self.datapoint_list = datapoint_list
-        else:
-            logger.debug('Mapping bed file for klass {} onto {} reference files and exporting.'.format(self.klass, len(branches)))
-            self.datapoint_list = self.map_bed_to_refs(
-                branches, klass, bed_file, ref_files, encoding, strand, outfile_path)
+        if bed_file and win:
+            self.datapoint_list = self.read_in_bed(bed_file, win, winseed)
 
-        if 'fold' in self.branches and not datapoint_list:
-            # FIXME does not save result of the proper length
-            logger.debug('Folding sequences...')
-            # can the result really be a dictionary? probably should
-            file_name = 'fold' + '_' + klass
-            # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
-            self.datapoint_list = self.fold_branch(self.datapoint_list, file_name, dna=True)
+    def read_in_bed(self, bed_file, window, window_seed):
+        datapoint_list = []
 
-    def save_to_file(self):
-        pass
+        for line in bed_file:
+            values = line.split()
 
-    def reduce(self, ratio, outfile_path, seed=84):
-        out_file = self.initialize_file(outfile_path, self.branches)
+            chrom_name = values[0]
+            # first position in chr in bed file is assigned as 0 (thus it fits the python indexing from 0)
+            seq_start = int(values[1])
+            # both bed file coordinates and python range exclude the last position
+            seq_end = int(values[2])
+            if len(values) >= 6:
+                strand_sign = values[5]
+            else:
+                strand_sign = None
+
+            datapoint = DataPoint(self.branches, self.klass, chrom_name, seq_start, seq_end, strand_sign,
+                                  win=window, winseed=window_seed)
+            datapoint_list.append(datapoint)
+
+        return datapoint_list
+
+    def reduce(self, ratio, seed):
         random.seed(seed)
         random.shuffle(self.datapoint_list)
         last = int(len(self.datapoint_list) * ratio)
 
-        reduced_dp_list = self.datapoint_list[0:last]
-        for datapoint in reduced_dp_list:
-            self.write_datapoint(out_file, datapoint, self.branches)
-
-        self.datapoint_list = reduced_dp_list
-        out_file.close()
+        self.datapoint_list = self.datapoint_list[0:last]
         return self
 
     def values(self, branch):
@@ -171,29 +173,98 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def fold_branch(self, datapoint_list, name, dna=True):
-        tmp_dir = tempfile.gettempdir()
-        fasta_file = self.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, name)
+    def map_to_branches(self, references, encoding, strand, outfile_path):
+        # TODO directly zip the files
+        out_file = Dataset.initialize_file(outfile_path, self.branches)
 
-        out_path = os.path.join(tmp_dir, name + "_folded")
+        for branch in self.branches:
+            # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
+            reference = references[branch]
+            if branch == 'seq':
+                self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, reference, encoding, strand)
+            elif branch == 'cons':
+                self.datapoint_list = self.map_to_wig(self.datapoint_list, reference)
+            elif branch == 'fold':
+                if 'seq' in self.branches:
+                    continue
+                else:
+                    self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, reference, encoding, strand)
+
+        if 'fold' in self.branches:
+            # FIXME does not save result of the proper length
+            logger.debug('Folding sequences in {} dataset...'.format(self.category))
+            file_name = 'fold' + '_' + self.klass
+            # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
+            self.datapoint_list = self.fold_branch(file_name, self.datapoint_list, dna=True)
+
+        for datapoint in self.datapoint_list:
+            datapoint.write(out_file)
+        out_file.close()
+
+        return self
+
+    @staticmethod
+    def map_to_fasta_dict(datapoint_list, ref_dictionary, encoding, strand):
+        # Returns only successfully mapped datapoints
+        updated_datapoint_list = []
+        for datapoint in datapoint_list:
+            if datapoint.chrom_name in ref_dictionary.keys():
+                sequence = []
+                for i in range(datapoint.start_position, datapoint.end_position):
+                    sequence.append(ref_dictionary[datapoint.chrom_name][i])
+
+                if strand and datapoint.strand_sign == '-':
+                    sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
+
+                if encoding:
+                    sequence = [seq.translate(item, encoding) for item in sequence]
+
+                datapoint.branches_values.update({'seq': np.array(sequence)})
+                updated_datapoint_list.append(datapoint)
+
+        return updated_datapoint_list
+
+    @staticmethod
+    def map_to_wig(datapoint_list, ref_folder, complement):
+        # wig ref is just a path to the folder
+        # remove or use seq.wig_to_dict
+
+        # Returns only successfully mapped datapoints
+        updated_datapoint_list = []
+        for datapoint in datapoint_list:
+            pass
+
+        return updated_datapoint_list
+
+    @staticmethod
+    def fold_branch(file_name, datapoint_list, dna=True):
+        tmp_dir = tempfile.gettempdir()
+        fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
+
+        out_path = os.path.join(tmp_dir, file_name + "_folded")
         out_file = open(out_path, 'w+')
         if dna:
+            # TODO mustard converts DNA to RNA also on its own, ask why not to use the --noconv option instead
+            # TODO use ncpu option to define how many cores to use
             subprocess.run(["RNAfold", "--noPS", "--jobs=10", fasta_file], stdout=out_file, check=True)
         else:
             subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=10", fasta_file], stdout=out_file, check=True)
 
-        # TODO zip output file? can it help when reading large file??
         out_file = open(out_path)
         lines = out_file.readlines()
         out_file.close()
 
         if (len(lines) / 3) == len(datapoint_list):
+            # The order should remain the same as long as --unordered is not set to True
             updated_datapoint_list = []
             for i, line in enumerate(lines):
-                # TODO check that the order of datapoints is ok
+                # TODO if the key is part of the output file, we could read it and by that identify the right datapoint
+                # and update it, this way we eould not have to worry about the order of results, but it could be too slow
+                # TODO what information do we use for training? The sequence, the MFE or something else?
+
                 # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
-                if (i+1) % 3 == 0:
-                    datapoint = datapoint_list[int(i/3)]
+                if (i + 1) % 3 == 0:
+                    datapoint = datapoint_list[int(i / 3)]
                     value = []
                     # line format: '.... (  0.00)'
                     part1 = line.split('(')[0].strip()
@@ -203,15 +274,17 @@ class Dataset:
                     updated_datapoint_list.append(datapoint)
         else:
             raise Exception('Did not fold all the datapoints!')
+            # We have no way to determine which were not folded if this happens
             sys.exit()
 
         return updated_datapoint_list
 
-    # def export_to_bed(self, path):
-    #     return f.dictionary_to_bed(self.dictionary, path)
-    #
-    # def export_to_fasta(self, path):
-    #     return f.dictionary_to_fasta(self.dictionary, path)
+    @staticmethod
+    def initialize_file(path, branches):
+        out_file = open(path, 'w')
+        header = 'key' + '\t' + '\t'.join(branches) + '\n'
+        out_file.write(header)
+        return out_file
 
     @staticmethod
     def datapoints_to_fasta(datapoint_list, branch, path, name):
@@ -226,68 +299,3 @@ class Dataset:
 
         f.write(path_to_fasta, content.strip())
         return path_to_fasta
-
-    @staticmethod
-    def map_bed_to_refs(branches, klass, bed_file, ref_files, encoding, strand, outfile_path):
-        file = f.filehandle_for(bed_file)
-        out_file = Dataset.initialize_file(outfile_path, branches)
-
-        datapoint_list = []
-
-        for line in file:
-            values = line.split()
-
-            chrom_name = values[0]
-            seq_start = values[1]
-            seq_end = values[2]
-
-            if len(values) >= 6:
-                strand_sign = values[5]
-            else:
-                strand_sign = None
-            branches_values = {}
-
-            for branch in branches:
-                # TODO adjust so that it gets translated only once for seq and branch together
-                complement = branch == 'seq' or branch == 'fold'
-                ref_dictionary = ref_files[branch]
-
-                if chrom_name in ref_dictionary.keys():
-                    # first position in chr in bed file is assigned as 0 (thus it fits the python indexing from 0)
-                    start_position = int(seq_start)
-                    # both bed file coordinates and python range exclude the last position
-                    end_position = int(seq_end)
-                    sequence = []
-                    for i in range(start_position, end_position):
-                        sequence.append(ref_dictionary[chrom_name][i])
-
-                    if complement and strand and strand_sign == '-':
-                        sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
-
-                    if encoding and branch == 'seq':
-                        sequence = [seq.translate(item, encoding) for item in sequence]
-
-                    branches_values.update({branch: np.array(sequence)})
-
-            # Save the point only if the value is available for all the branches
-            if len(branches_values) == len(branches):
-                datapoint = DataPoint(branches, klass, chrom_name, seq_start, seq_end, strand_sign, branches_values)
-                datapoint_list.append(datapoint)
-                Dataset.write_datapoint(out_file, datapoint, branches)
-
-        out_file.close()
-        return datapoint_list
-
-    @staticmethod
-    def initialize_file(path, branches):
-        out_file = open(path, 'w')
-        header = 'key' + '\t' + '\t'.join(branches) + '\n'
-        out_file.write(header)
-        return out_file
-
-    @staticmethod
-    def write_datapoint(out_file, datapoint, branches):
-        out_file.write(datapoint.key() + '\t')
-        for branch in branches:
-            out_file.write(datapoint.string_value(branch) + '\t')
-        out_file.write('\n')

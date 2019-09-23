@@ -67,6 +67,10 @@ class DataPoint:
         return key
 
     def string_value(self, branch):
+        # TODO can this really happen?
+        if branch not in self.branches_values.keys():
+            return ""
+
         string = ""
         for e in self.branches_values[branch]:
             if type(e) == np.ndarray:
