@@ -233,7 +233,6 @@ class Dataset:
 
     @staticmethod
     def fold_branch(file_name, datapoint_list, dna=True):
-        # FIXME one hot encode the results
         tmp_dir = tempfile.gettempdir()
         fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
 
@@ -253,6 +252,7 @@ class Dataset:
         if (len(lines) / 3) == len(datapoint_list):
             # The order should remain the same as long as --unordered is not set to True
             updated_datapoint_list = []
+            fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
             for i, line in enumerate(lines):
                 # TODO if the key is part of the output file, we could read it and by that identify the right datapoint
                 # and update it, this way we eould not have to worry about the order of results, but it could be too slow
@@ -265,7 +265,7 @@ class Dataset:
                     # line format: '.... (0.00)'
                     part1 = line.split(' ')[0].strip()
                     for char in part1:
-                        value.append(char)
+                        value.append(seq.translate(char, fold_encoding))
                     datapoint.branches_values.update({'fold': np.array(value)})
                     updated_datapoint_list.append(datapoint)
         else:
