@@ -187,7 +187,6 @@ class Dataset:
                 self.datapoint_list = self.map_to_wig(self.datapoint_list, reference)
             elif branch == 'fold':
                 datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
-                # FIXME does not save result of the proper length
                 logger.debug('Folding sequences in {} dataset...'.format(self.category))
                 file_name = 'fold' + '_' + self.category
                 # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
@@ -263,8 +262,8 @@ class Dataset:
                 if (i + 1) % 3 == 0:
                     datapoint = datapoint_list[int(i / 3)]
                     value = []
-                    # line format: '.... (  0.00)'
-                    part1 = line.split('(')[0].strip()
+                    # line format: '.... (0.00)'
+                    part1 = line.split(' ')[0].strip()
                     for char in part1:
                         value.append(char)
                     datapoint.branches_values.update({'fold': np.array(value)})
