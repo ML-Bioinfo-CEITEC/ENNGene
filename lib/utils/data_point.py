@@ -90,10 +90,13 @@ class DataPoint:
 
         return string.strip('|').strip(', ')
 
-    def write(self, out_file):
+    def write(self, out_file, no_value=False):
         out_file.write(self.key() + '\t')
-        for branch in self.branches:
-            out_file.write(self.string_value(branch) + '\t')
+
+        # The novalue option is for interval files that do not yet contain any values
+        if not no_value:
+            for branch in self.branches:
+                out_file.write(self.string_value(branch) + '\t')
         out_file.write('\n')
 
     @staticmethod

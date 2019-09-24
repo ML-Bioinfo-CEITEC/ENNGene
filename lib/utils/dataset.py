@@ -108,7 +108,7 @@ class Dataset:
             final_datasets.add(
                 cls(branches=branches, category=category, datapoint_list=merged_datapoint_list))
             for datapoint in merged_datapoint_list:
-                datapoint.write(out_file)
+                datapoint.write(out_file, no_value=True)
             out_file.close()
 
         return final_datasets
