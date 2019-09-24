@@ -212,11 +212,16 @@ class MakeDatasets(Subcommand):
         logger.debug('Reading in given interval files and applying window...')
         for file in self.input_files:
             file_name = os.path.basename(file)
-            # FIXME files can probably have also other extensions, such as .narrowpeak
-            if '.bed' in file_name:
-                klass = file_name.replace('.bed', '')
+            allowed_extensions = ['.bed', '.narrowPeak']
+            # TODO simpler way to write this in Python?
+            # TODO add other possible similar extensions, .bed12 or something like that?
+            if any(ext in file_name for ext in allowed_extensions):
+                for ext in allowed_extensions:
+                    if ext in file_name:
+                        klass = file_name.replace(ext, '')
             else:
-                klass = file_name
+                logger.exception('Exception occurred.')
+                raise Exception("Only files of following format are allowed: {}.".format(', '.join(allowed_extensions)))
 
             dataset = Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed)
 
