@@ -174,7 +174,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, encoding, strand, outfile_path):
+    def map_to_branches(self, references, encoding, strand, outfile_path, ncpu):
         # TODO directly zip the files
         out_file = Dataset.initialize_file(outfile_path, self.branches)
 
@@ -190,7 +190,7 @@ class Dataset:
                 logger.debug('Folding sequences in {} dataset...'.format(self.category))
                 file_name = 'fold' + '_' + self.category
                 # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
-                self.datapoint_list = self.fold_branch(file_name, datapoint_list, dna=True)
+                self.datapoint_list = self.fold_branch(file_name, datapoint_list, ncpu, dna=True)
 
         for datapoint in self.datapoint_list:
             datapoint.write(out_file)
@@ -232,7 +232,7 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def fold_branch(file_name, datapoint_list, dna=True):
+    def fold_branch(file_name, datapoint_list, ncpu, dna=True):
         tmp_dir = tempfile.gettempdir()
         fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
 
@@ -240,10 +240,9 @@ class Dataset:
         out_file = open(out_path, 'w+')
         if dna:
             # TODO mustard converts DNA to RNA also on its own, ask why not to use the --noconv option instead
-            # TODO use ncpu option to define how many cores to use
-            subprocess.run(["RNAfold", "--noPS", "--jobs=10", fasta_file], stdout=out_file, check=True)
+            subprocess.run(["RNAfold", "--noPS", "--jobs=".format(ncpu), fasta_file], stdout=out_file, check=True)
         else:
-            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=10", fasta_file], stdout=out_file, check=True)
+            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=".format(ncpu), fasta_file], stdout=out_file, check=True)
 
         out_file = open(out_path)
         lines = out_file.readlines()

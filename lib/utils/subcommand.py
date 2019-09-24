@@ -15,6 +15,7 @@ class Subcommand:
             self.output_folder = os.path.join(os.getcwd(), 'output')
         self.ensure_dir(self.output_folder)
 
+        self.ncpu = self.args.ncpu
         self.verbose = self.args.verbose
 
     # def run(self, args):
@@ -33,6 +34,13 @@ class Subcommand:
             dest='output',
             help="Specify folder for output files. If not specified, current working directory will be used."
         )
+        parser.add_argument(
+            # TODO allow option 'auto' to use all available
+            "--ncpu",
+            default=1,
+            help="Number of CPUs to be used for parallelized processes. Default = 1."
+        )
+
         # TODO do we need verbose and quite, or rather use the logger for everything?
         # Or use it to set level of logger verbosity?
         parser.add_argument(

@@ -250,6 +250,6 @@ class MakeDatasets(Subcommand):
             self.ensure_dir(dir_path)
             outfile_path = os.path.join(dir_path, dataset.category)
             mapped_datasets.add(
-                dataset.map_to_branches(self.references, encoding, self.strand, outfile_path))
+                dataset.map_to_branches(self.references, encoding, self.strand, outfile_path, self.ncpu))
 
         return mapped_datasets
