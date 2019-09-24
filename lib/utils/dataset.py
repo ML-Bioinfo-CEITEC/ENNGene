@@ -158,7 +158,7 @@ class Dataset:
         # return ordered list of values of datapoints
         values = []
         for datapoint in self.datapoint_list:
-            values.append(datapoint.branches_values[branch])
+            values.append(datapoint.value(branch))
 
         return np.array(values)
 
@@ -234,6 +234,7 @@ class Dataset:
 
     @staticmethod
     def fold_branch(file_name, datapoint_list, dna=True):
+        # FIXME one hot encode the results
         tmp_dir = tempfile.gettempdir()
         fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
 
@@ -288,8 +289,7 @@ class Dataset:
         content = ""
         for datapoint in datapoint_list:
             line1 = ">" + datapoint.key() + "\n"
-            # Assuming the branch contains valid sequence (e.g. ['A', 'T', 'C', 'G']
-            line2 = ''.join(datapoint.branches_values[branch]) + "\n"
+            line2 = ''.join(datapoint.value(branch)) + "\n"
             content += line1
             content += line2
 

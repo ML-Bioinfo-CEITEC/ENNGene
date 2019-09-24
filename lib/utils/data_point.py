@@ -72,9 +72,12 @@ class DataPoint:
             key = self.chrom_name + "_" + str(self.seq_start) + "_" + str(self.seq_end) + '_' + self.klass
         return key
 
+    def value(self, branch):
+            return self.branches_values[branch]
+
     def string_value(self, branch):
         string = ""
-        for e in self.branches_values[branch]:
+        for e in self.value(branch):
             if type(e) == np.ndarray:
                 substring = ""
                 for el in e:
