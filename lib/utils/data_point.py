@@ -67,16 +67,12 @@ class DataPoint:
 
     def key(self):
         if self.strand_sign:
-            key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + "_" + self.strand_sign + '_' + self.klass
+            key = self.chrom_name + "_" + str(self.seq_start) + "_" + str(self.seq_end) + "_" + self.strand_sign + '_' + self.klass
         else:
-            key = self.chrom_name + "_" + self.seq_start + "_" + self.seq_end + '_' + self.klass
+            key = self.chrom_name + "_" + str(self.seq_start) + "_" + str(self.seq_end) + '_' + self.klass
         return key
 
     def string_value(self, branch):
-        # TODO can this really happen?
-        if branch not in self.branches_values.keys():
-            return ""
-
         string = ""
         for e in self.branches_values[branch]:
             if type(e) == np.ndarray:

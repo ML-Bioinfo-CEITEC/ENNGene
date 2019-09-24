@@ -108,7 +108,7 @@ class Dataset:
             final_datasets.add(
                 cls(branches=branches, category=category, datapoint_list=merged_datapoint_list))
             for datapoint in merged_datapoint_list:
-                cls.write_datapoint(out_file, datapoint, branches)
+                datapoint.write(out_file)
             out_file.close()
 
         return final_datasets
@@ -125,8 +125,9 @@ class Dataset:
 
     def read_in_bed(self, bed_file, window, window_seed):
         datapoint_list = []
+        file = open(bed_file)
 
-        for line in bed_file:
+        for line in file:
             values = line.split()
 
             chrom_name = values[0]
@@ -181,21 +182,16 @@ class Dataset:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
             reference = references[branch]
             if branch == 'seq':
-                self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, reference, encoding, strand)
+                self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
                 self.datapoint_list = self.map_to_wig(self.datapoint_list, reference)
             elif branch == 'fold':
-                if 'seq' in self.branches:
-                    continue
-                else:
-                    self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, reference, encoding, strand)
-
-        if 'fold' in self.branches:
-            # FIXME does not save result of the proper length
-            logger.debug('Folding sequences in {} dataset...'.format(self.category))
-            file_name = 'fold' + '_' + self.klass
-            # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
-            self.datapoint_list = self.fold_branch(file_name, self.datapoint_list, dna=True)
+                datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
+                # FIXME does not save result of the proper length
+                logger.debug('Folding sequences in {} dataset...'.format(self.category))
+                file_name = 'fold' + '_' + self.category
+                # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
+                self.datapoint_list = self.fold_branch(file_name, datapoint_list, dna=True)
 
         for datapoint in self.datapoint_list:
             datapoint.write(out_file)
@@ -204,13 +200,13 @@ class Dataset:
         return self
 
     @staticmethod
-    def map_to_fasta_dict(datapoint_list, ref_dictionary, encoding, strand):
+    def map_to_fasta_dict(datapoint_list, branch, ref_dictionary, encoding, strand):
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
             if datapoint.chrom_name in ref_dictionary.keys():
                 sequence = []
-                for i in range(datapoint.start_position, datapoint.end_position):
+                for i in range(datapoint.seq_start, datapoint.seq_end):
                     sequence.append(ref_dictionary[datapoint.chrom_name][i])
 
                 if strand and datapoint.strand_sign == '-':
@@ -219,7 +215,7 @@ class Dataset:
                 if encoding:
                     sequence = [seq.translate(item, encoding) for item in sequence]
 
-                datapoint.branches_values.update({'seq': np.array(sequence)})
+                datapoint.branches_values.update({branch: np.array(sequence)})
                 updated_datapoint_list.append(datapoint)
 
         return updated_datapoint_list

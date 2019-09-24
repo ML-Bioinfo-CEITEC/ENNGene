@@ -212,6 +212,7 @@ class MakeDatasets(Subcommand):
         logger.debug('Reading in given interval files and applying window...')
         for file in self.input_files:
             file_name = os.path.basename(file)
+            # FIXME files can probably have also other extensions, such as .narrowpeak
             if '.bed' in file_name:
                 klass = file_name.replace('.bed', '')
             else:
@@ -242,8 +243,8 @@ class MakeDatasets(Subcommand):
         # TODO here either use the datasets or already existing files if chosen
         # Use intervals from each category and create data for all the branches
         for dataset in final_interval_datasets:
-            logger.debug('Mapping intervals for klass {} to {} branches and exporting...'.format(
-                dataset.klass, len(self.branches)))
+            logger.debug('Mapping intervals for {} dataset to {} branches and exporting...'.format(
+                dataset.category, len(self.branches)))
 
             dir_path = os.path.join(self.output_folder, 'datasets', 'mapped')
             self.ensure_dir(dir_path)
