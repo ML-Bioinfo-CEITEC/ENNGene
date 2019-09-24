@@ -18,11 +18,6 @@ class Subcommand:
         self.ncpu = self.args.ncpu
         self.verbose = self.args.verbose
 
-    # def run(self, args):
-        # TODO define generic parts of running the subcommand
-        # pass
-
-    # private method for Subcommand descendants use only
     @staticmethod
     def initialize_parser(subcommand_help):
         parser = argparse.ArgumentParser(
@@ -41,7 +36,7 @@ class Subcommand:
             help="Number of CPUs to be used for parallelized processes. Default = 1."
         )
 
-        # TODO do we need verbose and quite, or rather use the logger for everything?
+        # TODO do we need verbose and quiet, or rather use the logger for everything?
         # Or use it to set level of logger verbosity?
         parser.add_argument(
             "-v", "--verbose",

@@ -253,10 +253,6 @@ class Dataset:
             updated_datapoint_list = []
             fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
             for i, line in enumerate(lines):
-                # TODO if the key is part of the output file, we could read it and by that identify the right datapoint
-                # and update it, this way we eould not have to worry about the order of results, but it could be too slow
-                # TODO what information do we use for training? The sequence, the MFE or something else?
-
                 # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
                 if (i + 1) % 3 == 0:
                     datapoint = datapoint_list[int(i / 3)]
