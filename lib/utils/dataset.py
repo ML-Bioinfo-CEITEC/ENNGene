@@ -4,6 +4,7 @@ import platform
 import random
 import subprocess
 import tempfile
+from zipfile import ZipFile
 
 from .data_point import DataPoint
 from . import file_utils as f
@@ -17,8 +18,12 @@ logger = logging.getLogger('main')
 class Dataset:
 
     @classmethod
-    def load_from_file(cls, file_path):
-        file = open(file_path)
+    def load_from_file(cls, file_path, zipped=False):
+        # TODO rather detect if zipped automatically based on file extension?
+        if zipped:
+            file = ZipFile(file_path, 'r')
+        else:
+            file = open(file_path, 'r')
 
         head = file.readline().strip()
         branches = head.split("\t")[1:]
@@ -175,8 +180,7 @@ class Dataset:
             return np.array(labels)
 
     def map_to_branches(self, references, encoding, strand, outfile_path, ncpu):
-        # TODO directly zip the files
-        out_file = Dataset.initialize_file(outfile_path, self.branches)
+        out_file = Dataset.initialize_file(outfile_path, self.branches, zip_file=True)
 
         for branch in self.branches:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
@@ -271,8 +275,11 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def initialize_file(path, branches):
-        out_file = open(path, 'w')
+    def initialize_file(path, branches, zip_file=False):
+        if zip_file:
+            out_file = ZipFile(path, 'w')
+        else:
+            out_file = open(path, 'w')
         header = 'key' + '\t' + '\t'.join(branches) + '\n'
         out_file.write(header)
         return out_file

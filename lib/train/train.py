@@ -77,7 +77,7 @@ class Train(Subcommand):
             pass
         else:
             # labels are the same in all the datasets, it is sufficient to read and encode them only once
-            self.labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.args.datasets[0]).labels())))
+            self.labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.args.datasets[0], zipped=True).labels())))
             self.train_x, self.valid_x, self.test_x, self.train_y, self.valid_y, self.test_y = \
                 self.parse_data(self.args.datasets, self.branches, self.labels)
         self.branch_shapes = self.get_shapes(self.train_x, self.branches)
@@ -272,7 +272,7 @@ class Train(Subcommand):
         logger.info('Using the following datasets: ' + str(logger_datasets))
         datasets = set()
         for file in dataset_files:
-            datasets.add(Dataset.load_from_file(file))
+            datasets.add(Dataset.load_from_file(file, zipped=True))
 
         dictionary = {}
         for dataset in datasets:
