@@ -43,8 +43,32 @@ def fasta_to_dictionary(fasta_file):
     return seq_dict
 
 
+def parse_wig_header(line):
+    if type(line) == 'str' and 'chrom' in line:
+        # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
+        header = {'step_no': 0, 'span': 1}
+
+        parts = line.split()
+        file_type = parts.pop(0)
+        if file_type not in ['fixedStep', 'variableStep']:
+            warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
+            logger.exception('Exception occurred.')
+            raise Exception(warning.format(file_type))
+
+        for part in parts:
+            key, value = part.split('=')
+            if key == 'chrom':
+                header.update({key: value})
+            elif key in ['span', 'start', 'step']:
+                header.update({key: int(value)})
+    else:
+        logger.exception('Exception occurred.')
+        raise Exception('Wig file not starting with proper header.')
+
+    return header
+
+
 def wig_to_dictionary(ref_path):
-    # TODO for now converting everything without taking VALID_CHRS into account
     zipped = f.list_files_in_dir(ref_path, '.wig')
     files = []
     for zipped_file in zipped:
@@ -54,37 +78,7 @@ def wig_to_dictionary(ref_path):
     for file in files:
         chr = None
         for line in file:
-            # parse the header line
-            # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-            if line.__class__.__name__ == 'str' and 'chrom' in line:
-                chr = None
-                start = None
-                step = None
-                step_no = 0
-                span = 1
-
-                parts = line.split()
-                file_type = parts.pop(0)
-                if file_type not in ['fixedStep', 'variableStep']:
-                    warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
-                    logger.exception('Exception occurred.')
-                    raise Exception(warning.format(file_type))
-
-                for part in parts:
-                    key, value = part.split('=')
-                    if key == 'chrom':
-                        chr = value
-                    elif key == 'span':
-                        span = int(value)
-                    elif key == 'start':  # only for fixedStep
-                        start = int(value)
-                    elif key == 'step':  # only for fixedStep
-                        step = int(value)
-
-                if chr not in cons_dict.keys(): cons_dict.update({chr: {}})
-
             # update values, until another header is met
-            else:
                 if not chr: break
                 if file_type == 'variableStep':
                     parts = line.split()
