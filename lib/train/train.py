@@ -368,9 +368,8 @@ class Train(Subcommand):
             # TODO save the test results ? (did not find that in the old code)
 
             model_json = model.to_json()
-            with open("output/training/{}_model.json".format(self.network), "w") as json_file:
+            with open("{}/{}_model.json".format(self.train_dir, self.network), "w") as json_file:
                 json_file.write(model_json)
-
 
     @staticmethod
     def return_last_experiment_results(exp_name):
