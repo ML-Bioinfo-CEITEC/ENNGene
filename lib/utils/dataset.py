@@ -4,7 +4,8 @@ import platform
 import random
 import subprocess
 import tempfile
-from zipfile import ZipFile
+
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from .data_point import DataPoint
 from . import file_utils as f
@@ -18,19 +19,26 @@ logger = logging.getLogger('main')
 class Dataset:
 
     @classmethod
-    def load_from_file(cls, file_path, zipped=False):
-        # TODO rather detect if zipped automatically based on file extension?
-        if zipped:
-            file = ZipFile(file_path, 'r')
+    def load_from_file(cls, file_path):
+        if '.zip' in file_path:
+            zipped = True
+            archive = ZipFile(file_path, 'r')
+            name = os.path.basename(file_path).replace('.zip', '')
+            file = archive.open(name)
         else:
+            zipped = False
             file = open(file_path, 'r')
 
         head = file.readline().strip()
+        if zipped:
+            head = head.decode('utf-8')
         branches = head.split("\t")[1:]
-        category = os.path.basename(file_path)
+        category = os.path.basename(file_path).replace('.zip', '')
 
         datapoint_list = []
         for line in file:
+            if zipped:
+                line = line.decode('utf-8')
             key, *values = line.strip().split("\t")
             branches_string_values = {}
             for i, value in enumerate(values):
@@ -180,7 +188,7 @@ class Dataset:
             return np.array(labels)
 
     def map_to_branches(self, references, encoding, strand, outfile_path, ncpu):
-        out_file = Dataset.initialize_file(outfile_path, self.branches, zip_file=True)
+        out_file = Dataset.initialize_file(outfile_path, self.branches)
 
         for branch in self.branches:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
@@ -199,6 +207,12 @@ class Dataset:
         for datapoint in self.datapoint_list:
             datapoint.write(out_file)
         out_file.close()
+
+        logger.debug('Compressing final {} dataset...'.format(self.category))
+        zipped = ZipFile("{}.zip".format(outfile_path), 'w')
+        zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
+        zipped.close()
+        os.remove(outfile_path)
 
         return self
 
@@ -275,11 +289,8 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def initialize_file(path, branches, zip_file=False):
-        if zip_file:
-            out_file = ZipFile(path, 'w')
-        else:
-            out_file = open(path, 'w')
+    def initialize_file(path, branches):
+        out_file = open(path, 'w')
         header = 'key' + '\t' + '\t'.join(branches) + '\n'
         out_file.write(header)
         return out_file

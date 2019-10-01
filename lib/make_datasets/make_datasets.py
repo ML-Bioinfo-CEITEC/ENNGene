@@ -253,7 +253,7 @@ class MakeDatasets(Subcommand):
 
             dir_path = os.path.join(self.output_folder, 'datasets', 'mapped')
             self.ensure_dir(dir_path)
-            outfile_path = os.path.join(dir_path, dataset.category, '.zip')
+            outfile_path = os.path.join(dir_path, dataset.category)
             mapped_datasets.add(
                 dataset.map_to_branches(self.references, encoding, self.strand, outfile_path, self.ncpu))
 
