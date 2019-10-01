@@ -242,7 +242,14 @@ class MakeDatasets(Subcommand):
         logger.debug('Merging and exporting final interval files...')
         dir_path = os.path.join(self.output_folder, 'datasets', 'intervals')
         self.ensure_dir(dir_path)
-        final_interval_datasets = Dataset.merge_by_category(split_datasets, dir_path)
+        final_interval_datasets = Dataset.merge_by_category(split_datasets)
+
+        for dataset in final_interval_datasets:
+            file_path = os.path.join(dir_path, dataset.category)
+            out_file = Dataset.initialize_file(file_path, dataset.branches)
+            for datapoint in dataset.datapoint_list:
+                datapoint.write(out_file, no_value=True)
+            out_file.close()
 
         mapped_datasets = set()
         # TODO here either use the datasets or already existing files if chosen

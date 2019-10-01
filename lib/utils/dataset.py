@@ -104,7 +104,7 @@ class Dataset:
         return split_datasets
 
     @classmethod
-    def merge_by_category(cls, set_of_datasets, outdir_path):
+    def merge_by_category(cls, set_of_datasets):
         datasets_by_category = {}
         for dataset in set_of_datasets:
             if dataset.category not in datasets_by_category.keys(): datasets_by_category.update({dataset.category: []})
@@ -112,17 +112,12 @@ class Dataset:
 
         final_datasets = set()
         for category, datasets in datasets_by_category.items():
-            file_path = os.path.join(outdir_path, category)
             branches = datasets[0].branches
-            out_file = cls.initialize_file(file_path, branches)
             merged_datapoint_list = []
             for dataset in datasets:
                 merged_datapoint_list += dataset.datapoint_list
             final_datasets.add(
                 cls(branches=branches, category=category, datapoint_list=merged_datapoint_list))
-            for datapoint in merged_datapoint_list:
-                datapoint.write(out_file, no_value=True)
-            out_file.close()
 
         return final_datasets
 
