@@ -148,9 +148,10 @@ class Dataset:
             else:
                 strand_sign = None
 
-            datapoint = DataPoint(self.branches, self.klass, chrom_name, seq_start, seq_end, strand_sign,
-                                  win=window, winseed=window_seed)
-            datapoint_list.append(datapoint)
+            if chrom_name in seq.VALID_CHRS:
+                datapoint = DataPoint(self.branches, self.klass, chrom_name, seq_start, seq_end, strand_sign,
+                                      win=window, winseed=window_seed)
+                datapoint_list.append(datapoint)
 
         return datapoint_list
 
