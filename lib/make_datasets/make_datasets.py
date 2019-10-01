@@ -77,7 +77,7 @@ class MakeDatasets(Subcommand):
             self.chromosomes = {'validation': self.args.validation,
                                 'test': self.args.test,
                                 'blackbox': self.args.blackbox,
-                                'train': (seq.VALID_CHRS - self.args.validation - self.args.test - self.args.blackbox)}
+                                'train': (set(seq.VALID_CHRS) - self.args.validation - self.args.test - self.args.blackbox)}
         elif self.split == 'rand':
             self.split_seed = self.args.splitseed
             self.splitratio_list = self.args.splitratio.split(':')
@@ -245,6 +245,8 @@ class MakeDatasets(Subcommand):
         final_interval_datasets = Dataset.merge_by_category(split_datasets)
 
         for dataset in final_interval_datasets:
+            # Ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+            dataset.sort_datapoints()
             file_path = os.path.join(dir_path, dataset.category)
             out_file = Dataset.initialize_file(file_path, dataset.branches)
             for datapoint in dataset.datapoint_list:

@@ -212,6 +212,10 @@ class Dataset:
 
         return self
 
+    def sort_datapoints(self):
+        self.datapoint_list.sort(key=lambda dp: (seq.VALID_CHRS.index(dp.chrom_name), dp.seq_start))
+        return self
+
     @staticmethod
     def map_to_fasta_dict(datapoint_list, branch, ref_dictionary, encoding, strand):
         # Returns only successfully mapped datapoints
