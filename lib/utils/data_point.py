@@ -15,7 +15,7 @@ class DataPoint:
             value = cls.value_from_string(string_value)
             branches_values.update({branch: value})
 
-        return cls(branches_values.keys(), klass, chrom_name, seq_start, seq_end, strand_sign, branches_values)
+        return cls(branches_values.keys(), klass, chrom_name, int(seq_start), int(seq_end), strand_sign, branches_values=branches_values)
 
     @classmethod
     def value_from_string(cls, string_value):
