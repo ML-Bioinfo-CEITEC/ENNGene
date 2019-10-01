@@ -239,13 +239,41 @@ class Dataset:
 
     @staticmethod
     def map_to_wig(datapoint_list, ref_folder, complement):
-        # wig ref is just a path to the folder
-        # remove or use seq.wig_to_dict
+        not_found_chrs = set()
+        chrom_files = f.list_files_in_dir(ref_folder, 'wig')
+
+        current_chr = None
+        current_header = None
+        current_file = None
 
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
-            pass
+            chr = datapoint.chrom_name
+            if chr == current_chr:
+
+
+
+
+
+            elif chr in not_found_chrs:
+                continue
+            else:
+                current_chr = datapoint.chrom_name
+                files = list(filter(lambda f: datapoint.chrom_name in os.path.basename(f), chrom_files))
+                if len(files) == 1:
+                    current_file = f.unzip_if_zipped(files[0])
+                    current_header = seq.parse_wig_header(current_file.readline())
+                else:
+                    not_found_chrs.add(datapoint.chrom_name)
+                    if len(files) == 0:
+                        # TODO or rather raise an exception to let user fix it?
+                        logger.info("Didn't find appropriate conservation file for {}, skipping the chromosome.".format(chr))
+                    else:  # len(files) > 1
+                        logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
+                    continue
+
+
 
         return updated_datapoint_list
 
