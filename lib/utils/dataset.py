@@ -192,7 +192,7 @@ class Dataset:
             if branch == 'seq':
                 self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
-                self.datapoint_list = self.map_to_wig(self.datapoint_list, reference)
+                self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
             elif branch == 'fold':
                 datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
                 logger.debug('Folding sequences in {} dataset...'.format(self.category))
@@ -238,30 +238,52 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def map_to_wig(datapoint_list, ref_folder, complement):
+    def map_to_wig(branch, datapoint_list, ref_folder, complement):
+        # TODO document in place
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 
         current_chr = None
-        current_header = None
+        current_header = {}
         current_file = None
+        parsed_line = {}
 
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
+            score = []
+            dp_len = datapoint.seq_end - datapoint.seq_start
+            dp_start = datapoint.seq_start
+
             chr = datapoint.chrom_name
             if chr == current_chr:
-
-
-
-
-
+                line = current_file.readline()
+                if 'chrom' in line:
+                    current_header = seq.parse_wig_header(line)
+                else:
+                    if dp_start < current_header['start']:
+                        logger.info("Overstepped a datapoint! {}".format(datapoint.key))
+                        continue
+                    else:
+                        # if the coordinates are lower than seq end, update value per nucleotide in the score
+                        while current_header['start'] < datapoint.seq_end:
+                            # parse data form read line
+                            current_header, parsed_line = seq.parse_wig_line(line, current_header)
+                            for i in dp_len:
+                                coord = datapoint.seq_start + i
+                                if coord in parsed_line.keys():
+                                    score.append(parsed_line[coord])
+                                else:
+                                    dp_start = coord
+                                    dp_len += i
+                                    break
             elif chr in not_found_chrs:
                 continue
             else:
                 current_chr = datapoint.chrom_name
                 files = list(filter(lambda f: datapoint.chrom_name in os.path.basename(f), chrom_files))
                 if len(files) == 1:
+                    current_file.close()
                     current_file = f.unzip_if_zipped(files[0])
                     current_header = seq.parse_wig_header(current_file.readline())
                 else:
@@ -273,7 +295,8 @@ class Dataset:
                         logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
                     continue
 
-
+            datapoint.branches_values.update({branch: score})
+            updated_datapoint_list.append(datapoint)
 
         return updated_datapoint_list
 

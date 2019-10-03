@@ -44,12 +44,14 @@ def fasta_to_dictionary(fasta_file):
 
 
 def parse_wig_header(line):
-    if type(line) == 'str' and 'chrom' in line:
+    if 'chrom' in line:
         # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
         header = {'step_no': 0, 'span': 1}
 
         parts = line.split()
         file_type = parts.pop(0)
+        header.update({'file_type': file_type})
+
         if file_type not in ['fixedStep', 'variableStep']:
             warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
             logger.exception('Exception occurred.')
@@ -68,35 +70,23 @@ def parse_wig_header(line):
     return header
 
 
-def wig_to_dictionary(ref_path):
-    zipped = f.list_files_in_dir(ref_path, '.wig')
-    files = []
-    for zipped_file in zipped:
-        files.append(f.unzip_if_zipped(zipped_file))
+def parse_wig_line(line, header):
+    parsed_line = {}
+    if header['file_type'] == 'variableStep':
+        parts = line.split()
+        start = parts[0]
+        value = float(parts[1])
+        for i in range(header['span']):
+            coord = start + i
+            parsed_line.update({coord: value})
+    elif header['file_type'] == 'fixedStep':
+        value = float(line)
+        for i in range(header['span']):
+            coord = header['start'] + (header['step_no'] * header['step']) + i
+            parsed_line.update({coord: value})
+        header['step_no'] += 1
 
-    cons_dict = {}
-    for file in files:
-        chr = None
-        for line in file:
-            # update values, until another header is met
-                if not chr: break
-                if file_type == 'variableStep':
-                    parts = line.split()
-                    start = parts[0]
-                    value = float(parts[1])
-                    for i in range(span):
-                        coord = start + i
-                        cons_dict[chr].update({coord: value})
-                elif file_type == 'fixedStep':
-                    value = float(line)
-                    for i in range(span):
-                        coord = start + (step_no * step) + i
-                        cons_dict[chr].update({coord: value})
-                    step_no += 1
-        file.close()
-
-    # dictionary format: {chr => {coordinate => int_value}}
-    return cons_dict
+    return [header, parsed_line]
 
 
 def complement(sequence_list, dictionary):
