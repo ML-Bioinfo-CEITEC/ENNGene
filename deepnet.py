@@ -65,6 +65,7 @@ class DeepNet:
         subcommand().run()
 
 
+# FIXME method without namespace
 def dirname_to_class(dirname):
     parts = dirname.split('_')
     return ''.join(x.title() for x in parts)

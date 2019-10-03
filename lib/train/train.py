@@ -502,6 +502,6 @@ class Train(Subcommand):
         plt.title(title)
         plt.ylabel(title)
         plt.xlabel('Epoch')
-        plt.legend(['Train', 'Validation'], loc='lower right')
+        plt.legend(['Training', 'Validation'], loc='lower right')
         plt.savefig(out_dir + file_name, dpi=300)
         plt.clf()

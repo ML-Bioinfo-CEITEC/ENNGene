@@ -11,4 +11,3 @@ conda install -c conda-forge matplotlib
 conda install -c bioconda viennarna
 
 pip install talos
-

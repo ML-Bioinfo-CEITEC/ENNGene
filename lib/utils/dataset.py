@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import os
 import platform
@@ -10,8 +11,6 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from .data_point import DataPoint
 from . import file_utils as f
 from . import sequence as seq
-
-import logging
 
 logger = logging.getLogger('main')
 
