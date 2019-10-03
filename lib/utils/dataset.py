@@ -237,7 +237,7 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def map_to_wig(branch, datapoint_list, ref_folder, complement):
+    def map_to_wig(branch, datapoint_list, ref_folder):
         # TODO document in place
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
@@ -268,7 +268,7 @@ class Dataset:
                         while current_header['start'] < datapoint.seq_end:
                             # parse data form read line
                             current_header, parsed_line = seq.parse_wig_line(line, current_header)
-                            for i in dp_len:
+                            for i in range(0, dp_len):
                                 coord = datapoint.seq_start + i
                                 if coord in parsed_line.keys():
                                     score.append(parsed_line[coord])
@@ -279,10 +279,11 @@ class Dataset:
             elif chr in not_found_chrs:
                 continue
             else:
-                current_chr = datapoint.chrom_name
-                files = list(filter(lambda f: datapoint.chrom_name in os.path.basename(f), chrom_files))
+                files = list(filter(lambda f: "{}.".format(datapoint.chrom_name) in os.path.basename(f), chrom_files))
                 if len(files) == 1:
-                    current_file.close()
+                    if current_file:
+                        current_file.close()
+                    current_chr = datapoint.chrom_name
                     current_file = f.unzip_if_zipped(files[0])
                     current_header = seq.parse_wig_header(current_file.readline())
                 else:
