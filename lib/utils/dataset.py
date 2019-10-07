@@ -242,40 +242,23 @@ class Dataset:
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 
+        current_file = None
         current_chr = None
         current_header = {}
-        current_file = None
         parsed_line = {}
 
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
-            score = []
+            print("next DP")
             dp_len = datapoint.seq_end - datapoint.seq_start
             dp_start = datapoint.seq_start
-
             chr = datapoint.chrom_name
+            score = []
+
             if chr == current_chr:
-                line = current_file.readline()
-                if 'chrom' in line:
-                    current_header = seq.parse_wig_header(line)
-                else:
-                    if dp_start < current_header['start']:
-                        logger.info("Overstepped a datapoint! {}".format(datapoint.key))
-                        continue
-                    else:
-                        # if the coordinates are lower than seq end, update value per nucleotide in the score
-                        while current_header['start'] < datapoint.seq_end:
-                            # parse data form read line
-                            current_header, parsed_line = seq.parse_wig_line(line, current_header)
-                            for i in range(0, dp_len):
-                                coord = datapoint.seq_start + i
-                                if coord in parsed_line.keys():
-                                    score.append(parsed_line[coord])
-                                else:
-                                    dp_start = coord
-                                    dp_len += i
-                                    break
+                score, current_header, parsed_line = Dataset.parse_datapoint(
+                    datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
             elif chr in not_found_chrs:
                 continue
             else:
@@ -284,8 +267,12 @@ class Dataset:
                     if current_file:
                         current_file.close()
                     current_chr = datapoint.chrom_name
+                    print("Moved to chr {}".format(current_chr))
                     current_file = f.unzip_if_zipped(files[0])
+                    # Expecting first line of the file to be a header
                     current_header = seq.parse_wig_header(current_file.readline())
+                    score, current_header, parsed_line = Dataset.parse_datapoint(
+                        datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
@@ -295,10 +282,43 @@ class Dataset:
                         logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
                     continue
 
-            datapoint.branches_values.update({branch: score})
+            # TODO remove testing condition
+            print(score)
+            if len(score) == dp_len:
+                datapoint.branches_values.update({branch: np.array(score)})
+            else:
+                raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), dp_len))
             updated_datapoint_list.append(datapoint)
 
         return updated_datapoint_list
+
+    @staticmethod
+    def parse_datapoint(datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line):
+        line = current_file.readline()
+        new_score = []
+        if 'chrom' in line:
+            current_header = seq.parse_wig_header(line)
+            new_score, current_header, parsed_line = Dataset.parse_datapoint(
+                datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+        else:
+            if dp_start < current_header['start']:
+                logger.info("Overstepped a datapoint! {}".format(datapoint.key))
+            else:
+                # if the coordinates are lower than seq end, update value per nucleotide in the score
+                while current_header['start'] < datapoint.seq_end:
+                    # FIXME or replace, for some reason currently infinit
+                    # parse data form read line
+                    current_header, parsed_line = seq.parse_wig_line(line, current_header)
+                    for i in range(0, dp_len):
+                        coord = datapoint.seq_start + i
+                        if coord in parsed_line.keys():
+                            score.append(parsed_line[coord])
+                        else:
+                            dp_start = coord
+                            new_score, current_header, parsed_line = Dataset.parse_datapoint(
+                                datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+
+        return [score.append(new_score), current_header, parsed_line]
 
     @staticmethod
     def fold_branch(file_name, datapoint_list, ncpu, dna=True):

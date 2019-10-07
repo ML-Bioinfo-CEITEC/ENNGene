@@ -65,7 +65,7 @@ def parse_wig_header(line):
                 header.update({key: int(value)})
     else:
         logger.exception('Exception occurred.')
-        raise Exception('Wig file not starting with proper header.')
+        raise Exception('Not a proper wig header.')
 
     return header
 
