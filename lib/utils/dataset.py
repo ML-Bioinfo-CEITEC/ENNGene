@@ -257,8 +257,8 @@ class Dataset:
             score = []
 
             if chr == current_chr:
-                score, current_header, parsed_line = Dataset.parse_datapoint(
-                    datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+                score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                    score, dp_start, dp_len, current_file, current_header, parsed_line)
             elif chr in not_found_chrs:
                 continue
             else:
@@ -271,8 +271,8 @@ class Dataset:
                     current_file = f.unzip_if_zipped(files[0])
                     # Expecting first line of the file to be a header
                     current_header = seq.parse_wig_header(current_file.readline())
-                    score, current_header, parsed_line = Dataset.parse_datapoint(
-                        datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+                    score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                        score, dp_start, dp_len, current_file, current_header, parsed_line)
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
@@ -293,30 +293,31 @@ class Dataset:
         return updated_datapoint_list
 
     @staticmethod
-    def parse_datapoint(datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line):
+    def map_datapoint_to_wig(score, dp_start, dp_len, current_file, current_header, parsed_line):
+        print(dp_start, current_header['start'])
         line = current_file.readline()
         new_score = []
         if 'chrom' in line:
             current_header = seq.parse_wig_header(line)
-            new_score, current_header, parsed_line = Dataset.parse_datapoint(
-                datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+            new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                score, dp_start, dp_len, current_file, current_header, parsed_line)
         else:
             if dp_start < current_header['start']:
-                logger.info("Overstepped a datapoint! {}".format(datapoint.key))
+                logger.info("Overstepped a datapoint!")
             else:
-                # if the coordinates are lower than seq end, update value per nucleotide in the score
-                while current_header['start'] < datapoint.seq_end:
-                    # FIXME or replace, for some reason currently infinit
-                    # parse data form read line
-                    current_header, parsed_line = seq.parse_wig_line(line, current_header)
+                current_header, parsed_line = seq.parse_wig_line(line, current_header)
+                if dp_start in parsed_line.keys():
                     for i in range(0, dp_len):
-                        coord = datapoint.seq_start + i
+                        coord = dp_start + i
                         if coord in parsed_line.keys():
                             score.append(parsed_line[coord])
                         else:
-                            dp_start = coord
-                            new_score, current_header, parsed_line = Dataset.parse_datapoint(
-                                datapoint, score, dp_start, dp_len, current_file, current_header, parsed_line)
+                            new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                                score, dp_start+i, dp_len-i, current_file, current_header, parsed_line)
+                            break
+                else:
+                    new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                        score, dp_start, dp_len, current_file, current_header, parsed_line)
 
         return [score.append(new_score), current_header, parsed_line]
 

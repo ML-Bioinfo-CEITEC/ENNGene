@@ -85,6 +85,7 @@ def parse_wig_line(line, header):
             coord = header['start'] + (header['step_no'] * header['step']) + i
             parsed_line.update({coord: value})
         header['step_no'] += 1
+    header['start'] += header['span']
 
     return [header, parsed_line]
 
