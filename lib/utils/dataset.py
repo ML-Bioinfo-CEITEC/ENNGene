@@ -248,7 +248,6 @@ class Dataset:
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
-            print("next DP")
             dp_len = datapoint.seq_end - datapoint.seq_start
             dp_start = datapoint.seq_start
             chr = datapoint.chrom_name
@@ -256,7 +255,7 @@ class Dataset:
 
             if chr == current_chr:
                 score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                    score, dp_start, dp_len, current_file, current_header, parsed_line)
+                    score, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
             elif chr in not_found_chrs:
                 continue
             else:
@@ -265,17 +264,24 @@ class Dataset:
                     if current_file:
                         current_file.close()
                     current_chr = datapoint.chrom_name
-                    print("Moved to chr {}".format(current_chr))
+                    print("Moved to {}".format(current_chr))
+
                     current_file = f.unzip_if_zipped(files[0])
                     if ".gz" in current_file or ".zip" in current_file:
                         zipped = True
                     else:
                         zipped = False
+
+                    line = current_file.readline()
+                    # FIXME wrong read line...
+                    print(line)
                     line = f.read_decoded_line(current_file, zipped)
+                    print('LINE', line)
                     # Expecting first line of the file to be a header
                     current_header = seq.parse_wig_header(line)
+                    print(current_header)
                     score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                        score, dp_start, dp_len, current_file, current_header, parsed_line)
+                        score, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
@@ -286,41 +292,47 @@ class Dataset:
                     continue
 
             # TODO remove testing condition
-            print(score)
-            if len(score) == dp_len:
-                datapoint.branches_values.update({branch: np.array(score)})
-            else:
-                raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), dp_len))
-            updated_datapoint_list.append(datapoint)
+            if score:
+                print('SCORE:', score)
+                if len(score) == dp_len:
+                    datapoint.branches_values.update({branch: np.array(score)})
+                else:
+                    raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), dp_len))
+                updated_datapoint_list.append(datapoint)
+            # else:
+            #     print('Moving on the next DP')
 
         return updated_datapoint_list
 
     @staticmethod
-    def map_datapoint_to_wig(score, dp_start, dp_len, current_file, current_header, parsed_line):
-        print(dp_start, current_header['start'])
-        line = current_file.readline()
+    def map_datapoint_to_wig(score, zipped, dp_start, dp_end, dp_len, current_file, current_header, parsed_line):
+        # print(dp_start, current_header['start'], parsed_line)
+        line = f.read_decoded_line(current_file, zipped)
         new_score = []
         if 'chrom' in line:
             current_header = seq.parse_wig_header(line)
             new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                score, dp_start, dp_len, current_file, current_header, parsed_line)
+                score, dp_start, dp_end, dp_len, current_file, current_header, parsed_line)
         else:
             if dp_start < current_header['start']:
-                logger.info("Overstepped a datapoint!")
+                logger.debug("Overstepped a datapoint!")
+                pass
             else:
-                current_header, parsed_line = seq.parse_wig_line(line, current_header)
-                if dp_start in parsed_line.keys():
+                while dp_start not in parsed_line.keys():
+                    current_header, parsed_line = seq.parse_wig_line(f.read_decoded_line(current_file, zipped), current_header)
+                    # print(dp_start, current_header['start'], parsed_line)
+                    if current_header['start'] > dp_end:
+                        logger.debug("Missed a datapoint!")
+                        break
+                else:
                     for i in range(0, dp_len):
                         coord = dp_start + i
                         if coord in parsed_line.keys():
                             score.append(parsed_line[coord])
                         else:
                             new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                                score, dp_start+i, dp_len-i, current_file, current_header, parsed_line)
+                                score, dp_start+i, dp_end, dp_len-i, current_file, current_header, parsed_line)
                             break
-                else:
-                    new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                        score, dp_start, dp_len, current_file, current_header, parsed_line)
 
         return [score.append(new_score), current_header, parsed_line]
 

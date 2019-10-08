@@ -46,7 +46,7 @@ def fasta_to_dictionary(fasta_file):
 def parse_wig_header(line):
     if 'chrom' in line:
         # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-        header = {'step_no': 0, 'span': 1}
+        header = {'span': 1}
 
         parts = line.split()
         file_type = parts.pop(0)
@@ -79,13 +79,17 @@ def parse_wig_line(line, header):
         for i in range(header['span']):
             coord = start + i
             parsed_line.update({coord: value})
+        header['start'] = start + header['span']
     elif header['file_type'] == 'fixedStep':
-        value = float(line)
+        try:
+            value = float(line)
+        except:
+            # FIXME maybe fails on 0 reading it as empty string ???
+            print("WRONG LINE:", line, type(line), header['start'], header['chrom'])
         for i in range(header['span']):
-            coord = header['start'] + (header['step_no'] * header['step']) + i
+            coord = header['start'] + i
             parsed_line.update({coord: value})
-        header['step_no'] += 1
-    header['start'] += header['span']
+        header['start'] += header['step']
 
     return [header, parsed_line]
 
