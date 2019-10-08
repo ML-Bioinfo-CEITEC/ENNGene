@@ -28,9 +28,7 @@ class Dataset:
             zipped = False
             file = open(file_path, 'r')
 
-        head = file.readline().strip()
-        if zipped:
-            head = head.decode('utf-8')
+        head = f.read_decoded_line(file, zipped)
         branches = head.split("\t")[1:]
         category = os.path.basename(file_path).replace('.zip', '')
 
@@ -269,8 +267,13 @@ class Dataset:
                     current_chr = datapoint.chrom_name
                     print("Moved to chr {}".format(current_chr))
                     current_file = f.unzip_if_zipped(files[0])
+                    if ".gz" in current_file or ".zip" in current_file:
+                        zipped = True
+                    else:
+                        zipped = False
+                    line = f.read_decoded_line(current_file, zipped)
                     # Expecting first line of the file to be a header
-                    current_header = seq.parse_wig_header(current_file.readline())
+                    current_header = seq.parse_wig_header(line)
                     score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
                         score, dp_start, dp_len, current_file, current_header, parsed_line)
                 else:
