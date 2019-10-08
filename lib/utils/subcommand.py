@@ -11,13 +11,11 @@ class Subcommand:
 
         self.gpu = self.args.gpu
 
-        if type(self.args.ncpu) == int:
-            self.ncpu = self.args.ncpu
-        elif self.args.ncpu == 'auto':
+        if self.args.ncpu == 0:
             # TODO detect number of available cpus
             self.ncpu = 4
         else:
-            raise Exception("Invalid value for number of CPUs.")
+            self.ncpu = self.args.ncpu
 
         if self.args.output:
             self.output_folder = self.args.output
@@ -41,7 +39,8 @@ class Subcommand:
         parser.add_argument(
             "--ncpu",
             default=1,
-            help="Number of CPUs to be used. An integer or 'auto' to use all available cpus. Default: 1."
+            type=int,
+            help="Number of CPUs to be used. 0 to use all available CPUs. Default: 1."
         )
         parser.add_argument(
             "--gpu",
