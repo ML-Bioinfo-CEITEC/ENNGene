@@ -7,6 +7,9 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningR
 from keras.optimizers import SGD, RMSprop, Adam
 import matplotlib.pyplot as plt
 import numpy as np
+import talos as ta
+from talos.utils.best_model import best_model
+import pandas as pd
 
 from ..networks.simple_conv_class import SimpleConvClass
 from ..utils.dataset import Dataset
@@ -21,6 +24,36 @@ from ..utils.subcommand import Subcommand
 
 logger = logging.getLogger('main')
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def transform_int_input(arg):
+    try:
+        transformed_input = [int(x.replace('[', '').replace(']', '')) for x in arg.split(',')]
+        if len(transformed_input) == 1:
+            return transformed_input[0]
+        else:
+            return transformed_input
+    except:
+        raise Exception('A numerical value or values is expected.')
+
+def transform_float_input(arg):
+    try:
+        transformed_input = [float(x.replace('[', '').replace(']', '')) for x in arg.split(',')]
+        
+        if len(transformed_input) == 1:
+            return transformed_input[0]
+        else:
+            return transformed_input
+    except:
+        raise Exception('A numerical value or values is expected.')      
 
 class Train(Subcommand):
 
@@ -53,6 +86,8 @@ class Train(Subcommand):
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
+            self.experiment_name = self.args.experiment_name
+            self.hyper_param_metric = self.args.hyper_param_metric
         else:
             self.hyper_tuning = False
 
@@ -107,7 +142,7 @@ class Train(Subcommand):
             default=0.2,
             help="Dropout. Default=0.2",
             required=False,
-            type=int
+            type=transform_float_input
         )
         parser.add_argument(
             "--lr",
@@ -123,7 +158,7 @@ class Train(Subcommand):
             default=False,
             help="Whether to use learning rate scheduler (decreasing lr from 0.1). Applied only in combination \
                  with SGD optimizer. Default=False",
-            type=bool
+            type=str2bool
         )
         parser.add_argument(
             "--filter_num",
@@ -131,35 +166,35 @@ class Train(Subcommand):
             default=40,
             help="Filter Number. Default=40",
             required=False,
-            type=int
+            type=transform_int_input
         )
         parser.add_argument(
             "--conv_num",
             action="store",
             default=3,
             help="Number of convolutional layers. Default=3",
-            type=int
+            type=transform_int_input
         )
         parser.add_argument(
             "--kernel_size",
             action="store",
             default=4,
             help="Kernel size for convolutional layers. Default=4",
-            type=int
+            type=transform_int_input
         )
         parser.add_argument(
             "--dense_num",
             action="store",
             default=3,
             help="Number of dense layers. Default=3",
-            type=int
+            type=transform_int_input
         )
         parser.add_argument(
             "--dense_units",
             action="store",
             default=64,
             help="Number of units in first dense layer. Each next dense layer gets half the units. Default=64",
-            type=int
+            type=transform_int_input
         )
         parser.add_argument(
             "--epochs",
@@ -173,7 +208,7 @@ class Train(Subcommand):
             action="store",
             default=False,
             help="Whether to enable hyper parameters tuning",
-            type=bool
+            type=str2bool
         )
         parser.add_argument(
             "--tune_rounds",
@@ -182,6 +217,14 @@ class Train(Subcommand):
             type=int,
             help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
         )
+        parser.add_argument(
+            "--hyper_param_metric",
+            action="store",
+            choices=['acc'],
+            default='acc',
+            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
+        )
+
         parser.add_argument(
             "--optimizer",
             action='store',
@@ -209,6 +252,12 @@ class Train(Subcommand):
             choices=['categorical_crossentropy'],
             default='categorical_crossentropy',
             help="Loss function to be used during training. Default = 'categorical_crossentropy'."
+        )
+        parser.add_argument(
+            "--experiment_name",
+            action='store',
+            default='e1',
+            help="Name of the hyperparameter tuning experiment."
         )
         return parser
 
@@ -242,25 +291,6 @@ class Train(Subcommand):
         return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
 
-    # def get_data_model(self, network):
-    #     def data():
-    #         return self.train_x, self.train_y, self.test_x, self.test_y
-    #
-    #     # FIXME why does hyperas have issue with the indentation?
-    #     def create_model(x_train, y_train, x_test, y_test):
-    #         return network.tune_model(x_train, y_train)
-    #
-    #     return data, create_model
-    #
-    # def tune_params(self, network):
-    #     data, create_model = self.get_data_model(network)
-    #     best_run, best_model = optim.minimize(model=create_model,
-    #                                           data=data,
-    #                                           algo=tpe.suggest,
-    #                                           max_evals=self.tune_rounds,
-    #                                           trials=Trials())
-    #     return best_run, best_model
-
     @staticmethod
     def get_shapes(data, branches):
         shapes = {}
@@ -293,57 +323,81 @@ class Train(Subcommand):
         
         if self.network == 'simpleconv':
             network = SimpleConvClass(
-                branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels)
+                branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels, epochs=self.epochs)
         else:
             raise Exception  # should not be possible to happen, later add other architectures here
 
         # Hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            # TODO enable to export best hyperparameters for future use (then pass them as one argument within file?)
-            best_run, best_model = self.tune_params(network)
+            self.tune_hyperparameters(train_x=self.train_x, 
+                                 train_y=self.train_y,
+                                 valid_x=self.valid_x,
+                                 valid_y=self.valid_y,
+                                 network=network.build_tunable_model,
+                                 experiment_name=self.experiment_name,
+                                 tune_rounds=self.tune_rounds,
+                                 metric=self.hyper_param_metric,
+                                 params=self.hyperparams)
+            print(self.get_best_model_params(self.experiment_name))
         else:
             model = network.build_model()
             hyperparams = self.hyperparams
 
-        # Optimizer definition
-        optimizer = self.create_optimizer(self.optimizer, self.lr)
+            # Optimizer definition
+            optimizer = self.create_optimizer(self.optimizer, self.lr)
 
-        # Model compilation
-        model.compile(
-            optimizer=optimizer,
-            loss=[self.loss],
-            metrics=[self.metric])
+            # Model compilation
+            model.compile(
+                optimizer=optimizer,
+                loss=[self.loss],
+                metrics=[self.metric])
 
-        # Training & testing the model (fit)
-        callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
+            # Training & testing the model (fit)
+            callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
 
-        print('Training the network')
-        history = self.train(model, self.epochs, self.batch_size, callbacks,
-                             self.train_x, self.valid_x, self.train_y, self.valid_y)
-        # Plot metrics
-        self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
-        self.plot_graph(history.history, 'loss', "Loss: {}".format(self.loss.capitalize()), self.train_dir, network.name)
+            print('Training the network')
+            history = self.train(model, self.epochs, self.batch_size, callbacks,
+                                self.train_x, self.valid_x, self.train_y, self.valid_y)
+            # Plot metrics
+            self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
+            self.plot_graph(history.history, 'loss', "Loss: {}".format(self.loss.capitalize()), self.train_dir, network.name)
 
-        print('Testing the network')
-        test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
-        
-        # TODO save the test results ? (did not find that in the old code)
+            print('Testing the network')
+            test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
+            
+            # TODO save the test results ? (did not find that in the old code)
 
-        model_json = model.to_json()
-        with open("output/training/{}_model.json".format(self.network), "w") as json_file:
-            json_file.write(model_json)
+            model_json = model.to_json()
+            with open("output/training/{}_model.json".format(self.network), "w") as json_file:
+                json_file.write(model_json)
+
 
     @staticmethod
-    def tune_hyperparameters(network, tune_rounds, data):
-        # using hyperas package
-        # model = network.build_model(tune=True)
-        # params, best_model = optim.minimize(model=model, data=data,
-        #                                     algo=tpe.suggest,
-        #                                     max_evals=tune_rounds,
-        #                                     trials=Trials())
-        # return params, best_model
-        pass
+    def return_last_experiment_results(exp_name):
+        results = os.listdir(os.path.join(os.getcwd(), exp_name))
+        results.sort()
+        return results[-1]
 
+    def get_best_model_params(self, exp_name):
+        results = pd.read_csv('{}/{}'.format(exp_name, self.return_last_experiment_results(exp_name)))
+        results.sort_values('{}'.format(self.hyper_param_metric), ascending=False, inplace=True)
+        best_model_params = results.iloc[0]
+        print(results)
+
+        return best_model_params
+
+    @staticmethod
+    def tune_hyperparameters(train_x, train_y, valid_x, valid_y, network, params, experiment_name, tune_rounds, metric, ):
+        t = ta.Scan(x=train_x, y=train_y, x_val=valid_x, y_val=valid_y, model=network, params=params, experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric, print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
+        best_model = t.best_model('acc')
+        best_model_json = best_model.to_json()
+        print(best_model.summary())
+        with open("output/training/{}.json".format(experiment_name), "w") as json_file:
+            json_file.write(best_model_json)
+        best_model.save_weights('output/training/{}.h5'.format(experiment_name))
+
+        return best_model
+    
     @staticmethod
     def step_decay_schedule(initial_lr=1e-3, drop=0.5, epochs_drop=10.0):
         def schedule(epoch):
