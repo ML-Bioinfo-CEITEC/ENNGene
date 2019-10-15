@@ -14,6 +14,7 @@ from . import sequence as seq
 
 logger = logging.getLogger('main')
 
+import sys
 
 class Dataset:
 
@@ -249,14 +250,12 @@ class Dataset:
         # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
-            dp_len = datapoint.seq_end - datapoint.seq_start
-            dp_start = datapoint.seq_start
             chr = datapoint.chrom_name
             score = []
 
             if chr and chr == current_chr:
                 score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                    score, zipped, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
+                    score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header, parsed_line)
             elif chr in not_found_chrs:
                 continue
             else:
@@ -276,10 +275,16 @@ class Dataset:
                     line = f.read_decoded_line(current_file, zipped)
                     print(line)
                     # Expecting first line of the file to be a header
-                    current_header = seq.parse_wig_header(line)
-                    print(current_header)
+                    if 'chrom' in line:
+                        current_header = seq.parse_wig_header(line)
+                        print(current_header)
+                    else:
+                        logger.exception('Exception occurred.')
+                        raise Exception('File not starting with a proper wig header.')
+
                     score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                        score, zipped, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
+                        score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header,
+                        parsed_line)
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
@@ -292,31 +297,31 @@ class Dataset:
 
             # TODO remove testing condition
             if score:
-                print('SCORE:', score)
-                if len(score) == dp_len:
+                if len(score) == (datapoint.seq_end - datapoint.seq_start):
                     datapoint.branches_values.update({branch: np.array(score)})
                 else:
-                    raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), dp_len))
+                    raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), (
+                                datapoint.end - datapoint.seq_start)))
                 updated_datapoint_list.append(datapoint)
-            # else:
-            #     print('Moving on the next DP')
+            else:
+                print('Moving on the next DP without score')
 
         return updated_datapoint_list
 
     @staticmethod
-    def map_datapoint_to_wig(score, zipped, dp_start, dp_end, dp_len, current_file, current_header, parsed_line):
+    def map_datapoint_to_wig(score, zipped, dp_start, dp_end, current_file, current_header, parsed_line):
         line = f.read_decoded_line(current_file, zipped)
         new_score = []
         if 'chrom' in line:
             current_header = seq.parse_wig_header(line)
             new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                score, zipped, dp_start, dp_end, dp_len, current_file, current_header, parsed_line)
+                score, zipped, dp_start, dp_end, current_file, current_header, parsed_line)
         else:
-            current_header, parsed_line = seq.parse_wig_line(line, current_header)
             if dp_start < current_header['start']:
-                logger.debug("Overstepped a datapoint!")
+                # logger.debug("Overstepped a datapoint!")
                 pass
             else:
+                current_header, parsed_line = seq.parse_wig_line(line, current_header)
                 while dp_start not in parsed_line.keys():
                     line = f.read_decoded_line(current_file, zipped)
                     if 'chrom' in line:
@@ -327,17 +332,22 @@ class Dataset:
                         logger.debug("Missed a datapoint!")
                         break
                 else:
-                    for i in range(0, dp_len):
+                    logger.debug("Mapping a datapoint...")
+                    for i in range(0, (dp_end - dp_start)):
                         coord = dp_start + i
                         if coord in parsed_line.keys():
                             score.append(parsed_line[coord])
                         else:
-                            new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                                score, zipped, dp_start + i, dp_end, dp_len - i, current_file, current_header,
-                                parsed_line)
-                            break
+                            line = f.read_decoded_line(current_file, zipped)
+                            current_header, parsed_line = seq.parse_wig_line(line, current_header)
+                            try:
+                                score.append(parsed_line[coord])
+                            except:
+                                print('Lost in the middle of the datapoint')
+                                # Means it loses the score in the file in the middle of a datapoint
+                                break
 
-        return [score.append(new_score), current_header, parsed_line]
+        return [score + new_score, current_header, parsed_line]
 
     @staticmethod
     def fold_branch(file_name, datapoint_list, ncpu, dna=True):

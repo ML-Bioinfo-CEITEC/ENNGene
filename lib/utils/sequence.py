@@ -44,28 +44,24 @@ def fasta_to_dictionary(fasta_file):
 
 
 def parse_wig_header(line):
-    if 'chrom' in line:
-        # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-        header = {'span': 1}
+    # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
+    header = {'span': 1}
 
-        parts = line.split()
-        file_type = parts.pop(0)
-        header.update({'file_type': file_type})
+    parts = line.split()
+    file_type = parts.pop(0)
+    header.update({'file_type': file_type})
 
-        if file_type not in ['fixedStep', 'variableStep']:
-            warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
-            logger.exception('Exception occurred.')
-            raise Exception(warning.format(file_type))
-
-        for part in parts:
-            key, value = part.split('=')
-            if key == 'chrom':
-                header.update({key: value})
-            elif key in ['span', 'start', 'step']:
-                header.update({key: int(value)})
-    else:
+    if file_type not in ['fixedStep', 'variableStep']:
+        warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
         logger.exception('Exception occurred.')
-        raise Exception('Not a proper wig header.')
+        raise Exception(warning.format(file_type))
+
+    for part in parts:
+        key, value = part.split('=')
+        if key == 'chrom':
+            header.update({key: value})
+        elif key in ['span', 'start', 'step']:
+            header.update({key: int(value)})
 
     return header
 
@@ -81,11 +77,7 @@ def parse_wig_line(line, header):
             parsed_line.update({coord: value})
         header['start'] = start + header['span']
     elif header['file_type'] == 'fixedStep':
-        try:
-            value = float(line)
-        except:
-            # FIXME maybe fails on 0 reading it as empty string ???
-            print("WRONG LINE:", line, type(line), header['start'], header['chrom'])
+        value = float(line)
         for i in range(header['span']):
             coord = header['start'] + i
             parsed_line.update({coord: value})
