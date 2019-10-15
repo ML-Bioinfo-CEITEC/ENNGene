@@ -241,6 +241,7 @@ class Dataset:
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 
         current_file = None
+        zipped = None
         current_chr = None
         current_header = {}
         parsed_line = {}
@@ -253,9 +254,9 @@ class Dataset:
             chr = datapoint.chrom_name
             score = []
 
-            if chr == current_chr:
+            if chr and chr == current_chr:
                 score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                    score, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
+                    score, zipped, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
             elif chr in not_found_chrs:
                 continue
             else:
@@ -267,26 +268,24 @@ class Dataset:
                     print("Moved to {}".format(current_chr))
 
                     current_file = f.unzip_if_zipped(files[0])
-                    if ".gz" in current_file or ".zip" in current_file:
+                    if ".gz" in files[0] or ".zip" in files[0]:
                         zipped = True
                     else:
                         zipped = False
 
-                    line = current_file.readline()
-                    # FIXME wrong read line...
-                    print(line)
                     line = f.read_decoded_line(current_file, zipped)
-                    print('LINE', line)
+                    print(line)
                     # Expecting first line of the file to be a header
                     current_header = seq.parse_wig_header(line)
                     print(current_header)
                     score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                        score, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
+                        score, zipped, dp_start, datapoint.seq_end, dp_len, current_file, current_header, parsed_line)
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
                         # TODO or rather raise an exception to let user fix it?
-                        logger.info("Didn't find appropriate conservation file for {}, skipping the chromosome.".format(chr))
+                        logger.info(
+                            "Didn't find appropriate conservation file for {}, skipping the chromosome.".format(chr))
                     else:  # len(files) > 1
                         logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
                     continue
@@ -306,21 +305,24 @@ class Dataset:
 
     @staticmethod
     def map_datapoint_to_wig(score, zipped, dp_start, dp_end, dp_len, current_file, current_header, parsed_line):
-        # print(dp_start, current_header['start'], parsed_line)
         line = f.read_decoded_line(current_file, zipped)
         new_score = []
         if 'chrom' in line:
             current_header = seq.parse_wig_header(line)
             new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                score, dp_start, dp_end, dp_len, current_file, current_header, parsed_line)
+                score, zipped, dp_start, dp_end, dp_len, current_file, current_header, parsed_line)
         else:
+            current_header, parsed_line = seq.parse_wig_line(line, current_header)
             if dp_start < current_header['start']:
                 logger.debug("Overstepped a datapoint!")
                 pass
             else:
                 while dp_start not in parsed_line.keys():
-                    current_header, parsed_line = seq.parse_wig_line(f.read_decoded_line(current_file, zipped), current_header)
-                    # print(dp_start, current_header['start'], parsed_line)
+                    line = f.read_decoded_line(current_file, zipped)
+                    if 'chrom' in line:
+                        current_header = seq.parse_wig_header(line)
+                    else:
+                        current_header, parsed_line = seq.parse_wig_line(line, current_header)
                     if current_header['start'] > dp_end:
                         logger.debug("Missed a datapoint!")
                         break
@@ -331,7 +333,8 @@ class Dataset:
                             score.append(parsed_line[coord])
                         else:
                             new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                                score, dp_start+i, dp_end, dp_len-i, current_file, current_header, parsed_line)
+                                score, zipped, dp_start + i, dp_end, dp_len - i, current_file, current_header,
+                                parsed_line)
                             break
 
         return [score.append(new_score), current_header, parsed_line]
@@ -347,7 +350,8 @@ class Dataset:
             # TODO mustard converts DNA to RNA also on its own, ask why not to use the --noconv option instead
             subprocess.run(["RNAfold", "--noPS", "--jobs=".format(ncpu), fasta_file], stdout=out_file, check=True)
         else:
-            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=".format(ncpu), fasta_file], stdout=out_file, check=True)
+            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=".format(ncpu), fasta_file], stdout=out_file,
+                           check=True)
 
         out_file = open(out_path)
         lines = out_file.readlines()
