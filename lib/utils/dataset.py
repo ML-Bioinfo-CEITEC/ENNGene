@@ -237,7 +237,6 @@ class Dataset:
 
     @staticmethod
     def map_to_wig(branch, datapoint_list, ref_folder):
-        # TODO document in place
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 
@@ -247,7 +246,6 @@ class Dataset:
         current_header = {}
         parsed_line = {}
 
-        # Returns only successfully mapped datapoints
         updated_datapoint_list = []
         for datapoint in datapoint_list:
             chr = datapoint.chrom_name
@@ -259,12 +257,12 @@ class Dataset:
             elif chr in not_found_chrs:
                 continue
             else:
+                # When reading from new reference file
                 files = list(filter(lambda f: "{}.".format(datapoint.chrom_name) in os.path.basename(f), chrom_files))
                 if len(files) == 1:
                     if current_file:
                         current_file.close()
                     current_chr = datapoint.chrom_name
-                    print("Moved to {}".format(current_chr))
 
                     current_file = f.unzip_if_zipped(files[0])
                     if ".gz" in files[0] or ".zip" in files[0]:
@@ -273,11 +271,9 @@ class Dataset:
                         zipped = False
 
                     line = f.read_decoded_line(current_file, zipped)
-                    print(line)
                     # Expecting first line of the file to be a header
                     if 'chrom' in line:
                         current_header = seq.parse_wig_header(line)
-                        print(current_header)
                     else:
                         logger.exception('Exception occurred.')
                         raise Exception('File not starting with a proper wig header.')
@@ -295,17 +291,13 @@ class Dataset:
                         logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
                     continue
 
-            # TODO remove testing condition
-            if score:
-                if len(score) == (datapoint.seq_end - datapoint.seq_start):
-                    datapoint.branches_values.update({branch: np.array(score)})
-                else:
-                    raise Exception("Parsed score of wrong length, {} instead of {}".format(len(score), (
-                                datapoint.end - datapoint.seq_start)))
+            if score and len(score) == (datapoint.seq_end - datapoint.seq_start):
+                # Score may be fully or partially missing if the coordinates are not part of the reference
+                # (more probable for neg samples)
+                datapoint.branches_values.update({branch: np.array(score)})
                 updated_datapoint_list.append(datapoint)
-            else:
-                print('Moving on the next DP without score')
 
+        # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
         return updated_datapoint_list
 
     @staticmethod
@@ -318,7 +310,7 @@ class Dataset:
                 score, zipped, dp_start, dp_end, current_file, current_header, parsed_line)
         else:
             if dp_start < current_header['start']:
-                # logger.debug("Overstepped a datapoint!")
+                # Missed beginning of the datapoint while reading through the reference (should not happen)
                 pass
             else:
                 current_header, parsed_line = seq.parse_wig_line(line, current_header)
@@ -329,22 +321,23 @@ class Dataset:
                     else:
                         current_header, parsed_line = seq.parse_wig_line(line, current_header)
                     if current_header['start'] > dp_end:
-                        logger.debug("Missed a datapoint!")
+                        # Did not find datapoint coordinates in reference file, might happen
                         break
                 else:
-                    logger.debug("Mapping a datapoint...")
                     for i in range(0, (dp_end - dp_start)):
                         coord = dp_start + i
                         if coord in parsed_line.keys():
                             score.append(parsed_line[coord])
                         else:
                             line = f.read_decoded_line(current_file, zipped)
+                            if 'chrom' in line:
+                                current_header = seq.parse_wig_header(line)
+                                line = f.read_decoded_line(current_file, zipped)
                             current_header, parsed_line = seq.parse_wig_line(line, current_header)
                             try:
                                 score.append(parsed_line[coord])
                             except:
-                                print('Lost in the middle of the datapoint')
-                                # Means it loses the score in the file in the middle of a datapoint
+                                # Lost the score in the reference in the middle of a datapoint, might happen
                                 break
 
         return [score + new_score, current_header, parsed_line]
