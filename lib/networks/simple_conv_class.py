@@ -12,7 +12,7 @@ from .network import Network
 class SimpleConvClass(Network):
     # Classification network using few convolutional layers
 
-    def __init__(self, branch_shapes={}, branches=[], hyperparams={}, labels=[], epochs=int):
+    def __init__(self, branch_shapes=None, branches=None, hyperparams=None, labels=None, epochs=int):
         super().__init__(branch_shapes=branch_shapes, branches=branches, hyperparams=hyperparams, labels=labels, epochs=epochs)
         self.name = 'simpleCNN'
         return

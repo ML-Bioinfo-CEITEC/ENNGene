@@ -120,11 +120,11 @@ class Dataset:
         return final_datasets
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, win=None, winseed=None,
-                 datapoint_list=[]):
+                 datapoint_list=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
-        self.datapoint_list = datapoint_list
+        self.datapoint_list = datapoint_list if datapoint_list else []
 
         if bed_file and win:
             self.datapoint_list = self.read_in_bed(bed_file, win, winseed)

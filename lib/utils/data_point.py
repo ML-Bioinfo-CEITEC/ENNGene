@@ -52,12 +52,12 @@ class DataPoint:
         return [chrom_name, seq_start, seq_end, strand_sign, klass]
 
     def __init__(self, branches, klass, chrom_name, seq_start, seq_end, strand_sign, win=None, winseed=None,
-                 branches_values={}):
+                 branches_values=None):
         self.branches = branches
         self.klass = klass
         self.chrom_name = chrom_name
         self.strand_sign = strand_sign  # may be None
-        self.branches_values = branches_values
+        self.branches_values = branches_values or {}
 
         if win:
             self.seq_start, self.seq_end = self.apply_window(seq_start, seq_end, win, winseed)
@@ -73,7 +73,7 @@ class DataPoint:
         return key
 
     def value(self, branch):
-            return self.branches_values[branch]
+        return self.branches_values[branch]
 
     def string_value(self, branch):
         string = ""
