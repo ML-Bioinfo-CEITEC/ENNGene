@@ -19,7 +19,7 @@ class BatchRun:
         parser.add_argument('command', help='Batch subcommand to run')
         args = parser.parse_args(sys.argv[2:3])
 
-        module = __import__("lib.batch_run.{}".format(args.command))
+        module = __import__(f'lib.batch_run.{args.command}')
         if not module:
             print('Unrecognized batch command')
             parser.print_help()

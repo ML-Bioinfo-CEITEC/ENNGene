@@ -87,7 +87,7 @@ class MakeDatasets(Subcommand):
                                  Default: '10:2:2:1'.")
 
         logger.debug('Finished initialization.')
-        logger.info('Running deepnet make_datasets with input files {}'.format(', '.join(self.input_files)))
+        logger.info(f"Running deepnet make_datasets with input files {', '.join(self.input_files)}")
 
     def create_parser(self, message):
         parser = self.initialize_parser(message)
@@ -220,13 +220,13 @@ class MakeDatasets(Subcommand):
                         klass = file_name.replace(ext, '')
             else:
                 logger.exception('Exception occurred.')
-                raise Exception("Only files of following format are allowed: {}.".format(', '.join(allowed_extensions)))
+                raise Exception(f"Only files of following format are allowed: {', '.join(allowed_extensions)}.")
 
             dataset = Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed)
 
             # Reduce size of selected klasses
             if self.reducelist and klass in self.reducelist:
-                logger.debug("Reducing number of samples in klass {}...".format(klass))
+                logger.debug(f'Reducing number of samples in klass {klass}...')
                 ratio = self.reduceratio[self.reducelist.index(klass)]
                 dataset = dataset.reduce(ratio, seed=self.reduceseed)
 
@@ -256,8 +256,8 @@ class MakeDatasets(Subcommand):
         # TODO here either use the datasets or already existing files if chosen
         # Use intervals from each category and create data for all the branches
         for dataset in final_interval_datasets:
-            logger.debug('Mapping intervals for {} dataset to {} branches and exporting...'.format(
-                dataset.category, len(self.branches)))
+            logger.debug(
+                f'Mapping intervals for {dataset.category} dataset to {len(self.branches)} branch(es) and exporting...')
 
             dir_path = os.path.join(self.output_folder, 'datasets', 'mapped')
             self.ensure_dir(dir_path)

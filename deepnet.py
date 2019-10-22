@@ -48,9 +48,9 @@ class DeepNet:
 
         # parse_args defaults to [1:] for args, but exclude the rest of the args, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
-        logger.info('DeepNet started with the following subcommands: ' + str(sys.argv[1:2]))
+        logger.info('DeepNet started with the following subcommand: ' + str(sys.argv[1:2]))
 
-        module_path = "lib.{}.{}".format(args.subcommand, args.subcommand)
+        module_path = f'lib.{args.subcommand}.{args.subcommand}'
         subcommand_class = dirname_to_class(args.subcommand)
         try:
             module = __import__(module_path, fromlist=[subcommand_class])

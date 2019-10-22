@@ -35,10 +35,10 @@ class SimpleConvClass(Network):
 
             for convolution in range(0, self.hyperparams['conv_num']):
                 x = Conv1D(filters=self.hyperparams['filter_num'], kernel_size=self.hyperparams['kernel_size'], strides=1,
-                           padding="same")(x)
+                           padding='same')(x)
                 x = LeakyReLU()(x)
                 x = BatchNormalization()(x)
-                x = MaxPooling1D(pool_size=2, padding="same")(x)
+                x = MaxPooling1D(pool_size=2, padding='same')(x)
                 x = Dropout(rate=self.hyperparams['dropout'], noise_shape=None, seed=None)(x)
             branches_models.append(Flatten()(x))
 
@@ -59,7 +59,7 @@ class SimpleConvClass(Network):
             x = BatchNormalization()(x)
             x = Dropout(rate=self.hyperparams['dropout'], noise_shape=None, seed=None)(x)
 
-        output = Dense(units=len(self.labels), activation="softmax")(x)
+        output = Dense(units=len(self.labels), activation='softmax')(x)
 
         if len(self.branches) == 1:
             model = Model(inputs[0], output)
@@ -81,10 +81,10 @@ class SimpleConvClass(Network):
 
             for convolution in range(0, int(params['conv_num'])):
                 x = Conv1D(filters=int(params['filter_num']), kernel_size=int(params['kernel_size']), strides=1,
-                        padding="same")(x)
+                           padding='same')(x)
                 x = LeakyReLU()(x)
                 x = BatchNormalization()(x)
-                x = MaxPooling1D(pool_size=2, padding="same")(x)
+                x = MaxPooling1D(pool_size=2, padding='same')(x)
                 x = Dropout(rate=float(params['dropout']), noise_shape=None, seed=None)(x)
             branches_models.append(Flatten()(x))
 
@@ -105,7 +105,7 @@ class SimpleConvClass(Network):
             x = BatchNormalization()(x)
             x = Dropout(rate=float(params['dropout']), noise_shape=None, seed=None)(x)
 
-        output = Dense(units=len(self.labels), activation="softmax")(x)
+        output = Dense(units=len(self.labels), activation='softmax')(x)
 
         if len(self.branches) == 1:
             model = Model(inputs[0], output)

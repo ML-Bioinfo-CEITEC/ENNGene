@@ -9,14 +9,14 @@ class Network:
         self.epochs = epochs
 
         # self.hyperparams = {
-        #     "batch_size": self.args.batch_size,
-        #     "dropout": self.args.dropout,
-        #     "learn_rate": self.args.lr,
-        #     "conv_num": self.args.conv_num,
-        #     "dense_num": self.args.dense_num,
-        #     "filter_num": self.args.filter_num,
-        #     "epochs": self.args.epochs,
-        #     "nodes": self.args.nodes
+        #     'batch_size': self.args.batch_size,
+        #     'dropout': self.args.dropout,
+        #     'learn_rate': self.args.lr,
+        #     'conv_num': self.args.conv_num,
+        #     'dense_num': self.args.dense_num,
+        #     'filter_num': self.args.filter_num,
+        #     'epochs': self.args.epochs,
+        #     'nodes': self.args.nodes
         # }
 
     def build_model(self):

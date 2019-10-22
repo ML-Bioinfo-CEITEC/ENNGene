@@ -16,13 +16,12 @@ from ..utils.dataset import Dataset
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
-# from hyperas import optim
-# from hyperopt import Trials, tpe
 
 # TODO fix imports in all the files to be consistent (relative vs. absolute)
 # sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'make_datasets/tests'))
 
 logger = logging.getLogger('main')
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -34,6 +33,7 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+
 def transform_int_input(arg):
     try:
         transformed_input = [int(x.replace('[', '').replace(']', '')) for x in arg.split(',')]
@@ -43,6 +43,7 @@ def transform_int_input(arg):
             return transformed_input
     except:
         raise Exception('A numerical value or values is expected.')
+
 
 def transform_float_input(arg):
     try:
@@ -54,6 +55,7 @@ def transform_float_input(arg):
             return transformed_input
     except:
         raise Exception('A numerical value or values is expected.')      
+
 
 class Train(Subcommand):
 
@@ -360,7 +362,7 @@ class Train(Subcommand):
                                 self.train_x, self.valid_x, self.train_y, self.valid_y)
             # Plot metrics
             self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
-            self.plot_graph(history.history, 'loss', "Loss: {}".format(self.loss.capitalize()), self.train_dir, network.name)
+            self.plot_graph(history.history, 'loss', f'Loss: {self.loss.capitalize()}', self.train_dir, network.name)
 
             print('Testing the network')
             test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
@@ -368,7 +370,7 @@ class Train(Subcommand):
             # TODO save the test results ? (did not find that in the old code)
 
             model_json = model.to_json()
-            with open("{}/{}_model.json".format(self.train_dir, self.network), "w") as json_file:
+            with open(f'{self.train_dir}/{self.network}_model.json', 'w') as json_file:
                 json_file.write(model_json)
 
     @staticmethod
@@ -378,8 +380,8 @@ class Train(Subcommand):
         return results[-1]
 
     def get_best_model_params(self, exp_name):
-        results = pd.read_csv('{}/{}'.format(exp_name, self.return_last_experiment_results(exp_name)))
-        results.sort_values('{}'.format(self.hyper_param_metric), ascending=False, inplace=True)
+        results = pd.read_csv(f'{exp_name}/{self.return_last_experiment_results(exp_name)}')
+        results.sort_values(self.hyper_param_metric, ascending=False, inplace=True)
         best_model_params = results.iloc[0]
         print(results)
 
@@ -391,9 +393,9 @@ class Train(Subcommand):
         best_model = t.best_model('acc')
         best_model_json = best_model.to_json()
         print(best_model.summary())
-        with open("output/training/{}.json".format(experiment_name), "w") as json_file:
+        with open(f'output/training/{experiment_name}.json', 'w') as json_file:
             json_file.write(best_model_json)
-        best_model.save_weights('output/training/{}.h5'.format(experiment_name))
+        best_model.save_weights(f'output/training/{experiment_name}.h5')
 
         return best_model
     
@@ -405,7 +407,7 @@ class Train(Subcommand):
 
     @staticmethod
     def create_callbacks(out_dir, net_name, scheduler):
-        mcp = ModelCheckpoint(filepath=out_dir + "/{}.hdf5".format(net_name),
+        mcp = ModelCheckpoint(filepath=out_dir + f'/{net_name}.hdf5',
                               verbose=0,
                               save_best_only=True)
 
@@ -415,7 +417,7 @@ class Train(Subcommand):
                                      verbose=1,
                                      mode='auto')
 
-        csv_logger = CSVLogger(out_dir + "/{}.log.csv".format(net_name),
+        csv_logger = CSVLogger(out_dir + f'/{net_name}.log.csv',
                                append=True,
                                separator='\t')
         callbacks = [mcp, earlystopper, csv_logger]
@@ -485,8 +487,8 @@ class Train(Subcommand):
         # For some reason here it calls accuracy just 'acc'
         if metric == 'accuracy':
             metric = 'acc'
-        val_metric = "val_{}".format(metric)
-        file_name = "/{}.{}.png".format(network_name, metric)
+        val_metric = f'val_{metric}'
+        file_name = f'/{network_name}.{metric}.png'
 
         plt.plot(history[metric])
         plt.plot(history[val_metric])

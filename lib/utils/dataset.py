@@ -30,14 +30,14 @@ class Dataset:
             file = open(file_path, 'r')
 
         head = f.read_decoded_line(file, zipped)
-        branches = head.split("\t")[1:]
+        branches = head.split('\t')[1:]
         category = os.path.basename(file_path).replace('.zip', '')
 
         datapoint_list = []
         for line in file:
             if zipped:
                 line = line.decode('utf-8')
-            key, *values = line.strip().split("\t")
+            key, *values = line.strip().split('\t')
             branches_string_values = {}
             for i, value in enumerate(values):
                 branches_string_values.update({branches[i]: value})
@@ -188,13 +188,13 @@ class Dataset:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
             reference = references[branch]
             if branch == 'seq':
-                logger.debug('Mapping sequences in {} dataset to fasta reference...'.format(self.category))
+                logger.debug(f'Mapping sequences in {self.category} dataset to fasta reference...')
                 self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
-                logger.debug('Mapping sequences in {} dataset to conservation files...'.format(self.category))
+                logger.debug(f'Mapping sequences in {self.category} dataset to conservation files...')
                 self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
             elif branch == 'fold':
-                logger.debug('Folding sequences in {} dataset...'.format(self.category))
+                logger.debug(f'Folding sequences in {self.category} dataset...')
                 datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
                 file_name = 'fold' + '_' + self.category
                 # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
@@ -204,8 +204,8 @@ class Dataset:
             datapoint.write(out_file)
         out_file.close()
 
-        logger.debug('Compressing final {} dataset...'.format(self.category))
-        zipped = ZipFile("{}.zip".format(outfile_path), 'w')
+        logger.debug(f'Compressing final {self.category} dataset...')
+        zipped = ZipFile(f'{outfile_path}.zip', 'w')
         zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
         zipped.close()
         os.remove(outfile_path)
@@ -236,7 +236,7 @@ class Dataset:
                 updated_datapoint_list.append(datapoint)
 
         portion = len(updated_datapoint_list) / len(datapoint_list) * 100
-        logger.debug('Successfully mapped {}% of samples.'.format(portion))
+        logger.debug(f'Successfully mapped {portion}% of samples.')
         return updated_datapoint_list
 
     @staticmethod
@@ -262,14 +262,14 @@ class Dataset:
                 continue
             else:
                 # When reading from new reference file
-                files = list(filter(lambda f: "{}.".format(datapoint.chrom_name) in os.path.basename(f), chrom_files))
+                files = list(filter(lambda f: f'{datapoint.chrom_name}.' in os.path.basename(f), chrom_files))
                 if len(files) == 1:
                     if current_file:
                         current_file.close()
                     current_chr = datapoint.chrom_name
 
                     current_file = f.unzip_if_zipped(files[0])
-                    if ".gz" in files[0] or ".zip" in files[0]:
+                    if '.gz' in files[0] or '.zip' in files[0]:
                         zipped = True
                     else:
                         zipped = False
@@ -290,9 +290,9 @@ class Dataset:
                     if len(files) == 0:
                         # TODO or rather raise an exception to let user fix it?
                         logger.info(
-                            "Didn't find appropriate conservation file for {}, skipping the chromosome.".format(chr))
+                            f'Didn\'t find appropriate conservation file for {chr}, skipping the chromosome.')
                     else:  # len(files) > 1
-                        logger.info("Found multiple conservation files for {}, skipping the chromosome.".format(chr))
+                        logger.info(f'Found multiple conservation files for {chr}, skipping the chromosome.')
                     continue
 
             if score and len(score) == (datapoint.seq_end - datapoint.seq_start):
@@ -303,7 +303,7 @@ class Dataset:
 
         # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
         portion = len(updated_datapoint_list) / len(datapoint_list) * 100
-        logger.debug('Successfully mapped {}% of samples.'.format(portion))
+        logger.debug(f'Successfully mapped {portion}% of samples.')
         return updated_datapoint_list
 
     @staticmethod
@@ -353,13 +353,13 @@ class Dataset:
         tmp_dir = tempfile.gettempdir()
         fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
 
-        out_path = os.path.join(tmp_dir, file_name + "_folded")
+        out_path = os.path.join(tmp_dir, file_name + '_folded')
         out_file = open(out_path, 'w+')
         if dna:
             # TODO mustard converts DNA to RNA also on its own, ask why not to use the --noconv option instead
-            subprocess.run(["RNAfold", "--noPS", "--jobs=".format(ncpu), fasta_file], stdout=out_file, check=True)
+            subprocess.run(['RNAfold', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
         else:
-            subprocess.run(["RNAfold", "--noPS", "--noconv", "--jobs=".format(ncpu), fasta_file], stdout=out_file,
+            subprocess.run(['RNAfold', '--noPS', '--noconv', f'--jobs={ncpu}', fasta_file], stdout=out_file,
                            check=True)
 
         out_file = open(out_path)

@@ -51,7 +51,7 @@ def create_random_arguments(shuffles):
 
 def make_datasets(default_args):
     testing_module = 'make_datasets'
-    test_module_path = "lib.{}.{}".format(testing_module, testing_module)
+    test_module_path = f'lib.{testing_module}.{testing_module}'
     subcommand_class = dirname_to_class(testing_module)
     module = __import__(test_module_path, fromlist=[subcommand_class])
     subcommand = getattr(module, subcommand_class)

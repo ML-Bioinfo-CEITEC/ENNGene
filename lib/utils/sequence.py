@@ -51,9 +51,9 @@ def parse_wig_header(line):
     header.update({'file_type': file_type})
 
     if file_type not in ['fixedStep', 'variableStep']:
-        warning = "Unknown type of wig file provided: {}. Only fixedStep or variableStep allowed."
         logger.exception('Exception occurred.')
-        raise Exception(warning.format(file_type))
+        raise Exception(
+            f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
 
     for part in parts:
         key, value = part.split('=')
@@ -93,7 +93,7 @@ def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list' and class_name != 'ndarray':
         logger.exception('Exception occurred.')
-        raise Exception('Alphabet must be a List. Instead, object of class {} was provided.'.format(class_name))
+        raise Exception(f'Alphabet must be a List. Instead, object of class {class_name} was provided.')
 
     encoded_alphabet = {}
     for i, char in enumerate(alphabet):
@@ -123,7 +123,7 @@ def translate(char, encoding):
     if char.lower() in encoding.keys():
         return encoding[char.lower()]
     else:
-        warning = "Invalid character '{}' found. " \
+        warning = f"Invalid character '{char}' found. " \
                   "Provided encoding must contain all possible characters (case-insensitive)."
         logger.exception('Exception occurred.')
-        raise Exception(warning.format(char))
+        raise Exception(warning)
