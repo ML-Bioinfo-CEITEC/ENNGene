@@ -12,8 +12,7 @@ class Subcommand:
         self.gpu = self.args.gpu
 
         if self.args.ncpu == 0:
-            # TODO detect number of available cpus
-            self.ncpu = 4
+            self.ncpu = os.cpu_count() or 1
         else:
             self.ncpu = self.args.ncpu
 
@@ -38,9 +37,9 @@ class Subcommand:
         )
         parser.add_argument(
             "--ncpu",
-            default=1,
+            default=0,
             type=int,
-            help="Number of CPUs to be used. 0 to use all available CPUs. Default: 1."
+            help="Number of CPUs to be used. 0 to use all available CPUs. Default: 0."
         )
         parser.add_argument(
             "--gpu",
