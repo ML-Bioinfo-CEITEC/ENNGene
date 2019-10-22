@@ -173,7 +173,6 @@ class MakeDatasets(Subcommand):
             default=56,
             help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 56."
         )
-        # TODO what ratio to use as default? What would be better way to define the ratio?
         parser.add_argument(
             "--splitratio",
             default='10:2:2:1',
@@ -227,7 +226,7 @@ class MakeDatasets(Subcommand):
 
             # Reduce size of selected klasses
             if self.reducelist and klass in self.reducelist:
-                logger.info("Reducing number of samples in klass {}...".format(klass))
+                logger.debug("Reducing number of samples in klass {}...".format(klass))
                 ratio = self.reduceratio[self.reducelist.index(klass)]
                 dataset = dataset.reduce(ratio, seed=self.reduceseed)
 

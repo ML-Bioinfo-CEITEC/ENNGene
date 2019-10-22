@@ -188,12 +188,14 @@ class Dataset:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
             reference = references[branch]
             if branch == 'seq':
+                logger.debug('Mapping sequences in {} dataset to fasta reference...'.format(self.category))
                 self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
+                logger.debug('Mapping sequences in {} dataset to conservation files...'.format(self.category))
                 self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
             elif branch == 'fold':
-                datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
                 logger.debug('Folding sequences in {} dataset...'.format(self.category))
+                datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
                 file_name = 'fold' + '_' + self.category
                 # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
                 self.datapoint_list = self.fold_branch(file_name, datapoint_list, ncpu, dna=True)
@@ -233,6 +235,8 @@ class Dataset:
                 datapoint.branches_values.update({branch: np.array(sequence)})
                 updated_datapoint_list.append(datapoint)
 
+        portion = len(updated_datapoint_list) / len(datapoint_list) * 100
+        logger.debug('Successfully mapped {}% of samples.'.format(portion))
         return updated_datapoint_list
 
     @staticmethod
@@ -298,6 +302,8 @@ class Dataset:
                 updated_datapoint_list.append(datapoint)
 
         # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
+        portion = len(updated_datapoint_list) / len(datapoint_list) * 100
+        logger.debug('Successfully mapped {}% of samples.'.format(portion))
         return updated_datapoint_list
 
     @staticmethod
