@@ -185,7 +185,6 @@ class Dataset:
         out_file = Dataset.initialize_file(outfile_path, self.branches)
 
         for branch in self.branches:
-            # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
             reference = references[branch]
             if branch == 'seq':
                 logger.debug(f'Mapping sequences in {self.klass} dataset to fasta reference...')
@@ -367,7 +366,6 @@ class Dataset:
         out_path = os.path.join(tmp_dir, file_name + '_folded')
         out_file = open(out_path, 'w+')
         if dna:
-            # TODO mustard converts DNA to RNA also on its own, ask why not to use the --noconv option instead
             subprocess.run(['RNAfold', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
         else:
             subprocess.run(['RNAfold', '--noPS', '--noconv', f'--jobs={ncpu}', fasta_file], stdout=out_file,

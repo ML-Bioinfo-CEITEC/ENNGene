@@ -412,8 +412,8 @@ class Train(Subcommand):
                               save_best_only=True)
 
         earlystopper = EarlyStopping(monitor='val_loss',
-                                     patience=40,
-                                     min_delta=0,
+                                     patience=10,
+                                     min_delta=0.1,
                                      verbose=1,
                                      mode='auto')
 
