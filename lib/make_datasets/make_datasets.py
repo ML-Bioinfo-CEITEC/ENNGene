@@ -207,7 +207,7 @@ class MakeDatasets(Subcommand):
             encoding = None
 
         # Accept one file per class and create one Dataset per each
-        split_datasets = set()
+        initial_datasets = set()
         logger.debug('Reading in given interval files and applying window...')
         for file in self.input_files:
             file_name = os.path.basename(file)
@@ -222,10 +222,27 @@ class MakeDatasets(Subcommand):
                 logger.exception('Exception occurred.')
                 raise Exception(f"Only files of following format are allowed: {', '.join(allowed_extensions)}.")
 
-            dataset = Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed)
+            initial_datasets.add(
+                Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed))
 
+        mapped_datasets = set()
+        # Use intervals from each category and create data for all the branches
+        for dataset in initial_datasets:
+            logger.debug(
+                f'Mapping intervals of {dataset.klass} dataset to {len(self.branches)} branch(es) and exporting...')
+            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+            self.ensure_dir(dir_path)
+            outfile_path = os.path.join(dir_path, dataset.klass)
+
+            # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+            mapped_datasets.add(dataset.sort_datapoints().
+                                map_to_branches(self.references, encoding, self.strand, outfile_path, self.ncpu))
+
+        # TODO for batch/iterative run use here files from disk
+        split_datasets = set()
+        for dataset in mapped_datasets:
             # Reduce size of selected klasses
-            if self.reducelist and klass in self.reducelist:
+            if self.reducelist and dataset.klass in self.reducelist:
                 logger.debug(f'Reducing number of samples in klass {klass}...')
                 ratio = self.reduceratio[self.reducelist.index(klass)]
                 dataset = dataset.reduce(ratio, seed=self.reduceseed)
@@ -238,31 +255,13 @@ class MakeDatasets(Subcommand):
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
-        logger.debug('Merging and exporting final interval files...')
-        dir_path = os.path.join(self.output_folder, 'datasets', 'intervals')
-        self.ensure_dir(dir_path)
-        final_interval_datasets = Dataset.merge_by_category(split_datasets)
+        logger.debug('Merging dataset by category into final files and exporting...')
+        final_datasets = Dataset.merge_by_category(split_datasets)
 
-        for dataset in final_interval_datasets:
-            # Ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
-            dataset.sort_datapoints()
-            file_path = os.path.join(dir_path, dataset.category)
-            out_file = Dataset.initialize_file(file_path, dataset.branches)
-            for datapoint in dataset.datapoint_list:
-                datapoint.write(out_file, no_value=True)
-            out_file.close()
-
-        mapped_datasets = set()
-        # TODO here either use the datasets or already existing files if chosen
-        # Use intervals from each category and create data for all the branches
-        for dataset in final_interval_datasets:
-            logger.debug(
-                f'Mapping intervals for {dataset.category} dataset to {len(self.branches)} branch(es) and exporting...')
-
-            dir_path = os.path.join(self.output_folder, 'datasets', 'mapped')
+        for dataset in final_datasets:
+            dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
             self.ensure_dir(dir_path)
-            outfile_path = os.path.join(dir_path, dataset.category)
-            mapped_datasets.add(
-                dataset.map_to_branches(self.references, encoding, self.strand, outfile_path, self.ncpu))
+            file_path = os.path.join(dir_path, dataset.category)
 
-        return mapped_datasets
+
+        return final_datasets

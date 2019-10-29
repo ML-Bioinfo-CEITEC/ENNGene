@@ -188,23 +188,22 @@ class Dataset:
             # TODO complementarity currently applied only to sequence. Does the conservation score depend on strand?
             reference = references[branch]
             if branch == 'seq':
-                logger.debug(f'Mapping sequences in {self.category} dataset to fasta reference...')
+                logger.debug(f'Mapping sequences in {self.klass} dataset to fasta reference...')
                 self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
-                logger.debug(f'Mapping sequences in {self.category} dataset to conservation files...')
+                logger.debug(f'Mapping sequences in {self.klass} dataset to conservation files...')
                 self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
             elif branch == 'fold':
-                logger.debug(f'Folding sequences in {self.category} dataset...')
+                logger.debug(f'Folding sequences in {self.klass} dataset...')
                 datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
-                file_name = 'fold' + '_' + self.category
-                # TODO probably the input may not be DNA, should the user define it? Or should we check it somewhere?
+                file_name = 'fold' + '_' + self.klass
                 self.datapoint_list = self.fold_branch(file_name, datapoint_list, ncpu, dna=True)
 
         for datapoint in self.datapoint_list:
             datapoint.write(out_file)
         out_file.close()
 
-        logger.debug(f'Compressing final {self.category} dataset...')
+        logger.debug(f'Compressing mapped {self.klass} dataset...')
         zipped = ZipFile(f'{outfile_path}.zip', 'w')
         zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
         zipped.close()
