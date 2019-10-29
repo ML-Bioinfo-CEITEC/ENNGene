@@ -215,6 +215,18 @@ class Dataset:
         self.datapoint_list.sort(key=lambda dp: (seq.VALID_CHRS.index(dp.chrom_name), dp.seq_start))
         return self
 
+    def save_to_file(self, outfile_path, zip=False):
+        out_file = Dataset.initialize_file(outfile_path, self.branches)
+        for datapoint in self.datapoint_list:
+            datapoint.write(out_file)
+        out_file.close()
+
+        if zip:
+            zipped = ZipFile(f'{outfile_path}.zip', 'w')
+            zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
+            zipped.close()
+            os.remove(outfile_path)
+
     @staticmethod
     def map_to_fasta_dict(datapoint_list, branch, ref_dictionary, encoding, strand):
         # Returns only successfully mapped datapoints

@@ -262,6 +262,6 @@ class MakeDatasets(Subcommand):
             dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, dataset.category)
-
+            dataset.save_to_file(file_path, zip=True)
 
         return final_datasets
