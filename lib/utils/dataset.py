@@ -245,7 +245,7 @@ class Dataset:
                 datapoint.branches_values.update({branch: np.array(sequence)})
                 updated_datapoint_list.append(datapoint)
 
-        portion = len(updated_datapoint_list) / len(datapoint_list) * 100
+        portion = round((len(updated_datapoint_list) / len(datapoint_list) * 100), 2)
         logger.debug(f'Successfully mapped {portion}% of samples.')
         return updated_datapoint_list
 
@@ -307,12 +307,14 @@ class Dataset:
 
             if score and len(score) == (datapoint.seq_end - datapoint.seq_start):
                 # Score may be fully or partially missing if the coordinates are not part of the reference
-                # (more probable for neg samples)
                 datapoint.branches_values.update({branch: np.array(score)})
                 updated_datapoint_list.append(datapoint)
+            else:
+                # TODO make sure the unmapped datapoints are not our fault
+                print('Unmapped datapoint: ', datapoint.chrom_name, datapoint.seq_start, datapoint.seq_end)
 
         # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
-        portion = len(updated_datapoint_list) / len(datapoint_list) * 100
+        portion = round((len(updated_datapoint_list) / len(datapoint_list) * 100), 2)
         logger.debug(f'Successfully mapped {portion}% of samples.')
         return updated_datapoint_list
 
