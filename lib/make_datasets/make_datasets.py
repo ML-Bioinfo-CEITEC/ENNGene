@@ -4,6 +4,7 @@ import sys
 import logging
 
 from ..utils.dataset import Dataset
+from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
@@ -45,6 +46,7 @@ class MakeDatasets(Subcommand):
                 logger.exception('Exception occurred.')
                 raise Exception("Provide reference fasta file to map interval files to.")
             else:
+                # TODO not necessary if loading already mapped file, move somewhere further along
                 seq_dictionary = seq.fasta_to_dictionary(self.args.ref)
                 self.references.update({'seq': seq_dictionary, 'fold': seq_dictionary})
 
@@ -201,47 +203,55 @@ class MakeDatasets(Subcommand):
         return parser
 
     def run(self):
-        if self.args.onehot:
-            logger.debug('Encoding alphabet...')
-            encoding = seq.onehot_encode_alphabet(self.args.onehot)
+        zipped_files = f.list_files_in_dir(self.output_folder, 'zip')
+        result = [file for file in zipped_files if 'full_datasets/merged_all.zip' in file]
+
+        if len(result) == 1:
+            logger.debug('Reading in already mapped file with all the samples...')
+            merged_dataset = Dataset.load_from_file(result[0])
         else:
-            encoding = None
-
-        # Accept one file per class and create one Dataset per each
-        initial_datasets = set()
-        logger.debug('Reading in given interval files and applying window...')
-        for file in self.input_files:
-            file_name = os.path.basename(file)
-            allowed_extensions = ['.bed', '.narrowPeak']
-            # TODO simpler way to write this in Python?
-            # TODO add other possible similar extensions, .bed12 or something like that?
-            if any(ext in file_name for ext in allowed_extensions):
-                for ext in allowed_extensions:
-                    if ext in file_name:
-                        klass = file_name.replace(ext, '')
+            if self.args.onehot:
+                logger.debug('Encoding alphabet...')
+                encoding = seq.onehot_encode_alphabet(self.args.onehot)
             else:
-                logger.exception('Exception occurred.')
-                raise Exception(f"Only files of following format are allowed: {', '.join(allowed_extensions)}.")
+                encoding = None
 
-            initial_datasets.add(
-                Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed))
+            # Accept one file per class and create one Dataset per each
+            initial_datasets = set()
+            logger.debug('Reading in given interval files and applying window...')
+            for file in self.input_files:
+                file_name = os.path.basename(file)
+                allowed_extensions = ['.bed', '.narrowPeak']
+                # TODO simpler way to write this in Python?
+                # TODO add other possible similar extensions, .bed12 or something like that?
+                if any(ext in file_name for ext in allowed_extensions):
+                    for ext in allowed_extensions:
+                        if ext in file_name:
+                            klass = file_name.replace(ext, '')
+                else:
+                    logger.exception('Exception occurred.')
+                    raise Exception(f"Only files of following format are allowed: {', '.join(allowed_extensions)}.")
 
-        # Merging datapoints from all klasses to map them more quickly all together at once
-        all_datapoints = []
-        for dataset in initial_datasets:
-            all_datapoints += dataset.datapoint_list
+                initial_datasets.add(
+                    Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed))
 
-        logger.debug(
-            f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
-        merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
-        dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
-        self.ensure_dir(dir_path)
-        outfile_path = os.path.join(dir_path, 'merged_all')
+            # Merging datapoints from all klasses to map them more quickly all together at once
+            all_datapoints = []
+            for dataset in initial_datasets:
+                all_datapoints += dataset.datapoint_list
 
-        # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
-        merged_dataset.sort_datapoints().map_to_branches(
-            self.references, encoding, self.strand, outfile_path, self.ncpu)
+            logger.debug(
+                f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
+            merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
+            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+            self.ensure_dir(dir_path)
+            outfile_path = os.path.join(dir_path, 'merged_all')
 
+            # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+            merged_dataset.sort_datapoints().map_to_branches(
+                self.references, encoding, self.strand, outfile_path, self.ncpu)
+
+        logger.debug('Processing mapped samples...')
         mapped_datasets = set()
         sorted_datapoints = {}
         for datapoint in merged_dataset.datapoint_list:
@@ -252,7 +262,6 @@ class MakeDatasets(Subcommand):
             mapped_datasets.add(
                 Dataset(klass=klass, branches=self.branches, datapoint_list=datapoints))
 
-        # TODO for batch/iterative run use here files from disk
         split_datasets = set()
         for dataset in mapped_datasets:
             # Reduce size of selected klasses

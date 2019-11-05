@@ -20,10 +20,10 @@ class Dataset:
 
     @classmethod
     def load_from_file(cls, file_path):
+        name = os.path.basename(file_path).replace('.zip', '')
         if '.zip' in file_path:
             zipped = True
             archive = ZipFile(file_path, 'r')
-            name = os.path.basename(file_path).replace('.zip', '')
             file = archive.open(name)
         else:
             zipped = False
@@ -31,7 +31,7 @@ class Dataset:
 
         head = f.read_decoded_line(file, zipped)
         branches = head.split('\t')[1:]
-        category = os.path.basename(file_path).replace('.zip', '')
+        category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
 
         datapoint_list = []
         for line in file:
