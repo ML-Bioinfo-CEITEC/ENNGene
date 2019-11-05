@@ -174,6 +174,7 @@ class MakeDatasets(Subcommand):
             help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 56."
         )
         parser.add_argument(
+            # TODO check what happens if one or more values are zero
             "--splitratio",
             default='10:2:2:1',
             help="Ratio for random separation. The order is as follows: train:validation:test:blackbox. \n \
@@ -244,8 +245,8 @@ class MakeDatasets(Subcommand):
         mapped_datasets = set()
         sorted_datapoints = {}
         for datapoint in merged_dataset.datapoint_list:
-            if datapoint.klass not in sorted_datapoints.keys(): sorted_datapoints.update({klass: []})
-            sorted_datapoints[klass].append(datapoint)
+            if datapoint.klass not in sorted_datapoints.keys(): sorted_datapoints.update({datapoint.klass: []})
+            sorted_datapoints[datapoint.klass].append(datapoint)
 
         for klass, datapoints in sorted_datapoints.items():
             mapped_datasets.add(
@@ -268,7 +269,7 @@ class MakeDatasets(Subcommand):
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
-        logger.debug('Merging dataset by category into final files and exporting...')
+        logger.debug('Redistributing samples to categories and exporting into final files...')
         final_datasets = Dataset.merge_by_category(split_datasets)
 
         for dataset in final_datasets:

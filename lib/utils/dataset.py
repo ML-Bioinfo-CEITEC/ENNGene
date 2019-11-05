@@ -202,7 +202,7 @@ class Dataset:
             datapoint.write(out_file)
         out_file.close()
 
-        logger.debug(f'Compressing mapped {self.klass} dataset...')
+        logger.debug(f'Compressing mapped dataset...')
         zipped = ZipFile(f'{outfile_path}.zip', 'w')
         zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
         zipped.close()
@@ -382,6 +382,7 @@ class Dataset:
 
     @staticmethod
     def fold_branch(file_name, datapoint_list, ncpu, dna=True):
+        # TODO check output, it's suspiciously quick for large numbers of samples
         tmp_dir = tempfile.gettempdir()
         fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
 
