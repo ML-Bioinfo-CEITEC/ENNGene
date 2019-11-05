@@ -225,18 +225,31 @@ class MakeDatasets(Subcommand):
             initial_datasets.add(
                 Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.window, winseed=self.winseed))
 
-        mapped_datasets = set()
-        # Use intervals from each category and create data for all the branches
+        # Merging datapoints from all klasses to map them more quickly all together at once
+        all_datapoints = []
         for dataset in initial_datasets:
-            logger.debug(
-                f'Mapping intervals of {dataset.klass} dataset to {len(self.branches)} branch(es) and exporting...')
-            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
-            self.ensure_dir(dir_path)
-            outfile_path = os.path.join(dir_path, dataset.klass)
+            all_datapoints += dataset.datapoint_list
 
-            # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
-            mapped_datasets.add(dataset.sort_datapoints().
-                                map_to_branches(self.references, encoding, self.strand, outfile_path, self.ncpu))
+        logger.debug(
+            f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
+        merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
+        dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+        self.ensure_dir(dir_path)
+        outfile_path = os.path.join(dir_path, 'merged_all')
+
+        # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+        merged_dataset.sort_datapoints().map_to_branches(
+            self.references, encoding, self.strand, outfile_path, self.ncpu)
+
+        mapped_datasets = set()
+        sorted_datapoints = {}
+        for datapoint in merged_dataset.datapoint_list:
+            if datapoint.klass not in sorted_datapoints.keys(): sorted_datapoints.update({klass: []})
+            sorted_datapoints[klass].append(datapoint)
+
+        for klass, datapoints in sorted_datapoints.items():
+            mapped_datasets.add(
+                Dataset(klass=klass, branches=self.branches, datapoint_list=datapoints))
 
         # TODO for batch/iterative run use here files from disk
         split_datasets = set()

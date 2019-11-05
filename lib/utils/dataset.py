@@ -187,15 +187,15 @@ class Dataset:
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq':
-                logger.debug(f'Mapping sequences in {self.klass} dataset to fasta reference...')
+                logger.debug(f'Mapping sequences to fasta reference for sequence branch...')
                 self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
             elif branch == 'cons':
-                logger.debug(f'Mapping sequences in {self.klass} dataset to conservation files...')
+                logger.debug(f'Mapping sequences to wig reference for conservation branch...')
                 self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
             elif branch == 'fold':
-                logger.debug(f'Folding sequences in {self.klass} dataset...')
+                logger.debug(f'Mapping and folding sequences for structure branch...')
                 datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
-                file_name = 'fold' + '_' + self.klass
+                file_name = 'fold'
                 self.datapoint_list = self.fold_branch(file_name, datapoint_list, ncpu, dna=True)
 
         for datapoint in self.datapoint_list:
@@ -309,9 +309,6 @@ class Dataset:
                 # Score may be fully or partially missing if the coordinates are not part of the reference
                 datapoint.branches_values.update({branch: np.array(score)})
                 updated_datapoint_list.append(datapoint)
-            else:
-                # TODO make sure the unmapped datapoints are not our fault
-                print('Unmapped datapoint: ', datapoint.chrom_name, datapoint.seq_start, datapoint.seq_end)
 
         # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
         portion = round((len(updated_datapoint_list) / len(datapoint_list) * 100), 2)
