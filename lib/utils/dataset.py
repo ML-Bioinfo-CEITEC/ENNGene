@@ -4,6 +4,7 @@ import os
 import platform
 import random
 import subprocess
+import sys
 import tempfile
 
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -14,7 +15,6 @@ from . import sequence as seq
 
 logger = logging.getLogger('main')
 
-import sys
 
 class Dataset:
 
@@ -266,8 +266,14 @@ class Dataset:
             score = []
 
             if chr and chr == current_chr:
-                score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                result = Dataset.map_datapoint_to_wig(
                     score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header, parsed_line)
+                if result:
+                    score, current_header, parsed_line = result
+                else:
+                    # Covering the case when we reach end of reference file while still having some samples with current_chr not mapped
+                    not_found_chrs.add(current_chr)
+                    continue
             elif chr in not_found_chrs:
                 continue
             else:
@@ -291,10 +297,14 @@ class Dataset:
                     else:
                         logger.exception('Exception occurred.')
                         raise Exception('File not starting with a proper wig header.')
-
-                    score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
+                    result = Dataset.map_datapoint_to_wig(
                         score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header,
                         parsed_line)
+                    if result:
+                        score, current_header, parsed_line = result
+                    else:  # should not happen here, as it's beginning of the file
+                        not_found_chrs.add(current_chr)
+                        continue
                 else:
                     not_found_chrs.add(datapoint.chrom_name)
                     if len(files) == 0:
@@ -317,12 +327,22 @@ class Dataset:
 
     @staticmethod
     def map_datapoint_to_wig(score, zipped, dp_start, dp_end, current_file, current_header, parsed_line):
+        # TODO check the logic of passing on the parsed line (it does not seem to be properly used)
+        # FIXME not covered: when the end of ref file is reached while there are still some samples from that file
+        # unmapped - it reads empty lines - break with first empty line read as expecting it to be EOF? and move to
+        # next chromosome somehow
+
         line = f.read_decoded_line(current_file, zipped)
         new_score = []
+        if not line: return None
+
         if 'chrom' in line:
             current_header = seq.parse_wig_header(line)
-            new_score, current_header, parsed_line = Dataset.map_datapoint_to_wig(
-                score, zipped, dp_start, dp_end, current_file, current_header, parsed_line)
+            result = Dataset.map_datapoint_to_wig(score, zipped, dp_start, dp_end, current_file, current_header, parsed_line)
+            if result:
+                new_score, current_header, parsed_line = result
+            else:
+                return None
         else:
             if dp_start < current_header['start']:
                 # Missed beginning of the datapoint while reading through the reference (should not happen)
@@ -331,6 +351,7 @@ class Dataset:
                 current_header, parsed_line = seq.parse_wig_line(line, current_header)
                 while dp_start not in parsed_line.keys():
                     line = f.read_decoded_line(current_file, zipped)
+                    if not line: return None
                     if 'chrom' in line:
                         current_header = seq.parse_wig_header(line)
                     else:
@@ -345,9 +366,11 @@ class Dataset:
                             score.append(parsed_line[coord])
                         else:
                             line = f.read_decoded_line(current_file, zipped)
+                            if not line: return None
                             if 'chrom' in line:
                                 current_header = seq.parse_wig_header(line)
                                 line = f.read_decoded_line(current_file, zipped)
+                                if not line: return None
                             current_header, parsed_line = seq.parse_wig_line(line, current_header)
                             try:
                                 score.append(parsed_line[coord])
