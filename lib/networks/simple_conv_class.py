@@ -1,10 +1,7 @@
-import keras
-import numpy as np
-# from hyperas.distributions import choice, uniform
-# from hyperopt import STATUS_OK
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D, Input, BatchNormalization
-from keras.models import Model
+import tensorflow as tf
+
+from tensorflow.keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D, Input, BatchNormalization, LeakyReLU
+from tensorflow.keras.models import Model
 
 from .network import Network
 
@@ -45,7 +42,7 @@ class SimpleConvClass(Network):
         if len(self.branches) == 1:
             x = branches_models[0]
         else:
-            x = keras.layers.concatenate(branches_models)
+            x = tf.keras.layers.concatenate(branches_models)
 
         # Continue to dense layers using concatenated results from convolution of the branches
         for dense in range(0, self.hyperparams['dense_num']):
@@ -91,7 +88,7 @@ class SimpleConvClass(Network):
         if len(self.branches) == 1:
             x = branches_models[0]
         else:
-            x = keras.layers.concatenate(branches_models)
+            x = tf.keras.layers.concatenate(branches_models)
 
         # Continue to dense layers using concatenated results from convolution of the branches
         for dense in range(0, int(params['dense_num'])):
@@ -115,4 +112,4 @@ class SimpleConvClass(Network):
         
         out = model.fit(x_train, y_train, epochs=self.epochs, batch_size=50, verbose=0)
 
-        return out, model   
+        return out, model

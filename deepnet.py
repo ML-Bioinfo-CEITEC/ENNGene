@@ -5,11 +5,6 @@ import os
 import sys
 import logging
 
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "4"
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
 
 import absl.logging
 logging.root.removeHandler(absl.logging._absl_handler)

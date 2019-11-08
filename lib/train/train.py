@@ -3,8 +3,8 @@ import sys
 import logging
 import math
 
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
-from keras.optimizers import SGD, RMSprop, Adam
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
+from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 import matplotlib.pyplot as plt
 import numpy as np
 import talos as ta
@@ -485,15 +485,13 @@ class Train(Subcommand):
     def plot_graph(history, metric, title, out_dir, network_name):
         # TODO separate class for plotting? probably combined with the Evaluate module
         # For some reason here it calls accuracy just 'acc'
-        if metric == 'accuracy':
-            metric = 'acc'
         val_metric = f'val_{metric}'
         file_name = f'/{network_name}.{metric}.png'
 
         plt.plot(history[metric])
         plt.plot(history[val_metric])
 
-        if metric == 'acc':
+        if metric == 'accuracy':
             plt.ylim(0.0, 1.0)
         elif metric == 'loss':
             plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
