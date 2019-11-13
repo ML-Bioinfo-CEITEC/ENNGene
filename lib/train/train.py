@@ -3,7 +3,7 @@ import sys
 import logging
 import math
 
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 import matplotlib.pyplot as plt
 import numpy as np
@@ -103,6 +103,7 @@ class Train(Subcommand):
             self.lr_scheduler = False
         self.batch_size = self.args.batch_size
         self.epochs = self.args.epochs
+        self.tb = self.args.tb
 
         self.hyperparams = {
             "dropout": self.args.dropout,
@@ -256,6 +257,12 @@ class Train(Subcommand):
             help="Loss function to be used during training. Default = 'categorical_crossentropy'."
         )
         parser.add_argument(
+            "--tb",
+            default=False,
+            help="Output TensorBoard file. Default = False.",
+            type=bool
+        )
+        parser.add_argument(
             "--experiment_name",
             action='store',
             default='e1',
@@ -355,7 +362,7 @@ class Train(Subcommand):
                 metrics=[self.metric])
 
             # Training & testing the model (fit)
-            callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler)
+            callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler, self.tb)
 
             print('Training the network')
             history = self.train(model, self.epochs, self.batch_size, callbacks,
@@ -406,7 +413,7 @@ class Train(Subcommand):
         return LearningRateScheduler(schedule)
 
     @staticmethod
-    def create_callbacks(out_dir, net_name, scheduler):
+    def create_callbacks(out_dir, net_name, scheduler, tb):
         mcp = ModelCheckpoint(filepath=out_dir + f'/{net_name}.hdf5',
                               verbose=0,
                               save_best_only=True)
@@ -424,6 +431,9 @@ class Train(Subcommand):
 
         if scheduler:
             callbacks.append(Train.step_decay_schedule())
+
+        if tb:
+            callbacks.append(TensorBoard(log_dir=out_dir))
 
         return callbacks
 
