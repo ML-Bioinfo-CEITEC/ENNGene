@@ -1,3 +1,4 @@
+import datetime
 import os
 import sys
 import logging
@@ -66,9 +67,6 @@ class Train(Subcommand):
         parser = self.create_parser(help_message)
         super().__init__(parser)
 
-        self.train_dir = os.path.join(self.output_folder, 'training')
-        self.ensure_dir(self.train_dir)
-
         if type(self.args.branches) == list:
             self.branches = self.args.branches
         else:
@@ -84,7 +82,6 @@ class Train(Subcommand):
                 self.parse_data(self.args.datasets, self.branches, self.labels)
         self.branch_shapes = self.get_shapes(self.train_x, self.branches)
 
-        self.network = self.args.network
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
@@ -113,6 +110,16 @@ class Train(Subcommand):
             "dense_units": self.args.dense_units,
             "filter_num": self.args.filter_num
         }
+
+        if self.args.network == 'simpleconv':
+            self.network = SimpleConvClass(
+                branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels, epochs=self.epochs)
+        else:
+            raise Exception  # should not be possible to happen, later add other architectures here
+
+        self.train_dir = os.path.join(self.output_folder, 'training',
+                                      f'{self.network.name}_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        self.ensure_dir(self.train_dir)
 
     def create_parser(self, message):
         parser = self.initialize_parser(message)
@@ -316,7 +323,7 @@ class Train(Subcommand):
     def run(self):
         # Define model based on chosen architecture
         logger.info('Hyperparameters: ' + str(list(self.hyperparams.items())))
-        logger.info('Chosen network architecture: ' + str(self.network))
+        logger.info('Chosen network architecture: ' + str(self.network.name))
         logger.info('Using the following branches: ' + str(self.branches))
         logger.info('Using hyperparameter tuning: ' + str(self.hyper_tuning))
         if self.hyper_tuning:
@@ -329,27 +336,22 @@ class Train(Subcommand):
         logger.info('Epoch rounds: ' + str(self.epochs))
         logger.info('Loss function: ' + str(self.loss))
         logger.info('Metric function: ' + str(self.metric))
-        
-        if self.network == 'simpleconv':
-            network = SimpleConvClass(
-                branch_shapes=self.branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=self.labels, epochs=self.epochs)
-        else:
-            raise Exception  # should not be possible to happen, later add other architectures here
 
         # Hyperparameter tuning (+ export/import)
         if self.hyper_tuning:
-            self.tune_hyperparameters(train_x=self.train_x, 
-                                 train_y=self.train_y,
-                                 valid_x=self.valid_x,
-                                 valid_y=self.valid_y,
-                                 network=network.build_tunable_model,
-                                 experiment_name=self.experiment_name,
-                                 tune_rounds=self.tune_rounds,
-                                 metric=self.hyper_param_metric,
-                                 params=self.hyperparams)
+            self.tune_hyperparameters(train_x=self.train_x,
+                                      train_y=self.train_y,
+                                      valid_x=self.valid_x,
+                                      valid_y=self.valid_y,
+                                      network=self.network.build_tunable_model,
+                                      experiment_name=self.experiment_name,
+                                      tune_rounds=self.tune_rounds,
+                                      metric=self.hyper_param_metric,
+                                      params=self.hyperparams,
+                                      train_dir=self.train_dir)
             print(self.get_best_model_params(self.experiment_name))
         else:
-            model = network.build_model()
+            model = self.network.build_model()
             hyperparams = self.hyperparams
 
             # Optimizer definition
@@ -362,14 +364,14 @@ class Train(Subcommand):
                 metrics=[self.metric])
 
             # Training & testing the model (fit)
-            callbacks = self.create_callbacks(self.train_dir, network.name, self.lr_scheduler, self.tb)
+            callbacks = self.create_callbacks(self.train_dir, self.lr_scheduler, self.tb)
 
             print('Training the network')
             history = self.train(model, self.epochs, self.batch_size, callbacks,
                                 self.train_x, self.valid_x, self.train_y, self.valid_y)
             # Plot metrics
-            self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir, network.name)
-            self.plot_graph(history.history, 'loss', f'Loss: {self.loss.capitalize()}', self.train_dir, network.name)
+            self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir)
+            self.plot_graph(history.history, 'loss', f'Loss: {self.loss.capitalize()}', self.train_dir)
 
             print('Testing the network')
             test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
@@ -377,7 +379,7 @@ class Train(Subcommand):
             # TODO save the test results ? (did not find that in the old code)
 
             model_json = model.to_json()
-            with open(f'{self.train_dir}/{self.network}_model.json', 'w') as json_file:
+            with open(f'{self.train_dir}/{self.network.name}_model.json', 'w') as json_file:
                 json_file.write(model_json)
 
     @staticmethod
@@ -395,14 +397,14 @@ class Train(Subcommand):
         return best_model_params
 
     @staticmethod
-    def tune_hyperparameters(train_x, train_y, valid_x, valid_y, network, params, experiment_name, tune_rounds, metric, ):
+    def tune_hyperparameters(train_x, train_y, valid_x, valid_y, network, params, experiment_name, tune_rounds, metric, train_dir):
         t = ta.Scan(x=train_x, y=train_y, x_val=valid_x, y_val=valid_y, model=network, params=params, experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric, print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
         best_model = t.best_model('acc')
         best_model_json = best_model.to_json()
         print(best_model.summary())
-        with open(f'output/training/{experiment_name}.json', 'w') as json_file:
+        with open(f'{train_dir}/training/{experiment_name}.json', 'w') as json_file:
             json_file.write(best_model_json)
-        best_model.save_weights(f'output/training/{experiment_name}.h5')
+        best_model.save_weights(f'{train_dir}/training/{experiment_name}.h5')
 
         return best_model
     
@@ -413,8 +415,8 @@ class Train(Subcommand):
         return LearningRateScheduler(schedule)
 
     @staticmethod
-    def create_callbacks(out_dir, net_name, scheduler, tb):
-        mcp = ModelCheckpoint(filepath=out_dir + f'/{net_name}.hdf5',
+    def create_callbacks(out_dir, scheduler, tb):
+        mcp = ModelCheckpoint(filepath=out_dir + '/model.hdf5',
                               verbose=0,
                               save_best_only=True)
 
@@ -424,7 +426,7 @@ class Train(Subcommand):
                                      verbose=1,
                                      mode='auto')
 
-        csv_logger = CSVLogger(out_dir + f'/{net_name}.log.csv',
+        csv_logger = CSVLogger(out_dir + '/log.csv',
                                append=True,
                                separator='\t')
         callbacks = [mcp, earlystopper, csv_logger]
@@ -492,11 +494,11 @@ class Train(Subcommand):
         return test_results
 
     @staticmethod
-    def plot_graph(history, metric, title, out_dir, network_name):
+    def plot_graph(history, metric, title, out_dir):
         # TODO separate class for plotting? probably combined with the Evaluate module
         # For some reason here it calls accuracy just 'acc'
         val_metric = f'val_{metric}'
-        file_name = f'/{network_name}.{metric}.png'
+        file_name = f'/{metric}.png'
 
         plt.plot(history[metric])
         plt.plot(history[val_metric])
