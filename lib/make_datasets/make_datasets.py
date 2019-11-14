@@ -97,7 +97,6 @@ class MakeDatasets(Subcommand):
         # TODO allow multiple files per class?
         parser.add_argument(
             "--coord",
-            action="store",
             required=True,
             nargs='+',
             # TODO allow naming the classes differently?
@@ -107,18 +106,17 @@ class MakeDatasets(Subcommand):
         parser.add_argument(
             "--win",
             required=True,
-            help="Window size to unify lenghts of the input sequences. Default = 100.",
+            help="Window size to unify lenghts of the input sequences. Default: 100.",
             default=100,
             type=int
         )
         parser.add_argument(
             "--winseed",
             default=64,
-            help="Seed to replicate window placement upon the sequences. Default = 64.",
+            help="Seed to replicate window placement upon the sequences. Default: 64.",
         )
         parser.add_argument(
             "--ref",
-            action="store",
             help="Path to reference fasta file. Necessary if 'seq' or 'fold' branch is selected.",
             default="-"
         )
@@ -126,26 +124,22 @@ class MakeDatasets(Subcommand):
             "--branches",
             choices=['seq', 'cons', 'fold'],
             nargs='+',
-            default='seq',
-            help="Branches. [default: 'seq']"
+            default=['seq'],
+            help="Branches. Default: 'seq'."
         )
         parser.add_argument(
             "--consdir",
-            action="store",
             help="Directory containing wig files with scores. Necessary if 'cons' branch is selected."
         )
         parser.add_argument(
             "--onehot",
-            action="store",
             nargs='+',
             help="If data needs to be converted to One Hot encoding, provide a list of alphabet used.",
-            dest="onehot",
-            default=None
         )
         parser.add_argument(
             "--strand",
             default=False,
-            help="Apply strand information when mapping interval file to reference. [default: False]"
+            help="Apply strand information when mapping interval file to reference. Default: False."
         )
         parser.add_argument(
             "--reducelist",
@@ -162,18 +156,18 @@ class MakeDatasets(Subcommand):
         parser.add_argument(
             "--reduceseed",
             default=112,
-            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 112."
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default: 112."
         )
         parser.add_argument(
             "--split",
             default='by_chr',
             choices=['by_chr', 'rand'],
-            help="Criteria for separation into test, train, validation and blackbox datasets. [default: 'by_chr']"
+            help="Criteria for separation into test, train, validation and blackbox datasets. Default: 'by_chr'."
         )
         parser.add_argument(
             "--splitseed",
             default=56,
-            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default = 56."
+            help="You may provide seed for random separation of datasets. --split must be set to 'rand'. Default: 56."
         )
         parser.add_argument(
             # TODO check what happens if one or more values are zero
@@ -186,19 +180,19 @@ class MakeDatasets(Subcommand):
             "--validation",
             default={'chr19', 'chr20'},
             help="Set of chromosomes to be included in the validation set. --split must be set to 'by_chr'. \
-                        [default: {'chr19', 'chr20'}]"
+                        Default: {'chr19', 'chr20'}."
         )
         parser.add_argument(
             "--test",
             default={'chr21'},
             help="Set of chromosomes to be included in the test set. --split must be set to 'by_chr'. \
-                 [default: {'chr21'}]"
+                 Default: {'chr21'}."
         )
         parser.add_argument(
             "--blackbox",
             default={'chr22'},
             help="Set of chromosomes to be included in the blackbox set for final evaluation. \
-                 --split must be set to 'by_chr'. [default: {'chr22'}]"
+                 --split must be set to 'by_chr'. Default: {'chr22'}."
         )
         return parser
 

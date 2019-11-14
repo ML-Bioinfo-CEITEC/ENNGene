@@ -24,6 +24,7 @@ from ..utils.subcommand import Subcommand
 logger = logging.getLogger('main')
 
 
+# FIXME can't we put the method inside some namespace? I don't like floating methods like that...
 def str2bool(v):
     if isinstance(v, bool):
        return v
@@ -35,29 +36,6 @@ def str2bool(v):
         raise Exception('Boolean value expected.')
 
 
-def transform_int_input(arg):
-    try:
-        transformed_input = [int(x.replace('[', '').replace(']', '')) for x in arg.split(',')]
-        if len(transformed_input) == 1:
-            return transformed_input[0]
-        else:
-            return transformed_input
-    except:
-        raise Exception('A numerical value or values is expected.')
-
-
-def transform_float_input(arg):
-    try:
-        transformed_input = [float(x.replace('[', '').replace(']', '')) for x in arg.split(',')]
-        
-        if len(transformed_input) == 1:
-            return transformed_input[0]
-        else:
-            return transformed_input
-    except:
-        raise Exception('A numerical value or values is expected.')      
-
-
 class Train(Subcommand):
 
     def __init__(self):
@@ -67,11 +45,7 @@ class Train(Subcommand):
         parser = self.create_parser(help_message)
         super().__init__(parser)
 
-        if type(self.args.branches) == list:
-            self.branches = self.args.branches
-        else:
-            self.branches = [self.args.branches]
-
+        self.branches = self.args.branches
         if self.args.datasets == '-':
             # TODO read from STDIN ?
             pass
@@ -87,8 +61,24 @@ class Train(Subcommand):
             self.tune_rounds = self.args.tune_rounds
             self.experiment_name = self.args.experiment_name
             self.hyper_param_metric = self.args.hyper_param_metric
+            self.hyperparams = {
+                "dropout": self.args.dropout,
+                "conv_num": self.args.conv_num,
+                "kernel_size": self.args.kernel_size,
+                "dense_num": self.args.dense_num,
+                "dense_units": self.args.dense_units,
+                "filter_num": self.args.filter_num
+            }
         else:
             self.hyper_tuning = False
+            self.hyperparams = {
+                "dropout": self.args.dropout[0],
+                "conv_num": self.args.conv_num[0],
+                "kernel_size": self.args.kernel_size[0],
+                "dense_num": self.args.dense_num[0],
+                "dense_units": self.args.dense_units[0],
+                "filter_num": self.args.filter_num[0]
+            }
 
         self.metric = self.args.metric
         self.loss = self.args.loss
@@ -101,15 +91,6 @@ class Train(Subcommand):
         self.batch_size = self.args.batch_size
         self.epochs = self.args.epochs
         self.tb = self.args.tb
-
-        self.hyperparams = {
-            "dropout": self.args.dropout,
-            "conv_num": self.args.conv_num,
-            "kernel_size": self.args.kernel_size,
-            "dense_num": self.args.dense_num,
-            "dense_units": self.args.dense_units,
-            "filter_num": self.args.filter_num
-        }
 
         if self.args.network == 'simpleconv':
             self.network = SimpleConvClass(
@@ -133,147 +114,131 @@ class Train(Subcommand):
         )
         parser.add_argument(
             "--batch_size",
-            action="store",
             default=256,
-            help="Batch Size. Default=256",
+            help="Batch Size. Default: 256.",
             type=int
         )
         parser.add_argument(
             "--branches",
-            action='store',
             choices=['seq', 'cons', 'fold'],
             nargs='+',
-            default="seq",
-            help="Branches. [default: 'seq']"
-        )
-        parser.add_argument(
-            "--dropout",
-            action="store",
-            default=0.2,
-            help="Dropout. Default=0.2",
-            required=False,
-            type=transform_float_input
-        )
+            default=['seq'],
+            help="Branches. Default: 'seq'.")
         parser.add_argument(
             "--lr",
-            action="store",
             default=0.0001,
-            help="Learning Rate. Default=0.0001",
-            required=False,
+            help="Learning Rate. Default: 0.0001.",
             type=int
         )
         parser.add_argument(
             "--lr_scheduler",
-            action="store",
             default=False,
             help="Whether to use learning rate scheduler (decreasing lr from 0.1). Applied only in combination \
-                 with SGD optimizer. Default=False",
+                 with SGD optimizer. Default: False.",
             type=str2bool
         )
         parser.add_argument(
-            "--filter_num",
-            action="store",
-            default=40,
-            help="Filter Number. Default=40",
-            required=False,
-            type=transform_int_input
+            "--dropout",
+            default=[0.2],
+            help="Dropout. You can provide multiple values for hyperparam tuning. Default: 0.2.",
+            type=float,
+            nargs='+'
         )
         parser.add_argument(
             "--conv_num",
-            action="store",
-            default=3,
-            help="Number of convolutional layers. Default=3",
-            type=transform_int_input
+            default=[3],
+            help="Number of convolutional layers. You can provide multiple values for hyperparam tuning. Default: 3.",
+            type=int,
+            nargs='+'
+        )
+        parser.add_argument(
+            "--filter_num",
+            default=[40],
+            help="Filter Number. You can provide multiple values for hyperparam tuning. Default: 40.",
+            type=int,
+            nargs='+'
         )
         parser.add_argument(
             "--kernel_size",
-            action="store",
-            default=4,
-            help="Kernel size for convolutional layers. Default=4",
-            type=transform_int_input
+            default=[4],
+            help="Kernel size for convolutional layers. You can provide multiple values for hyperparam tuning. Default: 4.",
+            type=int,
+            nargs='+'
         )
         parser.add_argument(
             "--dense_num",
-            action="store",
-            default=3,
-            help="Number of dense layers. Default=3",
-            type=transform_int_input
+            default=[3],
+            help="Number of dense layers. You can provide multiple values for hyperparam tuning. Default: 3.",
+            type=int,
+            nargs='+'
         )
         parser.add_argument(
             "--dense_units",
-            action="store",
-            default=64,
-            help="Number of units in first dense layer. Each next dense layer gets half the units. Default=64",
-            type=transform_int_input
+            default=[64],
+            help="Number of units in first dense layer. Each next dense layer gets half the units. \
+                  You can provide multiple values for hyperparam tuning. Default: 64.",
+            type=int,
+            nargs='+'
         )
         parser.add_argument(
             "--epochs",
-            action="store",
             default=600,
-            help="Number of epochs to train",
+            help="Number of epochs to train. Default: 600.",
             type=int
         )
         parser.add_argument(
             "--hyper_tuning",
-            action="store",
             default=False,
-            help="Whether to enable hyper parameters tuning",
+            help="Enable hyperparameter tuning. Default: False.",
             type=str2bool
         )
         parser.add_argument(
             "--tune_rounds",
-            action="store",
             default=5,
             type=int,
-            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
+            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True. Default: 5."
         )
         parser.add_argument(
+            # TODO is it necessary? Why not use information provided in --metric, why it should be different?
             "--hyper_param_metric",
-            action="store",
             choices=['acc'],
             default='acc',
-            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True."
+            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True." # FIXME help msg
         )
-
         parser.add_argument(
             "--optimizer",
-            action='store',
             choices=['sgd', 'rmsprop', 'adam'],
             default='sgd',
-            help="Optimizer to be used. Default = 'sgd'."
+            help="Optimizer to be used. Default: 'sgd'."
         )
         parser.add_argument(
             "--network",
-            action='store',
             choices=['simpleconv'],
             default='simpleconv',
-            help="Predefined network architecture to be used. Default = 'simpleconv' (simple convolutional network)."
+            help="Predefined network architecture to be used. Default: 'simpleconv' (simple convolutional network)."
         )
         parser.add_argument(
             "--metric",
-            action='store',
             choices=['accuracy'],
             default='accuracy',
-            help="Metric to be used during training. Default = 'accuracy'."
+            help="Metric to be used during training. Default: 'accuracy'."
         )
         parser.add_argument(
             "--loss",
-            action='store',
             choices=['categorical_crossentropy'],
             default='categorical_crossentropy',
-            help="Loss function to be used during training. Default = 'categorical_crossentropy'."
+            help="Loss function to be used during training. Default: 'categorical_crossentropy'."
+        )
+        parser.add_argument(
+            "--experiment_name",
+            default='e1',
+            help="Name of the hyperparameter tuning experiment. Default: 1"
         )
         parser.add_argument(
             "--tb",
             default=False,
-            help="Output TensorBoard file. Default = False.",
-            type=bool
-        )
-        parser.add_argument(
-            "--experiment_name",
-            action='store',
-            default='e1',
-            help="Name of the hyperparameter tuning experiment."
+            help="Output TensorBoard log files. Default: False.",
+            type=str2bool
         )
         return parser
 

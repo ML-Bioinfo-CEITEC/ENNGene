@@ -9,8 +9,6 @@ class Subcommand:
     def __init__(self, parser):
         self.args = parser.parse_args(sys.argv[2:])
 
-        self.gpu = self.args.gpu
-
         if self.args.ncpu == 0:
             self.ncpu = os.cpu_count() or 1
         else:
@@ -32,7 +30,6 @@ class Subcommand:
         )
         parser.add_argument(
             "-o", "--output",
-            dest='output',
             help="Specify folder for output files. If not specified, current working directory will be used."
         )
         parser.add_argument(
@@ -41,27 +38,18 @@ class Subcommand:
             type=int,
             help="Number of CPUs to be used. 0 to use all available CPUs. Default: 0."
         )
-        parser.add_argument(
-            "--gpu",
-            help="Use available GPU. Default: False.",
-            default=False,
-            type=bool
-        )
-
-        # TODO do we need verbose and quiet, or rather use the logger for everything?
-        # Or use it to set level of logger verbosity?
+        # TODO use it to set level of logger verbosity
         parser.add_argument(
             "-v", "--verbose",
             action="store_true",
             dest="verbose",
-            default=True,
-            help="make lots of noise [default]"
+            help="Set logger level to DEBUG."
         )
         parser.add_argument(
             "-q", "--quiet",
             action="store_false",
             dest="verbose",
-            help="be vewwy quiet (I'm hunting wabbits)"
+            help="Set logger level to INFO."
         )
         return parser
 
