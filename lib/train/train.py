@@ -56,7 +56,7 @@ class Train(Subcommand):
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
-            self.experiment_name = self.args.experiment_name
+            self.experiment_name = 'hyperparams'
             self.hyper_param_metric = self.args.hyper_param_metric
             self.hyperparams = {
                 "dropout": self.args.dropout,
@@ -183,10 +183,14 @@ class Train(Subcommand):
             help="Number of epochs to train. Default: 600.",
             type=int
         )
+        # TODO add option to allow choice of search method
         parser.add_argument(
             "--hyper_tuning",
             default=False,
-            help="Enable hyperparameter tuning. Default: False.",
+            help="Enable hyperparameter tuning. Each combination of hyperparameters will be trained for supplied number of epochs \
+                  (smaller number of epochs is recommended for a reasonable runtime). Best performing model will be saved. \
+                  Log file with all the hyperparameter options will be exported to dir 'hyperparams' in you cwd. \n \
+                  Default: False.",
             type=str2bool
         )
         parser.add_argument(
@@ -196,11 +200,10 @@ class Train(Subcommand):
             help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True. Default: 5."
         )
         parser.add_argument(
-            # TODO is it necessary? Why not use information provided in --metric, why it should be different?
             "--hyper_param_metric",
-            choices=['acc'],
-            default='acc',
-            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True." # FIXME help msg
+            choices=['accuracy'],
+            default='accuracy',
+            help="Metric for choosing the best performing model. Default: 'accuracy'."
         )
         parser.add_argument(
             "--optimizer",
@@ -227,11 +230,6 @@ class Train(Subcommand):
             help="Loss function to be used during training. Default: 'categorical_crossentropy'."
         )
         parser.add_argument(
-            "--experiment_name",
-            default='e1',
-            help="Name of the hyperparameter tuning experiment. Default: 1"
-        )
-        parser.add_argument(
             "--tb",
             default=False,
             help="Output TensorBoard log files. Default: False.",
@@ -241,7 +239,6 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
-        
         #TODO include metadata in the dataset names using hash
         logger_datasets = []
         for i in range(len(dataset_files)):
@@ -305,16 +302,15 @@ class Train(Subcommand):
                                       train_y=self.train_y,
                                       valid_x=self.valid_x,
                                       valid_y=self.valid_y,
-                                      network=self.network.build_tunable_model,
+                                      model=self.network.build_tunable_model,
                                       experiment_name=self.experiment_name,
                                       tune_rounds=self.tune_rounds,
                                       metric=self.hyper_param_metric,
                                       params=self.hyperparams,
                                       train_dir=self.train_dir)
-            print(self.get_best_model_params(self.experiment_name))
+            logger.info(self.get_best_model_params(self.experiment_name))
         else:
             model = self.network.build_model()
-            hyperparams = self.hyperparams
 
             # Optimizer definition
             optimizer = self.create_optimizer(self.optimizer, self.lr)
@@ -325,23 +321,29 @@ class Train(Subcommand):
                 loss=[self.loss],
                 metrics=[self.metric])
 
-            # Training & testing the model (fit)
+            # Defining multiple callbacks
             callbacks = self.create_callbacks(self.train_dir, self.lr_scheduler, self.tb)
 
+            # Training & testing the model
             print('Training the network')
             history = self.train(model, self.epochs, self.batch_size, callbacks,
                                 self.train_x, self.valid_x, self.train_y, self.valid_y)
+
+            logger.info('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
+            logger.info('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
+
             # Plot metrics
             self.plot_graph(history.history, self.metric, self.metric.capitalize(), self.train_dir)
             self.plot_graph(history.history, 'loss', f'Loss: {self.loss.capitalize()}', self.train_dir)
 
             print('Testing the network')
             test_results = self.test(model, self.batch_size, self.test_x, self.test_y)
-            
-            # TODO save the test results ? (did not find that in the old code)
+
+            logger.info('Evaluation loss: ' + str(round(test_results[0], 4)))
+            logger.info('Evaluation acc: ' + str(round(test_results[1], 4)))
 
             model_json = model.to_json()
-            with open(f'{self.train_dir}/{self.network.name}_model.json', 'w') as json_file:
+            with open(f'{self.train_dir}/model.json', 'w') as json_file:
                 json_file.write(model_json)
 
     @staticmethod
@@ -354,19 +356,22 @@ class Train(Subcommand):
         results = pd.read_csv(f'{exp_name}/{self.return_last_experiment_results(exp_name)}')
         results.sort_values(self.hyper_param_metric, ascending=False, inplace=True)
         best_model_params = results.iloc[0]
-        print(results)
 
         return best_model_params
 
     @staticmethod
-    def tune_hyperparameters(train_x, train_y, valid_x, valid_y, network, params, experiment_name, tune_rounds, metric, train_dir):
-        t = ta.Scan(x=train_x, y=train_y, x_val=valid_x, y_val=valid_y, model=network, params=params, experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric, print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
-        best_model = t.best_model('acc')
+    def tune_hyperparameters(train_x, train_y, valid_x, valid_y, model, params, experiment_name, tune_rounds, metric, train_dir):
+        # FIXME ensure the tune_rounds is not higher than number of possible options, otherwise Talos fails on random choice
+        t = ta.Scan(x=train_x, y=train_y, x_val=valid_x, y_val=valid_y, model=model, params=params,
+                    experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric,
+                    print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
+
+        best_model = t.best_model(metric)
         best_model_json = best_model.to_json()
         print(best_model.summary())
-        with open(f'{train_dir}/training/{experiment_name}.json', 'w') as json_file:
+        with open(f'{train_dir}/best_model.json', 'w') as json_file:
             json_file.write(best_model_json)
-        best_model.save_weights(f'{train_dir}/training/{experiment_name}.h5')
+        best_model.save_weights(f'{train_dir}/best_model.h5')
 
         return best_model
     
@@ -449,16 +454,11 @@ class Train(Subcommand):
             batch_size=batch_size,
             verbose=1,
             sample_weight=None)
-
-        logger.info('Evaluation loss: ' + str(round(test_results[0],4)))
-        logger.info('Evaluation acc: ' + str(round(test_results[1],4)))
     
         return test_results
 
     @staticmethod
     def plot_graph(history, metric, title, out_dir):
-        # TODO separate class for plotting? probably combined with the Evaluate module
-        # For some reason here it calls accuracy just 'acc'
         val_metric = f'val_{metric}'
         file_name = f'/{metric}.png'
 
@@ -470,9 +470,6 @@ class Train(Subcommand):
         elif metric == 'loss':
             plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
 
-        logger.info('Best achieved ' + metric + ' - ' + str(round(max(history[metric]),4)))
-        logger.info('Best achieved ' + val_metric + ' - ' + str(round(max(history[val_metric]),4)))
-        
         plt.title(title)
         plt.ylabel(title)
         plt.xlabel('Epoch')
