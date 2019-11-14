@@ -366,7 +366,8 @@ class Train(Subcommand):
                     experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric,
                     print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
 
-        best_model = t.best_model(metric)
+        # FIXME works only when change in talos file utils/best_model.py import from keras to tf.keras
+        best_model = t.best_model(metric=metric)
         best_model_json = best_model.to_json()
         print(best_model.summary())
         with open(f'{train_dir}/best_model.json', 'w') as json_file:
