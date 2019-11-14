@@ -1,15 +1,12 @@
 import datetime
 import os
-import sys
 import logging
 import math
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 import matplotlib.pyplot as plt
-import numpy as np
 import talos as ta
-from talos.utils.best_model import best_model
 import pandas as pd
 
 from ..networks.simple_conv_class import SimpleConvClass

@@ -1,8 +1,6 @@
 import numpy as np
 import random
 
-from . import sequence as seq
-
 
 class DataPoint:
 

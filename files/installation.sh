@@ -11,4 +11,5 @@ pip install tensorflow-gpu
 conda install -c conda-forge matplotlib
 conda install -c bioconda viennarna
 
+conda install -c anaconda pandas
 pip install talos
