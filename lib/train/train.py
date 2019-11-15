@@ -55,6 +55,7 @@ class Train(Subcommand):
 
         if self.args.hyper_tuning:
             self.hyper_tuning = self.args.hyper_tuning
+            self.tune_rounds = self.args.tune_rounds if (self.args.hyper_tuning and self.args.tune_rounds) else None
             self.tune_rounds = self.args.tune_rounds
             self.experiment_name = 'hyperparams'
             self.hyperparams = {
@@ -194,9 +195,9 @@ class Train(Subcommand):
         )
         parser.add_argument(
             "--tune_rounds",
-            default=5,
             type=int,
-            help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True. Default: 5."
+            help="Maximal number of hyperparameter tuning rounds. If not specified, maximal number of rounds wil be run \
+                 (grid search). --hyper_tuning must be True."
         )
         parser.add_argument(
             "--optimizer",
