@@ -361,12 +361,17 @@ class Train(Subcommand):
 
     @staticmethod
     def tune_hyperparameters(train_x, train_y, valid_x, valid_y, model, params, experiment_name, tune_rounds, metric, train_dir):
-        # FIXME ensure the tune_rounds is not higher than number of possible options, otherwise Talos fails on random choice
+        max_rounds = 1  # ensure the number of tune rounds given is not higher than possible, talos can't handle that
+        for _, options in params.items():
+            max_rounds *= len(options)
+        if tune_rounds > max_rounds:
+            tune_rounds = max_rounds
+
         t = ta.Scan(x=train_x, y=train_y, x_val=valid_x, y_val=valid_y, model=model, params=params,
                     experiment_name=experiment_name, round_limit=tune_rounds, reduction_metric=metric,
                     print_params=True, save_weights=True, reduction_method='correlation', reduction_threshold=0.1)
 
-        # FIXME works only when change in talos file utils/best_model.py import from keras to tf.keras
+        # FIXME works only when changed in talos file utils/best_model.py import from keras to tf.keras
         best_model = t.best_model(metric=metric)
         best_model_json = best_model.to_json()
         print(best_model.summary())
