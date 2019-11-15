@@ -57,7 +57,6 @@ class Train(Subcommand):
             self.hyper_tuning = self.args.hyper_tuning
             self.tune_rounds = self.args.tune_rounds
             self.experiment_name = 'hyperparams'
-            self.hyper_param_metric = self.args.hyper_param_metric
             self.hyperparams = {
                 "dropout": self.args.dropout,
                 "conv_num": self.args.conv_num,
@@ -200,12 +199,6 @@ class Train(Subcommand):
             help="Maximal number of hyperparameter tuning rounds. --hyper_tuning must be True. Default: 5."
         )
         parser.add_argument(
-            "--hyper_param_metric",
-            choices=['accuracy'],
-            default='accuracy',
-            help="Metric for choosing the best performing model. Default: 'accuracy'."
-        )
-        parser.add_argument(
             "--optimizer",
             choices=['sgd', 'rmsprop', 'adam'],
             default='sgd',
@@ -305,7 +298,7 @@ class Train(Subcommand):
                                       model=self.network.build_tunable_model,
                                       experiment_name=self.experiment_name,
                                       tune_rounds=self.tune_rounds,
-                                      metric=self.hyper_param_metric,
+                                      metric=self.metric,
                                       params=self.hyperparams,
                                       train_dir=self.train_dir)
             logger.info(self.get_best_model_params(self.experiment_name))
