@@ -1,14 +1,7 @@
-#!/usr/bin/env python
-
-import argparse
 import os
+import streamlit as st
 import sys
 import logging
-
-
-import absl.logging
-logging.root.removeHandler(absl.logging._absl_handler)
-absl.logging._warn_preinit_stderr = False
 
 sys.path.append(os.getcwd())
 logging.basicConfig(filename='app.log',
@@ -28,42 +21,24 @@ logger.addHandler(consoleHandler)
 class DeepNet:
 
     def __init__(self):
-        parser = argparse.ArgumentParser(
-            description='rbp deepnet',
-            usage='''deepnet <subcommand> [<args>]
-                Some short overall description of the program... Run with:
-                    batch_run           Run several subcommands together, or
-                    other subcommands   ...
-                    
-                Usage
-                deepnet preprocess --classes ['pos', 'neg'] --branches ['seq1', 'seq2', 'structure'] --test ['chr22']
-            ''')
+        st.sidebar.title('Deepnet APP')
 
-        parser.add_argument('subcommand', help='Subcommand to run')
+        available_subcommands = {'Preprocess Data': 'make_datasets',
+                                 'Tune hyperparameters': 'train',
+                                 'Train a network': 'train'}
 
-        # parse_args defaults to [1:] for args, but exclude the rest of the args, or validation will fail
-        args = parser.parse_args(sys.argv[1:2])
-        logger.info('DeepNet started with the following subcommand: ' + str(sys.argv[1:2]))
+        subcommand = available_subcommands[st.sidebar.selectbox(
+            'Select a task to be run:',
+            list(available_subcommands.keys())
+        )]
+        logger.info(f'DeepNet started with the following subcommand: {subcommand}')
 
-        module_path = f'lib.{args.subcommand}.{args.subcommand}'
-        subcommand_class = dirname_to_class(args.subcommand)
-        try:
-            module = __import__(module_path, fromlist=[subcommand_class])
-            logger.info('Module ' + args.subcommand + ' successfully imported.')
-        except ModuleNotFoundError:
-            logger.error('Unrecognized subcommand.')
-            parser.print_help()
-            exit(1)
-
+        module_path = f'lib.{subcommand}.{subcommand}'
+        subcommand_class = ''.join(x.title() for x in subcommand.split('_'))
+        module = __import__(module_path, fromlist=[subcommand_class])
         # use dispatch pattern to invoke object of class with same name as the subcommand
         subcommand = getattr(module, subcommand_class)
-        subcommand().run()
-
-
-# FIXME method without namespace
-def dirname_to_class(dirname):
-    parts = dirname.split('_')
-    return ''.join(x.title() for x in parts)
+        subcommand()
 
 
 if __name__ == '__main__':
