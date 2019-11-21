@@ -1,57 +1,34 @@
 import argparse
 from datetime import datetime
 import os
+import streamlit as st
 import sys
 
 
+# noinspection PyAttributeOutsideInit
 class Subcommand:
 
-    def __init__(self, parser):
-        self.args = parser.parse_args(sys.argv[2:])
-
-        if self.args.ncpu == 0:
-            self.ncpu = os.cpu_count() or 1
-        else:
-            self.ncpu = self.args.ncpu
-
-        if self.args.output:
-            self.output_folder = self.args.output
-        else:
-            self.output_folder = os.path.join(os.getcwd(), 'output')
+    def add_general_options(self):
+        self.output_folder = st.text_input(
+            'Specify path to output resulting files (cwd used as default)',
+            value=os.path.join(os.getcwd(), 'deepnet_output')
+        )
         self.ensure_dir(self.output_folder)
 
-        self.verbose = self.args.verbose
+        branches = {'Raw sequence': 'seq',
+                    'Conservation score': 'cons',
+                    'Secondary structure': 'fold'}
+        self.branches = list(map(lambda name: branches[name], st.multiselect('Branches', list(branches.keys()))))
 
-    @staticmethod
-    def initialize_parser(subcommand_help):
-        parser = argparse.ArgumentParser(
-            description='rbp deepnet',
-            usage=subcommand_help
-        )
-        parser.add_argument(
-            "-o", "--output",
-            help="Specify folder for output files. If not specified, current working directory will be used."
-        )
-        parser.add_argument(
-            "--ncpu",
-            default=0,
-            type=int,
-            help="Number of CPUs to be used. 0 to use all available CPUs. Default: 0."
-        )
-        # TODO use it to set level of logger verbosity
-        parser.add_argument(
-            "-v", "--verbose",
-            action="store_true",
-            dest="verbose",
-            help="Set logger level to DEBUG."
-        )
-        parser.add_argument(
-            "-q", "--quiet",
-            action="store_false",
-            dest="verbose",
-            help="Set logger level to INFO."
-        )
-        return parser
+        # FIXME does not work with streamlit
+        # max_cpu = os.cpu_count() or 1
+        # self.ncpu = st.slider('Number of CPUs to be used. 0 to use all available CPUs.',
+        #                       min_value=0, max_value=max_cpu, value=0)
+        # if self.ncpu == 0:
+        #     self.ncpu = max_cpu
+        self.ncpu = 1
+
+        # self.verbose = self.args.verbose
 
     @staticmethod
     def spent_time(time1):

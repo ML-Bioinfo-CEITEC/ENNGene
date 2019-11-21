@@ -1,5 +1,6 @@
 import logging
 from re import sub
+import streamlit as st
 
 from . import file_utils as f
 
@@ -88,6 +89,7 @@ def complement(sequence_list, dictionary):
     return [dictionary[base] for base in sequence_list]
 
 
+@st.cache
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list' and class_name != 'ndarray':
