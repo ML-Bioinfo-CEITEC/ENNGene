@@ -9,16 +9,21 @@ from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 import matplotlib.pyplot as plt
 
 from .callbacks import ProgressMonitor
-from ..networks.simple_conv_class import SimpleConvClass
+from .layers import LAYERS
+from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
-
 
 logger = logging.getLogger('main')
 
 
 class Train(Subcommand):
+    OPTIMIZERS = {'SGD': 'sgd',
+                  'RMSprop': 'rmsprop',
+                  'Adam': 'adam'}
+    METRICS = {'Accuracy': 'accuracy'}
+    LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
 
     def __init__(self):
         st.header('Train a Model')
@@ -34,19 +39,53 @@ class Train(Subcommand):
         self.batch_size = st.number_input('Batch size', min_value=0, value=256)
         self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
         self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
-        optimizers = {'SGD': 'sgd', 'RMSprop': 'rmsprop', 'Adam': 'adam'} # TODO add checbox allow advanced settings
-        self.optimizer = optimizers[st.selectbox('Optimizer', list(optimizers.keys()))]
+        self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
         if self.optimizer == 'sgd':
             self.lr_scheduler = st.checkbox('Use learning rate scheduler (decreasing lr from 0.1)', value=False)
         else:
             self.lr_scheduler = False
-        metrics = {'Accuracy': 'accuracy'}
-        self.metric = metrics[st.selectbox('Metric', list(metrics.keys()))]
-        losses = {'Categorical Crossentropy': 'categorical_crossentropy'}
-        self.loss = losses[st.selectbox('Loss function', list(losses.keys()))]
+        self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
+        self.loss = self.LOSSES[st.selectbox('Loss function', list(self.LOSSES.keys()))]
+
+        # TODO change the logic when stateful design is enabled
+        # self.branch_layers = {}
+        # for branch in self.branches:
+        #     self.branch_layers.update({branch: [list(LAYERS.keys())[0]]})
+        #
+        # for branch in self.branch_layers.keys():
+        #     st.markdown(f'**{branch} branch**')
+        #     for i, layer in enumerate(self.branch_layers[branch]):
+        #         new_layer = st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{i}')
+        #         self.branch_layers[branch][i] = new_layer
+        #     if st.button('Add layer', key=f'{branch}addlayer'):
+        #         self.branch_layers[branch].append(
+        #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
+        #         print(self.branch_layers[branch])
 
         st.subheader('Network Architecture')
-        self.network = 'simpleconv'
+        self.branches_layers = {}
+        for branch in self.branches:
+            st.markdown(f'**{list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch**')
+            self.branches_layers.update({branch: []})
+            no = st.number_input('Number of layers in the branch:', min_value=0, key=f'{branch}_no')
+            for i in range(no):
+                layer = st.selectbox(f'Layer {i+1}', list(LAYERS.keys()), key=f'layer{branch}{i}')
+                if len(self.branches_layers[branch]) > i:
+                    self.branches_layers[branch][i] = layer
+                else:
+                    self.branches_layers[branch].append(layer)
+
+        self.common_layers = {}
+        st.markdown(f'**Connected branches**')
+        self.common_layers = []
+        no = st.number_input('Number of layers after concatenation of branches:', min_value=0, key=f'common_no')
+        for i in range(no):
+            layer = st.selectbox(f'Layer {i+1}', list(LAYERS.keys()), key=f'common_layer{i}')
+            if len(self.common_layers) > i:
+                self.common_layers[i] = layer
+            else:
+                self.common_layers.append(layer)
+
         self.hyperparams = {
             "dropout": 0.2,
             "conv_num": 3,
@@ -99,7 +138,6 @@ class Train(Subcommand):
 
     def run(self):
         status = st.empty()
-        logger.info('Hyperparameters: ' + str(list(self.hyperparams.items())))
         logger.info('Using the following branches: ' + str(self.branches))
         logger.info('Learning rate: ' + str(self.lr))
         logger.info('Optimizer: ' + str(self.optimizer))
@@ -114,14 +152,12 @@ class Train(Subcommand):
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.datasets[0]).labels())))
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.datasets, self.branches, labels)
         branch_shapes = self.get_shapes(train_x, self.branches)
-        network = SimpleConvClass(
-            branch_shapes=branch_shapes, branches=self.branches, hyperparams=self.hyperparams, labels=labels, epochs=self.epochs)
 
         train_dir = os.path.join(self.output_folder, 'training',
-                                 f'{network.name}_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+                                 f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         self.ensure_dir(train_dir)
 
-        model = network.build_model()
+        model = ModelBuilder(self.branches, labels, branch_shapes, self.branches_layers, self.common_layers).build_model()
         optimizer = self.create_optimizer(self.optimizer, self.lr)
         model.compile(
             optimizer=optimizer,

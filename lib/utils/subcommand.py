@@ -8,17 +8,17 @@ import sys
 # noinspection PyAttributeOutsideInit
 class Subcommand:
 
+    BRANCHES = {'Raw sequence': 'seq',
+                'Conservation score': 'cons',
+                'Secondary structure': 'fold'}
+
     def add_general_options(self):
         self.output_folder = st.text_input(
             'Specify path to output resulting files (cwd used as default)',
             value=os.path.join(os.getcwd(), 'deepnet_output')
         )
         self.ensure_dir(self.output_folder)
-
-        branches = {'Raw sequence': 'seq',
-                    'Conservation score': 'cons',
-                    'Secondary structure': 'fold'}
-        self.branches = list(map(lambda name: branches[name], st.multiselect('Branches', list(branches.keys()))))
+        self.branches = list(map(lambda name: self.BRANCHES[name], st.multiselect('Branches', list(self.BRANCHES.keys()))))
 
         # FIXME does not work with streamlit
         # max_cpu = os.cpu_count() or 1
