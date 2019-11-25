@@ -25,7 +25,7 @@ class ModelBuilder:
             inputs.append(x)
 
             for layer in self.branches_layers[branch]:
-                x = LAYERS[layer]().build(x)
+                x = LAYERS[layer['name']]().build(x, **layer['args'])
             branches_models.append(Flatten()(x))
 
         if len(self.branches) == 1:
@@ -34,7 +34,7 @@ class ModelBuilder:
             x = tf.keras.layers.concatenate(branches_models)
 
         for layer in self.common_layers:
-            x = LAYERS[layer]().build(x)
+            x = LAYERS[layer['name']]().build(x, **layer['args'])
 
         output = Dense(units=len(self.labels), activation='softmax')(x)
 

@@ -69,7 +69,9 @@ class Train(Subcommand):
             self.branches_layers.update({branch: []})
             no = st.number_input('Number of layers in the branch:', min_value=0, key=f'{branch}_no')
             for i in range(no):
-                layer = st.selectbox(f'Layer {i+1}', list(LAYERS.keys()), key=f'layer{branch}{i}')
+                layer = dict(args={})
+                layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'layer{branch}{i}')))
+                layer = self.layer_options(layer, i, branch)
                 if len(self.branches_layers[branch]) > i:
                     self.branches_layers[branch][i] = layer
                 else:
@@ -80,7 +82,9 @@ class Train(Subcommand):
         self.common_layers = []
         no = st.number_input('Number of layers after concatenation of branches:', min_value=0, key=f'common_no')
         for i in range(no):
-            layer = st.selectbox(f'Layer {i+1}', list(LAYERS.keys()), key=f'common_layer{i}')
+            layer = {'args': {}}
+            layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'common_layer{i}')))
+            layer = self.layer_options(layer, i)
             if len(self.common_layers) > i:
                 self.common_layers[i] = layer
             else:
@@ -99,6 +103,19 @@ class Train(Subcommand):
         if st.button('Train a model'):
             # TODO check input presence & validity, if OK continue to run
             self.run()
+
+    @staticmethod
+    def layer_options(layer, i, branch=None):
+        if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
+            layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
+            layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.25, key=f'do{branch}{i}')})
+            if layer['name'] == 'Convolutional layer':
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=0, value=40, key=f'filters{branch}{i}')})
+                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=0, value=4, key=f'kernel{branch}{i}')})
+            elif layer['name'] == 'Dense':
+                layer['args'].update(
+                    {'units': st.number_input('Number of units:', min_value=0, value=32, key=f'units{branch}{i}')})
+        return layer
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):

@@ -4,30 +4,35 @@ from tensorflow.keras.layers import Dense, Dropout, Conv1D, MaxPooling1D, BatchN
 class MyConv1D:
 
     @staticmethod
-    def build(x):
-        x = Conv1D(filters=40, kernel_size=4, strides=1, padding='same')(x)
+    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None):
+        print(f'layer build with: {filters} filters, kernel size {kernel}, batchnorm {batchnorm}, and dropout rate {dropout}')
+        x = Conv1D(filters=filters, kernel_size=kernel, strides=1, padding='same')(x)
         x = LeakyReLU()(x)
-        x = BatchNormalization()(x)
+        if batchnorm:
+            x = BatchNormalization()(x)
         x = MaxPooling1D(pool_size=2, padding='same')(x)
-        x = Dropout(rate=0.3, noise_shape=None, seed=None)(x)
+        if dropout:
+            x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
         return x
 
 
 class MyDense:
 
     @staticmethod
-    def build(x):
-        x = Dense(32)(x)
+    def build(x, units=32, batchnorm=False, dropout=None):
+        x = Dense(units)(x)
         x = LeakyReLU()(x)
-        x = BatchNormalization()(x)
-        x = Dropout(rate=0.3, noise_shape=None, seed=None)(x)
+        if batchnorm:
+            x = BatchNormalization()(x)
+        if dropout:
+            x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
         return x
 
 
 class MyLSTM:
 
     @staticmethod
-    def build(x):
+    def build(x, batchnorm=False, dropout=None):
         return x
 
 
