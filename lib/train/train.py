@@ -168,7 +168,7 @@ class Train(Subcommand):
         status.text('Training the network...')
         progress_bar = st.progress(0)
         progress_status = st.empty()
-        chart_data = {'Train loss': [], 'Train accuracy': [], 'Validation loss': [], 'Validation accuracy': []}
+        chart_data = {'Training loss': [], 'Training accuracy': [], 'Validation loss': [], 'Validation accuracy': []}
         chart = st.line_chart(chart_data)
         callbacks = self.create_callbacks(
             train_dir, self.lr_scheduler, self.tb, self.epochs, progress_bar, progress_status, chart)

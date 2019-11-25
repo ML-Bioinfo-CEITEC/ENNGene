@@ -10,12 +10,12 @@ class ProgressMonitor(tensorflow.keras.callbacks.Callback):
         self.chart = chart
 
     def on_epoch_begin(self, epoch, logs=None):
-        self.progress_bar.progress(epoch/self.epochs)
-        self.progress_status.text(f'Epoch {epoch}/{self.epochs}')
+        self.progress_bar.progress((epoch+1)/self.epochs)
+        self.progress_status.text(f'Epoch {epoch+1}/{self.epochs}')
 
     def on_epoch_end(self, epoch, logs=None):
-        epoch_data = {'Train loss': [logs['loss']],
-                      'Train accuracy': [logs['accuracy']],
+        epoch_data = {'Training loss': [logs['loss']],
+                      'Training accuracy': [logs['accuracy']],
                       'Validation loss': [logs['val_loss']],
                       'Validation accuracy': [logs['val_accuracy']]}
         self.chart.add_rows(epoch_data)
