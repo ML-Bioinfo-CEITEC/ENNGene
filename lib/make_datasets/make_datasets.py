@@ -45,13 +45,11 @@ class MakeDatasets(Subcommand):
         st.subheader('Input Coordinate Files')
         warning = st.empty()
         self.input_files = []
-        # TODO put one input field and plus button to add custom number of input fields (files)
-        # TODO is there streamlit function to browse local files
-        # TODO accept also web address
-        self.input_files.append(st.text_input('Positive Dataset (.bed or .narrowPeak)'))
-        self.input_files.append(st.text_input('Negative Dataset (.bed or .narrowPeak)'))
-        self.klasses = []
+        no_files = st.number_input('Number of input files (= no. of classes):', min_value=0)
+        for i in range(no_files):
+            self.input_files.append(st.text_input(f'File no. {i+1} (.bed or .narrowPeak)'))
 
+        self.klasses = []
         self.allowed_extensions = ['.bed', '.narrowPeak']
         for file in self.input_files:
             file_name = os.path.basename(file)
