@@ -78,13 +78,14 @@ class Train(Subcommand):
                 else:
                     self.branches_layers[branch].append(layer)
 
-        self.common_layers = {}
         st.markdown(f'**Connected branches**')
         self.common_layers = []
+        allowed_common = list(LAYERS.keys())
+        allowed_common.remove('Convolutional layer')
         no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
         for i in range(no):
             layer = {'args': {}}
-            layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox(f'Layer {i + 1}', allowed_common, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i)
             if len(self.common_layers) > i:
                 self.common_layers[i] = layer
@@ -105,7 +106,7 @@ class Train(Subcommand):
             if layer['name'] == 'Convolutional layer':
                 layer['args'].update({'filters': st.number_input('Number of filters:', min_value=0, value=40, key=f'filters{branch}{i}')})
                 layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=0, value=4, key=f'kernel{branch}{i}')})
-            elif layer['name'] == 'Dense':
+            elif layer['name'] == 'Dense layer':
                 layer['args'].update(
                     {'units': st.number_input('Number of units:', min_value=0, value=32, key=f'units{branch}{i}')})
         return layer
