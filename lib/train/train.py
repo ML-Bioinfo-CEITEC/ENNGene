@@ -2,12 +2,12 @@ import datetime
 import os
 import logging
 import math
+import matplotlib.pyplot as plt
 import streamlit as st
 import tensorflow as tf
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
-import matplotlib.pyplot as plt
 
 from .callbacks import ProgressMonitor
 from .layers import LAYERS
@@ -32,7 +32,7 @@ class Train(Subcommand):
         st.subheader('General Options')
         self.add_general_options()
         self.datasets = []
-        for ds in ['Training', 'Testing', 'Validation']:
+        for ds in ['Training', 'Validation', 'Testing']:
             self.datasets.append(st.text_input(f'{ds} Dataset file'))
         self.tb = st.checkbox('Output TensorBoard log files', value=False)
 
@@ -68,7 +68,7 @@ class Train(Subcommand):
         for branch in self.branches:
             st.markdown(f'**{list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch**')
             self.branches_layers.update({branch: []})
-            no = st.number_input('Number of layers in the branch:', min_value=0, key=f'{branch}_no')
+            no = st.number_input('Number of layers in the branch:', min_value=0, value=1, key=f'{branch}_no')
             for i in range(no):
                 layer = dict(args={})
                 layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'layer{branch}{i}')))
@@ -81,7 +81,7 @@ class Train(Subcommand):
         self.common_layers = {}
         st.markdown(f'**Connected branches**')
         self.common_layers = []
-        no = st.number_input('Number of layers after concatenation of branches:', min_value=0, key=f'common_no')
+        no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
         for i in range(no):
             layer = {'args': {}}
             layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'common_layer{i}')))
@@ -91,21 +91,13 @@ class Train(Subcommand):
             else:
                 self.common_layers.append(layer)
 
-        self.hyperparams = {
-            "dropout": 0.2,
-            "conv_num": 3,
-            "kernel_size": 4,
-            "dense_num": 3,
-            "dense_units": 64,
-            "filter_num": 40
-        }
-
         st.markdown('---')
         if st.button('Train a model'):
             # TODO check input presence & validity, if OK continue to run
             self.run()
 
     @staticmethod
+    # TODO adjust when stateful ops enabled
     def layer_options(layer, i, branch=None):
         if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
             layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
@@ -214,6 +206,7 @@ class Train(Subcommand):
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:
             json_file.write(model_json)
+        status.text('Finished!')
     
     @staticmethod
     def step_decay_schedule(initial_lr=1e-3, drop=0.5, epochs_drop=10.0):

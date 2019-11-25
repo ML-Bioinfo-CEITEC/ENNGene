@@ -5,7 +5,6 @@ class MyConv1D:
 
     @staticmethod
     def build(x, filters=40, kernel=4, batchnorm=False, dropout=None):
-        print(f'layer build with: {filters} filters, kernel size {kernel}, batchnorm {batchnorm}, and dropout rate {dropout}')
         x = Conv1D(filters=filters, kernel_size=kernel, strides=1, padding='same')(x)
         x = LeakyReLU()(x)
         if batchnorm:

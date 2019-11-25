@@ -16,6 +16,7 @@ class MakeDatasets(Subcommand):
     def __init__(self):
         st.header('Data Preprocessing')
 
+        # TODO add show/hide separate section after stateful operations are allowed
         st.subheader('General Options')
         self.add_general_options()
 
@@ -43,6 +44,10 @@ class MakeDatasets(Subcommand):
         self.winseed = int(st.number_input('Seed for semi-random window placement upon the sequences', value=42))
 
         st.subheader('Input Coordinate Files')
+        # TODO change to plus button when stateful operations enabled
+        # TODO is there streamlit function to browse local files - should be soon
+        # TODO accept also web address - also should be soon possible
+
         warning = st.empty()
         self.input_files = []
         no_files = st.number_input('Number of input files (= no. of classes):', min_value=0)

@@ -15,3 +15,6 @@ conda install -c anaconda graphviz
 
 conda install -c anaconda pandas
 pip install talos
+
+# talos and streamlit can't be installed in one env for some reason...
+pip install streamlit
