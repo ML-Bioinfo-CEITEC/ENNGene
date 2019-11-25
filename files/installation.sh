@@ -10,6 +10,8 @@ pip install tensorflow-gpu
 # Install other packages
 conda install -c conda-forge matplotlib
 conda install -c bioconda viennarna
+conda install -c anaconda pydot
+conda install -c anaconda graphviz
 
 conda install -c anaconda pandas
 pip install talos

@@ -3,6 +3,7 @@ import os
 import logging
 import math
 import streamlit as st
+import tensorflow as tf
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
@@ -200,6 +201,7 @@ class Train(Subcommand):
         # Plot metrics
         self.plot_graph(history, self.metric, self.metric.capitalize(), train_dir)
         self.plot_graph(history, 'loss', f'Loss: {self.loss.capitalize()}', train_dir)
+        tf.keras.utils.plot_model(model, to_file=f'{train_dir}/model.png', show_shapes=True, dpi=300)
 
         status.text('Testing the network...')
         test_results = self.test(model, self.batch_size, test_x, test_y)
