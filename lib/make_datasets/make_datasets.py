@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import streamlit as st
@@ -106,7 +107,11 @@ class MakeDatasets(Subcommand):
 
     def run(self):
         status = st.empty()
-        zipped_files = f.list_files_in_dir(self.output_folder, 'zip')
+
+        datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        self.ensure_dir(datasets_dir)
+
+        zipped_files = f.list_files_in_dir(datasets_dir, 'zip')
         result = [file for file in zipped_files if 'full_datasets/merged_all.zip' in file]
 
         if len(result) == 1:
@@ -143,7 +148,7 @@ class MakeDatasets(Subcommand):
                 fasta_dict = seq.fasta_to_dictionary(self.references['seq'])
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            dir_path = os.path.join(self.output_folder, 'datasets', 'full_datasets')
+            dir_path = os.path.join(datasets_dir, 'full_datasets')
             self.ensure_dir(dir_path)
             outfile_path = os.path.join(dir_path, 'merged_all')
 
@@ -184,7 +189,7 @@ class MakeDatasets(Subcommand):
         final_datasets = Dataset.merge_by_category(split_datasets)
 
         for dataset in final_datasets:
-            dir_path = os.path.join(self.output_folder, 'datasets', 'final_datasets')
+            dir_path = os.path.join(datasets_dir, 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, dataset.category)
             dataset.save_to_file(file_path, zip=True)
