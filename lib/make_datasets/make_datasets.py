@@ -111,52 +111,52 @@ class MakeDatasets(Subcommand):
         datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         self.ensure_dir(datasets_dir)
 
-        zipped_files = f.list_files_in_dir(datasets_dir, 'zip')
-        result = [file for file in zipped_files if 'full_datasets/merged_all.zip' in file]
+        # zipped_files = f.list_files_in_dir(datasets_dir, 'zip')
+        # result = [file for file in zipped_files if 'full_datasets/merged_all.zip' in file]
 
-        if len(result) == 1:
-            status.text('Reading in already mapped file with all the samples...')
-            merged_dataset = Dataset.load_from_file(result[0])
+        # if len(result) == 1:
+        #     status.text('Reading in already mapped file with all the samples...')
+        #     merged_dataset = Dataset.load_from_file(result[0])
+        # else:
+        if self.onehot:
+            status.text('Encoding alphabet...')
+            encoding = seq.onehot_encode_alphabet(self.onehot)
         else:
-            if self.onehot:
-                status.text('Encoding alphabet...')
-                encoding = seq.onehot_encode_alphabet(self.onehot)
-            else:
-                encoding = None
+            encoding = None
 
-            # Accept one file per class and create one Dataset per each
-            initial_datasets = set()
-            status.text('Reading in given interval files and applying window...')
-            for file in self.input_files:
-                klass = os.path.basename(file)
-                for ext in self.allowed_extensions:
-                    if ext in klass:
-                        klass = klass.replace(ext, '')
+        # Accept one file per class and create one Dataset per each
+        initial_datasets = set()
+        status.text('Reading in given interval files and applying window...')
+        for file in self.input_files:
+            klass = os.path.basename(file)
+            for ext in self.allowed_extensions:
+                if ext in klass:
+                    klass = klass.replace(ext, '')
 
-                initial_datasets.add(
-                    Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.win, winseed=self.winseed))
+            initial_datasets.add(
+                Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.win, winseed=self.winseed))
 
-            # Merging datapoints from all klasses to map them more quickly all together at once
-            all_datapoints = []
-            for dataset in initial_datasets:
-                all_datapoints += dataset.datapoint_list
-            merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
+        # Merging datapoints from all klasses to map them more quickly all together at once
+        all_datapoints = []
+        for dataset in initial_datasets:
+            all_datapoints += dataset.datapoint_list
+        merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
 
-            # Read-in fasta file to dictionary
-            if 'seq' in self.branches or 'fold' in self.branches:
-                status.text('Reading in reference fasta file...')
-                fasta_dict = seq.fasta_to_dictionary(self.references['seq'])
-                self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
+        # Read-in fasta file to dictionary
+        if 'seq' in self.branches or 'fold' in self.branches:
+            status.text('Reading in reference fasta file...')
+            fasta_dict = seq.fasta_to_dictionary(self.references['seq'])
+            self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            dir_path = os.path.join(datasets_dir, 'full_datasets')
-            self.ensure_dir(dir_path)
-            outfile_path = os.path.join(dir_path, 'merged_all')
+        dir_path = os.path.join(datasets_dir, 'full_datasets')
+        self.ensure_dir(dir_path)
+        outfile_path = os.path.join(dir_path, 'merged_all')
 
-            # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
-            status.text(
-                f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
-            merged_dataset.sort_datapoints().map_to_branches(
-                self.references, encoding, self.strand, outfile_path, self.ncpu)
+        # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+        status.text(
+            f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
+        merged_dataset.sort_datapoints().map_to_branches(
+            self.references, encoding, self.strand, outfile_path, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
