@@ -27,16 +27,16 @@ class Train(Subcommand):
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
 
     def __init__(self):
-        st.header('Train a Model')
+        st.markdown('# Train a Model')
 
-        st.subheader('General Options')
+        st.markdown('## General Options')
         self.add_general_options()
         self.datasets = []
         for ds in ['Training', 'Validation', 'Testing']:
             self.datasets.append(st.text_input(f'{ds} Dataset file'))
         self.tb = st.checkbox('Output TensorBoard log files', value=False)
 
-        st.subheader('Training Options')
+        st.markdown('## Training Options')
         self.batch_size = st.number_input('Batch size', min_value=0, value=256)
         self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
         self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
@@ -63,7 +63,7 @@ class Train(Subcommand):
         #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
         #         print(self.branch_layers[branch])
 
-        st.subheader('Network Architecture')
+        st.markdown('## Network Architecture')
         self.branches_layers = {}
         for branch in self.branches:
             st.markdown(f'**{list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch**')

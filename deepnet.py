@@ -21,7 +21,7 @@ logger.addHandler(consoleHandler)
 class DeepNet:
 
     def __init__(self):
-        st.sidebar.title('Deepnet APP')
+        st.sidebar.title('Deepnet App')
 
         available_subcommands = {'Preprocess Data': 'make_datasets',
                                  'Tune hyperparameters': 'train',

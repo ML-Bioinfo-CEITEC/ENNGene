@@ -15,10 +15,10 @@ logger = logging.getLogger('main')
 class MakeDatasets(Subcommand):
 
     def __init__(self):
-        st.header('Data Preprocessing')
+        st.markdown('# Data Preprocessing')
 
         # TODO add show/hide separate section after stateful operations are allowed
-        st.subheader('General Options')
+        st.markdown('## General Options')
         self.add_general_options()
 
         self.references = {}
@@ -27,6 +27,7 @@ class MakeDatasets(Subcommand):
             alphabets = {'DNA': ['A', 'C', 'G', 'T', 'N'],
                          'RNA': ['A', 'C', 'G', 'U', 'N']}
             # TODO allow option custom, to be specified by text input
+            # TODO add amino acid alphabet - in that case disable cons and fold i guess
             self.onehot = alphabets[st.selectbox(
                 'Select used alphabet:',
                 list(alphabets.keys())
@@ -44,7 +45,7 @@ class MakeDatasets(Subcommand):
         self.win = int(st.number_input('Window size', min_value=0, max_value=500, value=100))
         self.winseed = int(st.number_input('Seed for semi-random window placement upon the sequences', value=42))
 
-        st.subheader('Input Coordinate Files')
+        st.markdown('## Input Coordinate Files')
         # TODO change to plus button when stateful operations enabled
         # TODO is there streamlit function to browse local files - should be soon
         # TODO accept also web address - also should be soon possible
@@ -64,10 +65,10 @@ class MakeDatasets(Subcommand):
                     if ext in file_name:
                         self.klasses.append(file_name.replace(ext, ''))
             else:
-                warning.text(
-                    'WARNING: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
+                warning.markdown(
+                    '**WARNING: Only files of following format are allowed: {}.**'.format(', '.join(self.allowed_extensions)))
 
-        st.subheader('Data Split')
+        st.markdown('## Data Split')
         split_options = {'By chromosomes': 'by_chr',
                          'Random': 'rand'}
         self.split = split_options[st.radio(
@@ -91,7 +92,7 @@ class MakeDatasets(Subcommand):
                 value='8:2:2:1').split(':')
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
-        st.subheader('Dataset Size Reduction')
+        st.markdown('## Dataset Size Reduction')
         self.reducelist = st.multiselect('Klasses to be reduced (first specify input files)', self.klasses)
         if self.reducelist:
             self.reduceseed = int(st.number_input('Seed for semi-random reduction of number of samples', value=112))
