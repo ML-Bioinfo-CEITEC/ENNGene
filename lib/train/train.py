@@ -9,7 +9,7 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 
-from .callbacks import ProgressMonitor
+from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
@@ -39,12 +39,16 @@ class Train(Subcommand):
         st.markdown('## Training Options')
         self.batch_size = st.number_input('Batch size', min_value=0, value=256)
         self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
-        self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
         self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
+        self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
         if self.optimizer == 'sgd':
-            self.lr_scheduler = st.checkbox('Use learning rate scheduler (decreasing lr from 0.1)', value=False)
-        else:
-            self.lr_scheduler = False
+            # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
+            lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
+                          'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
+                          'Use learning rate finder (beta)': 'lr_finder',
+                          'Apply one cycle policy on learning rate (uses above defined value as max': 'one_cycle'}
+            self.lr_optim = lr_options[st.radio('Learning rate options',
+                list(lr_options.keys()))]
         self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
         self.loss = self.LOSSES[st.selectbox('Loss function', list(self.LOSSES.keys()))]
 
@@ -152,8 +156,6 @@ class Train(Subcommand):
         logger.info('Using the following branches: ' + str(self.branches))
         logger.info('Learning rate: ' + str(self.lr))
         logger.info('Optimizer: ' + str(self.optimizer))
-        if self.optimizer == 'sgd':
-            logger.info('Learning rate scheduler: ' + str(self.lr_scheduler))
         logger.info('Batch size: ' + str(self.batch_size))
         logger.info('Epoch rounds: ' + str(self.epochs))
         logger.info('Loss function: ' + str(self.loss))
@@ -177,14 +179,18 @@ class Train(Subcommand):
 
         # Training & testing the model
         status.text('Training the network...')
+
         progress_bar = st.progress(0)
         progress_status = st.empty()
         chart_data = {'Training loss': [], 'Training accuracy': [], 'Validation loss': [], 'Validation accuracy': []}
         chart = st.line_chart(chart_data)
         callbacks = self.create_callbacks(
-            train_dir, self.lr_scheduler, self.tb, self.epochs, progress_bar, progress_status, chart)
-        history = self.train(model, self.epochs, self.batch_size, callbacks,
-                             train_x, valid_x, train_y, valid_y).history
+            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.batch_size,
+            self.lr, branch_shapes[self.branches[0]][0])
+
+        if self.lr_optim == 'lr_finder': self.epochs = 1
+        history = self.train(model, self.epochs, self.batch_size, callbacks, train_x, valid_x, train_y, valid_y).history
+        if self.lr_optim == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
         logger.info('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
         logger.info('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
@@ -216,7 +222,7 @@ class Train(Subcommand):
         return LearningRateScheduler(schedule)
 
     @staticmethod
-    def create_callbacks(out_dir, scheduler, tb, epochs, progress_bar, progress_status, chart):
+    def create_callbacks(out_dir, lr_optim, tb, epochs, progress_bar, progress_status, chart, bs, lr, sample):
         mcp = ModelCheckpoint(filepath=out_dir + '/model.hdf5',
                               verbose=0,
                               save_best_only=True)
@@ -230,11 +236,26 @@ class Train(Subcommand):
         csv_logger = CSVLogger(out_dir + '/log.csv',
                                append=True,
                                separator='\t')
+
         progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
 
         callbacks = [mcp, earlystopper, csv_logger, progress]
 
-        if scheduler:
+        if lr_optim == 'lr_finder':
+            callbacks.append(LRFinder(num_samples=sample,
+                                      batch_size=sample//30,
+                                      minimum_lr=1e-5,
+                                      maximum_lr=1e0,
+                                      lr_scale='exp',
+                                      save_dir=out_dir))
+        elif lr_optim == 'one_cycle':
+            callbacks.append(OneCycleLR(max_lr=lr,
+                                        end_percentage=0.1,
+                                        scale_percentage=None,
+                                        maximum_momentum=0.95,
+                                        minimum_momentum=0.85,
+                                        verbose=True))
+        elif lr_optim == 'lr_scheduler':
             callbacks.append(Train.step_decay_schedule())
 
         if tb:
