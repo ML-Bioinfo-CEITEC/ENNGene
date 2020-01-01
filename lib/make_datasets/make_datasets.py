@@ -52,13 +52,14 @@ class MakeDatasets(Subcommand):
 
         warning = st.empty()
         self.input_files = []
-        no_files = st.number_input('Number of input files (= no. of classes):', min_value=0)
+        no_files = st.number_input('Number of input files (= no. of classes):', min_value=0, value=0)
         for i in range(no_files):
             self.input_files.append(st.text_input(f'File no. {i+1} (.bed or .narrowPeak)'))
 
         self.klasses = []
         self.allowed_extensions = ['.bed', '.narrowPeak']
         for file in self.input_files:
+            if not file: continue
             file_name = os.path.basename(file)
             if any(ext in file_name for ext in self.allowed_extensions):
                 for ext in self.allowed_extensions:
@@ -77,12 +78,12 @@ class MakeDatasets(Subcommand):
         if self.split == 'by_chr':
             self.chromosomes = {}
             self.chromosomes.update({'validation':
-                                         set(st.multiselect('Validation Dataset', seq.VALID_CHRS, {'chr19', 'chr20'}))})
+                                         set(st.multiselect('Validation Dataset', seq.VALID_CHRS, ['chr19', 'chr20']))})
             self.chromosomes.update({'test':
-                                         set(st.multiselect('Test Dataset', seq.VALID_CHRS, {'chr21'}))})
+                                         set(st.multiselect('Test Dataset', seq.VALID_CHRS, ['chr21']))})
             self.chromosomes.update({'blackbox':
-                                         set(st.multiselect('BlackBox Dataset', seq.VALID_CHRS, {'chr22'}))})
-            default_train_set = (set(seq.VALID_CHRS) - self.chromosomes['validation'] - self.chromosomes['test'] -
+                                         set(st.multiselect('BlackBox Dataset', seq.VALID_CHRS, ['chr22']))})
+            default_train_set = list(set(seq.VALID_CHRS) - self.chromosomes['validation'] - self.chromosomes['test'] -
                                  self.chromosomes['blackbox'])
             self.chromosomes.update({'train':
                                          set(st.multiselect('Training Dataset', seq.VALID_CHRS, default_train_set))})
@@ -93,7 +94,7 @@ class MakeDatasets(Subcommand):
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
         st.markdown('## Dataset Size Reduction')
-        self.reducelist = st.multiselect('Klasses to be reduced (first specify input files)', self.klasses)
+        self.reducelist = st.multiselect('Classes to be reduced (first specify input files)', self.klasses)
         if self.reducelist:
             self.reduceseed = int(st.number_input('Seed for semi-random reduction of number of samples', value=112))
             self.reduceratio = {}

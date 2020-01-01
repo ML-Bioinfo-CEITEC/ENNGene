@@ -17,4 +17,4 @@ conda install -c anaconda pandas
 pip install talos
 
 # talos and streamlit can't be installed in one env for some reason...
-pip install streamlit
+pip install streamlit==0.52.2
