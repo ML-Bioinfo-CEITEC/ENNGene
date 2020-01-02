@@ -33,8 +33,8 @@ class Train(Subcommand):
         st.markdown('## General Options')
         self.add_general_options()
 
-        warning_on_input = st.empty()
         input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
+        warning_on_input = st.empty()
         if input_folder:
             files = f.list_files_in_dir(input_folder, 'zip')
             dss = ['train', 'validation', 'test']
@@ -57,7 +57,7 @@ class Train(Subcommand):
             lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
                           'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
                           'Use learning rate finder (beta)': 'lr_finder',
-                          'Apply one cycle policy on learning rate (uses above defined value as max': 'one_cycle'}
+                          'Apply one cycle policy on learning rate (uses above defined value as max)': 'one_cycle'}
             self.lr_optim = lr_options[st.radio('Learning rate options',
                 list(lr_options.keys()))]
         self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
@@ -80,28 +80,32 @@ class Train(Subcommand):
 
         st.markdown('## Network Architecture')
         self.branches_layers = {}
-        for branch in self.branches:
-            st.markdown(f'**{list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch**')
+        for i, branch in enumerate(self.branches):
+            st.markdown(f'### {i+1}. {list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch')
             self.branches_layers.update({branch: []})
             no = st.number_input('Number of layers in the branch:', min_value=0, value=1, key=f'{branch}_no')
             for i in range(no):
                 layer = dict(args={})
-                layer.update(dict(name=st.selectbox(f'Layer {i + 1}', list(LAYERS.keys()), key=f'layer{branch}{i}')))
+                st.markdown(f'#### Layer {i + 1}')
+                layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), key=f'layer{branch}{i}')))
                 layer = self.layer_options(layer, i, branch)
+                st.markdown('---')
                 if len(self.branches_layers[branch]) > i:
                     self.branches_layers[branch][i] = layer
                 else:
                     self.branches_layers[branch].append(layer)
 
-        st.markdown(f'**Connected branches**')
+        st.markdown(f'### {len(self.branches)+1}. Connected (after branches\' concatenation)')
         self.common_layers = []
         allowed_common = list(LAYERS.keys())
         allowed_common.remove('Convolutional layer')
         no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
         for i in range(no):
             layer = {'args': {}}
-            layer.update(dict(name=st.selectbox(f'Layer {i + 1}', allowed_common, key=f'common_layer{i}')))
+            st.markdown(f'#### Layer {i + 1}')
+            layer.update(dict(name=st.selectbox('Layer type', allowed_common, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i)
+            st.markdown('---')
             if len(self.common_layers) > i:
                 self.common_layers[i] = layer
             else:
@@ -109,6 +113,7 @@ class Train(Subcommand):
 
         st.markdown('---')
         if st.button('Train a model'):
+            self.check_required()
             # TODO check input presence & validity, if OK continue to run
             self.run()
 
@@ -117,7 +122,7 @@ class Train(Subcommand):
     def layer_options(layer, i, branch=None):
         if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
             layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
-            layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.25, key=f'do{branch}{i}')})
+            layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.0, key=f'do{branch}{i}')})
             if layer['name'] == 'Convolutional layer':
                 layer['args'].update({'filters': st.number_input('Number of filters:', min_value=0, value=40, key=f'filters{branch}{i}')})
                 layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=0, value=4, key=f'kernel{branch}{i}')})
