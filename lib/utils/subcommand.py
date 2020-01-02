@@ -14,7 +14,7 @@ class Subcommand:
 
     def add_general_options(self):
         self.output_folder = st.text_input(
-            'Specify path to output resulting files (cwd used as default)',
+            'Output path were result files will be exported (cwd used as default)',
             value=os.path.join(os.getcwd(), 'deepnet_output')
         )
         self.ensure_dir(self.output_folder)

@@ -13,6 +13,7 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
+from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
@@ -31,12 +32,22 @@ class Train(Subcommand):
 
         st.markdown('## General Options')
         self.add_general_options()
-        self.datasets = []
-        for ds in ['Training', 'Validation', 'Testing']:
-            self.datasets.append(st.text_input(f'{ds} Dataset file'))
+
+        warning_on_input = st.empty()
+        input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
+        if input_folder:
+            files = f.list_files_in_dir(input_folder, 'zip')
+            dss = ['train', 'validation', 'test']
+            # TODO this does not check that each of them is persent exactly once
+            self.dataset_files = [file for file in files if any(ds in file for ds in dss)]
+            if not len(self.dataset_files) == 3:
+                warning_on_input.markdown(
+                    '**WARNING: Selected folder does not contain all the datasets (train, validation, test).**')
+
         self.tb = st.checkbox('Output TensorBoard log files', value=False)
 
         st.markdown('## Training Options')
+        # TODO make sure batch size is smaller than dataset size
         self.batch_size = st.number_input('Batch size', min_value=0, value=256)
         self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
         self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
@@ -162,8 +173,8 @@ class Train(Subcommand):
         logger.info('Metric function: ' + str(self.metric))
 
         status.text('Initializing network...')
-        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.datasets[0]).labels())))
-        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.datasets, self.branches, labels)
+        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
+        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.branches, labels)
         branch_shapes = self.get_shapes(train_x, self.branches)
 
         train_dir = os.path.join(self.output_folder, 'training',
