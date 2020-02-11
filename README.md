@@ -6,6 +6,7 @@ Deepnet App (*name to be defined*) aims to facilitate application of deep neural
 (*Installation from PyPI currently not available due to missing dependencies.*)
 
 #### Conda environment
+If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
 - Download latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
 - Unzip the directory `tar -xf deepnet.tar.gz`
 - Go to the project directory `cd deepnet`

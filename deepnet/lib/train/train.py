@@ -57,7 +57,7 @@ class Train(Subcommand):
             lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
                           'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
                           'Use learning rate finder (beta)': 'lr_finder',
-                          'Apply one cycle policy on learning rate (uses above defined value as max)': 'one_cycle'}
+                          'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
             self.lr_optim = lr_options[st.radio('Learning rate options',
                 list(lr_options.keys()))]
         self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
@@ -113,7 +113,7 @@ class Train(Subcommand):
 
         st.markdown('---')
         if st.button('Train a model'):
-            self.check_required()
+            # self.check_required()
             # TODO check input presence & validity, if OK continue to run
             self.run()
 

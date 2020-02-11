@@ -326,7 +326,7 @@ class Dataset:
 
     @staticmethod
     def map_datapoint_to_wig(score, zipped, dp_start, dp_end, current_file, current_header, parsed_line):
-        # TODO check the logic of passing on the parsed line (it does not seem to be properly used)
+        # TODO check the logic of passing on the parsed line
         # FIXME not covered: when the end of ref file is reached while there are still some samples from that file
         # unmapped - it reads empty lines - break with first empty line read as expecting it to be EOF? and move to
         # next chromosome somehow

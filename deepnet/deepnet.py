@@ -4,6 +4,7 @@ import sys
 import logging
 
 sys.path.append(os.getcwd())
+# TODO could we somehow move the .log file to relevant folder per each run?
 logging.basicConfig(filename='app.log',
                     filemode='a',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -24,8 +25,8 @@ class DeepNet:
         st.sidebar.title('Deepnet App')
 
         available_subcommands = {'Preprocess Data': 'make_datasets',
-                                 'Tune hyperparameters': 'train',
-                                 'Train a network': 'train'}
+                                 # 'Tune hyperparameters': 'train',
+                                 'Train a Model': 'train'}
 
         subcommand = available_subcommands[st.sidebar.selectbox(
             'Select a task to be run:',

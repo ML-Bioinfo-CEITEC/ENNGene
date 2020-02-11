@@ -48,13 +48,13 @@ class MakeDatasets(Subcommand):
         st.markdown('## Input Coordinate Files')
         # TODO change to plus button when stateful operations enabled
         # TODO is there streamlit function to browse local files - should be soon
-        # TODO accept also web address - also should be soon possible
+        # TODO accept also web address if possible
 
         warning = st.empty()
         self.input_files = []
         no_files = st.number_input('Number of input files (= no. of classes):', min_value=0, value=0)
         for i in range(no_files):
-            self.input_files.append(st.text_input(f'File no. {i+1} (.bed or .narrowPeak)'))
+            self.input_files.append(st.text_input(f'File no. {i+1} (.bed)'))
 
         self.klasses = []
         self.allowed_extensions = ['.bed', '.narrowPeak']
