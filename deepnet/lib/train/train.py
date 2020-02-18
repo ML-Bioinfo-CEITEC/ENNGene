@@ -3,6 +3,7 @@ import os
 import logging
 import math
 import matplotlib.pyplot as plt
+import numpy as np
 import streamlit as st
 import tensorflow as tf
 
@@ -38,9 +39,9 @@ class Train(Subcommand):
         if input_folder:
             files = f.list_files_in_dir(input_folder, 'zip')
             dss = ['train', 'validation', 'test']
-            # TODO this does not check that each of them is persent exactly once
+            # TODO this does not check that each of them is present exactly once
             self.dataset_files = [file for file in files if any(ds in file for ds in dss)]
-            if not len(self.dataset_files) == 3:
+            if len(self.dataset_files) < 3:
                 warning_on_input.markdown(
                     '**WARNING: Selected folder does not contain all the datasets (train, validation, test).**')
 
@@ -133,16 +134,18 @@ class Train(Subcommand):
 
     @staticmethod
     def parse_data(dataset_files, branches, alphabet):
-        datasets = set()
-        for file in dataset_files:
-            datasets.add(Dataset.load_from_file(file))
-
         dictionary = {}
-        for dataset in datasets:
+        for file in dataset_files:
+            dataset = Dataset.load_from_file(file)
             dictionary.update({dataset.category: {}})
             values = []
             for branch in branches:
-                values.append(dataset.values(branch))
+                # can not use apply, as it returns wrong object with different shape
+                # (because pandas dataframes and series are not able to store arrays as values)
+                value = []
+                for string in dataset.df[branch]:
+                    value.append(dataset.sequence_from_string(string))
+                values.append(np.array(value))
 
             # Do not return data in an extra array if there's only one branch
             if len(values) == 1:

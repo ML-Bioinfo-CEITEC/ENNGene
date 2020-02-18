@@ -1,14 +1,14 @@
 import logging
 import numpy as np
 import os
-import random
+import pandas as pd
 import subprocess
 import sys
 import tempfile
 
+from functools import reduce
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from .data_point import DataPoint
 from . import file_utils as f
 from . import sequence as seq
 
@@ -20,160 +20,105 @@ class Dataset:
     @classmethod
     def load_from_file(cls, file_path):
         name = os.path.basename(file_path).replace('.zip', '')
-        if '.zip' in file_path:
-            zipped = True
-            archive = ZipFile(file_path, 'r')
-            file = archive.open(name)
-        else:
-            zipped = False
-            file = open(file_path, 'r')
-
-        head = f.read_decoded_line(file, zipped)
-        branches = head.split('\t')[1:]
+        df = pd.read_csv(file_path, sep='\t', header=0)
+        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']]
         category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
 
-        datapoint_list = []
-        for line in file:
-            if zipped:
-                line = line.decode('utf-8')
-            key, *values = line.strip().split('\t')
-            branches_string_values = {}
-            for i, value in enumerate(values):
-                branches_string_values.update({branches[i]: value})
-            datapoint_list.append(DataPoint.load(key, branches_string_values))
-
-        return cls(branches=branches, category=category, datapoint_list=datapoint_list)
+        return cls(branches=branches, category=category, df=df)
 
     @classmethod
     def split_by_chr(cls, dataset, chrs_by_category):
-        categories_by_chr = cls.reverse_chrs_dictionary(chrs_by_category)
+        split_datasets = set()
+        for category, chr_list in chrs_by_category.items():
+            df = dataset.df[dataset.df['chrom_name'].isin(chr_list)]
+            split_datasets.add(
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, df=df))
 
-        # separate original dictionary by categories
-        split_sets = {}
-        for datapoint in dataset.datapoint_list:
-            category = categories_by_chr[datapoint.chrom_name]
-            if category not in split_sets.keys(): split_sets.update({category: []})
-            split_sets[category].append(datapoint)
-
-        # create Dataset objects from separated dictionaries
-        final_datasets = set()
-        for category, dp_list in split_sets.items():
-            final_datasets.add(
-                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_list=dp_list))
-
-        return final_datasets
-
-    @classmethod
-    def reverse_chrs_dictionary(cls, dictionary):
-        reversed_dict = {}
-        for key, chrs in dictionary.items():
-            for chr in chrs:
-                reversed_dict.update({chr: key})
-
-        return reversed_dict
+        return split_datasets
 
     @classmethod
     def split_random(cls, dataset, ratio_list, seed):
         # so far the categories are fixed, not sure if there would be need for custom categories
-        categories_ratio = {'train': float(ratio_list[0]),
-                            'validation': float(ratio_list[1]),
-                            'test': float(ratio_list[2]),
-                            'blackbox': float(ratio_list[3])}
-
-        random.seed(seed)
-        random.shuffle(dataset.datapoint_list)
-        dataset_size = len(dataset.datapoint_list)
-        total = sum(categories_ratio.values())
-        start = 0
-        end = 0
-
-        # TODO ? to assure whole numbers, we round down the division, which leads to lost of several samples. Fix it?
+        ratio_list = [float(x) for x in ratio_list]
+        dataset_size = dataset.df.shape[0]
+        total = sum(ratio_list)
+        np.random.seed(seed)
+        np.random.shuffle(dataset.df.values)
         split_datasets = set()
-        for category, ratio in categories_ratio.items():
-            size = int(dataset_size * ratio / total)
-            end += (size - 1)
-            dp_list = dataset.datapoint_list[start:end]
 
+        validation_size = int(dataset_size * ratio_list[1] / total)
+        test_size = (int(dataset_size * ratio_list[2] / total))
+        blackbox_size = (int(dataset_size * ratio_list[3] / total))
+        dfs = {'validation': dataset.df[:validation_size]}
+        dfs.update({'test': dataset.df[validation_size:(validation_size + test_size)]})
+        dfs.update({'blackbox': dataset.df[(validation_size + test_size):(validation_size + test_size + blackbox_size)]})
+        dfs.update({'train': dataset.df[(validation_size + test_size + blackbox_size):]})
+
+        for category, df in dfs.items():
             split_datasets.add(
-                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, datapoint_list=dp_list))
-            start += size
+                Dataset(klass=dataset.klass, branches=dataset.branches, category=category, df=df))
 
         return split_datasets
+
+    @classmethod
+    def merge_dataframes(cls, dataset_list):
+        dataframes = [dataset.df for dataset in dataset_list]
+        merged_df = reduce(lambda left, right: pd.merge(left, right, how='outer'), dataframes)
+        return merged_df
 
     @classmethod
     def merge_by_category(cls, set_of_datasets):
         datasets_by_category = {}
         for dataset in set_of_datasets:
-            if dataset.category not in datasets_by_category.keys(): datasets_by_category.update({dataset.category: []})
+            if dataset.category not in datasets_by_category.keys():
+                datasets_by_category.update({dataset.category: []})
             datasets_by_category[dataset.category].append(dataset)
 
-        final_datasets = set()
+        merged_datasets = set()
         for category, datasets in datasets_by_category.items():
             branches = datasets[0].branches
-            merged_datapoint_list = []
-            for dataset in datasets:
-                merged_datapoint_list += dataset.datapoint_list
-            final_datasets.add(
-                cls(branches=branches, category=category, datapoint_list=merged_datapoint_list))
+            merged_df = cls.merge_dataframes(datasets)
+            merged_datasets.add(cls(branches=branches, category=category, df=merged_df))
 
-        return final_datasets
+        return merged_datasets
 
     def __init__(self, klass=None, branches=None, category=None, bed_file=None, win=None, winseed=None,
-                 datapoint_list=None):
+                 df=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
         self.category = category  # train, validation, test or blackbox for separated datasets
-        self.datapoint_list = datapoint_list if datapoint_list else []
+        self.df = df if df is not None else pd.DataFrame()
 
         if bed_file and win:
-            self.datapoint_list = self.read_in_bed(bed_file, win, winseed)
+            self.df = self.read_in_bed(bed_file, win, winseed)
 
-    def read_in_bed(self, bed_file, window, window_seed):
-        datapoint_list = []
-        file = open(bed_file)
+    def read_in_bed(self, bed_file, window_size, window_seed):
+        df = pd.read_csv(bed_file, sep='\t', header=None)
 
-        for line in file:
-            values = line.split()
+        if len(df.columns) == 3:
+            df.columns = ['chrom_name', 'seq_start', 'seq_end']
+            df['strand_sign'] = ''
+        elif len(df.columns) >= 6:
+            df = df[[0, 1, 2, 5]]
+            df.columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
+        else:
+            raise Exception('Invalid format of a .bed file.')
 
-            chrom_name = values[0]
-            # first position in chr in bed file is assigned as 0 (thus it fits the python indexing from 0)
-            seq_start = int(values[1])
-            # both bed file coordinates and python range exclude the last position
-            seq_end = int(values[2])
-            if len(values) >= 6:
-                strand_sign = values[5]
-            else:
-                strand_sign = None
+        df['klass'] = self.klass
+        df = df[df['chrom_name'].isin(seq.VALID_CHRS)]
+        df = Dataset.apply_window(df, window_size, window_seed)
 
-            if chrom_name in seq.VALID_CHRS:
-                datapoint = DataPoint(self.branches, self.klass, chrom_name, seq_start, seq_end, strand_sign,
-                                      win=window, winseed=window_seed)
-                datapoint_list.append(datapoint)
-
-        return datapoint_list
+        return df
 
     def reduce(self, ratio, seed):
-        random.seed(seed)
-        random.shuffle(self.datapoint_list)
-        last = int(len(self.datapoint_list) * ratio)
-
-        self.datapoint_list = self.datapoint_list[0:last]
+        np.random.seed(seed)
+        np.random.shuffle(self.df.values)
+        last = int(self.df.shape[0] * ratio)
+        self.df = self.df[:last]
         return self
 
-    def values(self, branch):
-        # return ordered list of values of datapoints
-        values = []
-        for datapoint in self.datapoint_list:
-            values.append(datapoint.value(branch))
-
-        return np.array(values)
-
     def labels(self, alphabet=None):
-        # return ordered list of values of datapoints
-        labels = []
-        for datapoint in self.datapoint_list:
-            labels.append(datapoint.klass)
-
+        labels = self.df['klass']
         if alphabet:
             encoded_labels = [seq.translate(item, alphabet) for item in labels]
             return np.array(encoded_labels)
@@ -181,75 +126,103 @@ class Dataset:
             return np.array(labels)
 
     def map_to_branches(self, references, encoding, strand, outfile_path, ncpu):
-        out_file = Dataset.initialize_file(outfile_path, self.branches)
-
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq':
                 logger.debug(f'Mapping sequences to fasta reference for sequence branch...')
-                self.datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, encoding, strand)
+                self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, encoding, strand)
             elif branch == 'cons':
                 logger.debug(f'Mapping sequences to wig reference for conservation branch...')
-                self.datapoint_list = self.map_to_wig(branch, self.datapoint_list, reference)
+                self.df = Dataset.map_to_wig(branch, self.df, reference)
             elif branch == 'fold':
                 logger.debug(f'Mapping and folding sequences for structure branch...')
-                datapoint_list = self.map_to_fasta_dict(self.datapoint_list, branch, reference, False, strand)
-                file_name = 'fold'
-                self.datapoint_list = self.fold_branch(file_name, datapoint_list, ncpu, dna=True)
+                df = Dataset.map_to_fasta_dict(self.df, branch, reference, False, strand)
+                self.df = Dataset.fold_branch(df, branch, ncpu, dna=True)
 
-        for datapoint in self.datapoint_list:
-            datapoint.write(out_file)
-        out_file.close()
-
-        logger.debug(f'Compressing mapped dataset...')
-        zipped = ZipFile(f'{outfile_path}.zip', 'w')
-        zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
-        zipped.close()
-        os.remove(outfile_path)
-
+        self.save_to_file(outfile_path, do_zip=True)
         return self
 
     def sort_datapoints(self):
-        self.datapoint_list.sort(key=lambda dp: (seq.VALID_CHRS.index(dp.chrom_name), dp.seq_start))
+        self.df = self.df.sort_values(by=['chrom_name', 'seq_start'])
         return self
 
-    def save_to_file(self, outfile_path, zip=False):
-        out_file = Dataset.initialize_file(outfile_path, self.branches)
-        for datapoint in self.datapoint_list:
-            datapoint.write(out_file)
-        out_file.close()
+    def save_to_file(self, outfile_path, do_zip=False):
+        self.df.to_csv(outfile_path, sep='\t', index=False)
 
-        if zip:
+        if do_zip:
+            logger.debug(f'Compressing dataset file...')
             zipped = ZipFile(f'{outfile_path}.zip', 'w')
             zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
             zipped.close()
             os.remove(outfile_path)
 
     @staticmethod
-    def map_to_fasta_dict(datapoint_list, branch, ref_dictionary, encoding, strand):
-        # Returns only successfully mapped datapoints
-        updated_datapoint_list = []
-        for datapoint in datapoint_list:
-            if datapoint.chrom_name in ref_dictionary.keys():
+    def map_to_fasta_dict(df, branch, ref_dictionary, encoding, strand):
+        # Returns only successfully mapped samples
+        old_shape = df.shape[0]
+        df[branch] = None
+
+        def map(row):
+            if row['chrom_name'] in ref_dictionary.keys():
                 sequence = []
-                for i in range(datapoint.seq_start, datapoint.seq_end):
-                    sequence.append(ref_dictionary[datapoint.chrom_name][i])
-
-                if strand and datapoint.strand_sign == '-':
+                for i in range(row['seq_start'], row['seq_end']):
+                    sequence.append(ref_dictionary[row['chrom_name']][i])
+                if strand and row['strand_sign'] == '-':
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
-
                 if encoding:
                     sequence = [seq.translate(item, encoding) for item in sequence]
+                    row[branch] = Dataset.sequence_to_string(sequence)
+                else:
+                    #  only temporary value for folding (won't be saved like this to file)
+                    row[branch] = ''.join(sequence)
+            else:
+                row[branch] = None
+            return row
 
-                datapoint.branches_values.update({branch: np.array(sequence)})
-                updated_datapoint_list.append(datapoint)
+        df = df.apply(map, axis=1)
+        df.dropna(subset=[branch], inplace=True)
 
-        portion = round((len(updated_datapoint_list) / len(datapoint_list) * 100), 2)
+        portion = round((df.shape[0] / old_shape * 100), 2)
         logger.debug(f'Successfully mapped {portion}% of samples.')
-        return updated_datapoint_list
+        return df
 
     @staticmethod
-    def map_to_wig(branch, datapoint_list, ref_folder):
+    def sequence_to_string(seq_list):
+        #  temporary solution, as pandas can not save lists nor ndarrays into values
+        string = ""
+        for e in seq_list:
+            if (type(e) == np.ndarray) or (type(e) == list):
+                substring = ""
+                for ee in e:
+                    substring += str(ee) + ','
+                substring = substring.strip(',')
+                substring += '|'
+                string += substring
+            else:
+                string += str(e) + '|'
+        return string.strip('|').strip(',')
+
+    @staticmethod
+    def sequence_from_string(string):
+        # TODO ideally make more explicit, maybe split the method
+        #  (currently expects floats everywhere, can ever be soemthing else?)
+        parts = string.strip().split('|')
+        sequence = []
+
+        for part in parts:
+            if ',' in part:  # expects one hot encoded sequence, thus branches seq and fold
+                subparts = part.strip().split(',')
+                new_part = []
+                for subpart in subparts:
+                    new_part.append(float(subpart))
+                sequence.append(np.array(new_part))
+            else:  # expects not encoded sequence, thus branch cons
+                sequence.append(np.array([float(part)]))
+
+        return np.array(sequence)
+
+    @staticmethod
+    def map_to_wig(branch, df, ref_folder):
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 
@@ -258,30 +231,29 @@ class Dataset:
         current_chr = None
         current_header = {}
         parsed_line = {}
+        df_copy = df.copy()
 
-        updated_datapoint_list = []
-        for datapoint in datapoint_list:
-            chr = datapoint.chrom_name
+        for i, row in df_copy.iterrows():
             score = []
 
-            if chr and chr == current_chr:
+            if row['chrom_name'] and row['chrom_name'] == current_chr:
                 result = Dataset.map_datapoint_to_wig(
-                    score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header, parsed_line)
+                    score, zipped, row['seq_start'], row['seq_end'], current_file, current_header, parsed_line)
                 if result:
                     score, current_header, parsed_line = result
                 else:
                     # Covering the case when we reach end of reference file while still having some samples with current_chr not mapped
                     not_found_chrs.add(current_chr)
                     continue
-            elif chr in not_found_chrs:
+            elif row['chrom_name'] in not_found_chrs:
                 continue
             else:
                 # When reading from new reference file
-                files = list(filter(lambda f: f'{datapoint.chrom_name}.' in os.path.basename(f), chrom_files))
+                files = list(filter(lambda f: f"{row['chrom_name']}." in os.path.basename(f), chrom_files))
                 if len(files) == 1:
                     if current_file:
                         current_file.close()
-                    current_chr = datapoint.chrom_name
+                    current_chr = row['chrom_name']
 
                     current_file = f.unzip_if_zipped(files[0])
                     if '.gz' in files[0] or '.zip' in files[0]:
@@ -297,7 +269,7 @@ class Dataset:
                         logger.exception('Exception occurred.')
                         raise Exception('File not starting with a proper wig header.')
                     result = Dataset.map_datapoint_to_wig(
-                        score, zipped, datapoint.seq_start, datapoint.seq_end, current_file, current_header,
+                        score, zipped, row['seq_start'], row['seq_end'], current_file, current_header,
                         parsed_line)
                     if result:
                         score, current_header, parsed_line = result
@@ -305,24 +277,22 @@ class Dataset:
                         not_found_chrs.add(current_chr)
                         continue
                 else:
-                    not_found_chrs.add(datapoint.chrom_name)
+                    not_found_chrs.add(row['chrom_name'])
                     if len(files) == 0:
                         # TODO or rather raise an exception to let user fix it?
+                        # Anyway, let the user know if none were found, thus the path given is wrong (currently it looks like it went through)
                         logger.info(
-                            f'Didn\'t find appropriate conservation file for {chr}, skipping the chromosome.')
+                            f"Didn\'t find appropriate conservation file for {row['chrom_name']}, skipping the chromosome.")
                     else:  # len(files) > 1
-                        logger.info(f'Found multiple conservation files for {chr}, skipping the chromosome.')
+                        logger.info(f"Found multiple conservation files for {row['chrom_name']}, skipping the chromosome.")
                     continue
 
-            if score and len(score) == (datapoint.seq_end - datapoint.seq_start):
+            if score and len(score) == (row['seq_end'] - row['seq_start']):
                 # Score may be fully or partially missing if the coordinates are not part of the reference
-                datapoint.branches_values.update({branch: np.array(score)})
-                updated_datapoint_list.append(datapoint)
+                df.loc[i, branch] = Dataset.sequence_to_string(score)
 
-        # Returned list contains only properly mapped datapoints, thus might be missing some of the original samples
-        portion = round((len(updated_datapoint_list) / len(datapoint_list) * 100), 2)
-        logger.debug(f'Successfully mapped {portion}% of samples.')
-        return updated_datapoint_list
+        df.dropna(subset=[branch], inplace=True)
+        return df
 
     @staticmethod
     def map_datapoint_to_wig(score, zipped, dp_start, dp_end, current_file, current_header, parsed_line):
@@ -380,12 +350,13 @@ class Dataset:
         return [score + new_score, current_header, parsed_line]
 
     @staticmethod
-    def fold_branch(file_name, datapoint_list, ncpu, dna=True):
+    def fold_branch(df, branch, ncpu, dna=True):
         # TODO check output, it's suspiciously quick for large numbers of samples
         tmp_dir = tempfile.gettempdir()
-        fasta_file = Dataset.datapoints_to_fasta(datapoint_list, 'fold', tmp_dir, file_name)
+        original_length = df.shape[0]
+        fasta_file = Dataset.dataframe_to_fasta(df, branch, tmp_dir, 'fold')
 
-        out_path = os.path.join(tmp_dir, file_name + '_folded')
+        out_path = os.path.join(tmp_dir, 'fold' + '_folded')
         out_file = open(out_path, 'w+')
         if dna:
             subprocess.run(['RNAfold', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
@@ -397,44 +368,71 @@ class Dataset:
         lines = out_file.readlines()
         out_file.close()
 
-        if (len(lines) / 3) == len(datapoint_list):
+        if (len(lines) / 3) == original_length:
             # The order should remain the same as long as --unordered is not set to True
-            updated_datapoint_list = []
+            cols = list(df.columns)
+            new_df = pd.DataFrame(columns=cols)
             fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
+
             for i, line in enumerate(lines):
                 # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
+                # TODO double check that correct rows are used
                 if (i + 1) % 3 == 0:
-                    datapoint = datapoint_list[int(i / 3)]
+                    index = int(i/3)
+                    new_df = new_df.append(df.iloc[index], ignore_index=True)
                     value = []
                     # line format: '.... (0.00)'
                     part1 = line.split(' ')[0].strip()
                     for char in part1:
                         value.append(seq.translate(char, fold_encoding))
-                    datapoint.branches_values.update({'fold': np.array(value)})
-                    updated_datapoint_list.append(datapoint)
+                    new_df.loc[index, branch] = Dataset.sequence_to_string(value)
         else:
-            raise Exception('Did not fold all the datapoints!')
-            # We have no way to determine which were not folded if this happens
+            raise Exception(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
+            # We probably have no way to determine which were not folded if this happens
             sys.exit()
 
-        return updated_datapoint_list
+        return new_df
 
     @staticmethod
-    def initialize_file(path, branches):
-        out_file = open(path, 'w')
-        header = 'key' + '\t' + '\t'.join(branches) + '\n'
-        out_file.write(header)
-        return out_file
-
-    @staticmethod
-    def datapoints_to_fasta(datapoint_list, branch, path, name):
+    def dataframe_to_fasta(df, branch, path, name):
         path_to_fasta = os.path.join(path, (name + ".fa"))
-        content = ""
-        for datapoint in datapoint_list:
-            line1 = ">" + datapoint.key() + "\n"
-            line2 = ''.join(datapoint.value(branch)) + "\n"
-            content += line1
-            content += line2
+        content = []
 
-        f.write(path_to_fasta, content.strip())
+        def to_fasta(row):
+            key = f"{row['chrom_name']}_{row['seq_start']}_{row['seq_end']}_{row['strand_sign']}_{row['klass']}"
+            line1 = ">" + key + "\n"
+            line2 = row[branch] + "\n"
+            content.append(line1)
+            content.append(line2)
+            return row
+
+        df.apply(to_fasta, axis=1, result_type='broadcast')
+        f.write(path_to_fasta, ''.join(content).strip())
         return path_to_fasta
+
+    @staticmethod
+    def apply_window(df, window_size, window_seed=64):
+        np.random.seed(window_seed)
+
+        def window(row):
+            length = row['seq_end'] - row['seq_start']
+            if length > window_size:
+                above = length - window_size
+                rand = np.random.randint(0, above)
+                new_start = row['seq_start'] + rand
+                new_end = row['seq_start'] + rand + window_size
+            elif length < window_size:
+                missing = window_size - length
+                rand = np.random.randint(0, missing)
+                new_start = row['seq_start'] - rand
+                new_end = row['seq_end'] + (missing - rand)
+            else:
+                new_start = row['seq_start']
+                new_end = row['seq_end']
+
+            row['seq_start'] = new_start
+            row['seq_end'] = new_end
+            return row
+
+        df = df.apply(window, axis=1)
+        return df

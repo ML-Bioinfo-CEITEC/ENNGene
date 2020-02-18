@@ -138,11 +138,8 @@ class MakeDatasets(Subcommand):
             initial_datasets.add(
                 Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.win, winseed=self.winseed))
 
-        # Merging datapoints from all klasses to map them more quickly all together at once
-        all_datapoints = []
-        for dataset in initial_datasets:
-            all_datapoints += dataset.datapoint_list
-        merged_dataset = Dataset(branches=self.branches, datapoint_list=all_datapoints)
+        # Merging data from all klasses to map them more efficiently all together at once
+        merged_dataset = Dataset(branches=self.branches, df=Dataset.merge_dataframes(initial_datasets))
 
         # Read-in fasta file to dictionary
         if 'seq' in self.branches or 'fold' in self.branches:
@@ -154,7 +151,7 @@ class MakeDatasets(Subcommand):
         self.ensure_dir(dir_path)
         outfile_path = os.path.join(dir_path, 'merged_all')
 
-        # First ensure order of the DataPoints by chr_name and seq_start within, mainly for conservation
+        # First ensure order of the data by chr_name and seq_start within, mainly for conservation
         status.text(
             f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
         merged_dataset.sort_datapoints().map_to_branches(
@@ -162,22 +159,17 @@ class MakeDatasets(Subcommand):
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
-        sorted_datapoints = {}
-        for datapoint in merged_dataset.datapoint_list:
-            if datapoint.klass not in sorted_datapoints.keys(): sorted_datapoints.update({datapoint.klass: []})
-            sorted_datapoints[datapoint.klass].append(datapoint)
-
-        for klass, datapoints in sorted_datapoints.items():
-            mapped_datasets.add(
-                Dataset(klass=klass, branches=self.branches, datapoint_list=datapoints))
+        for klass in self.klasses:
+            df = merged_dataset.df[merged_dataset.df['klass'] == klass]
+            mapped_datasets.add(Dataset(klass=klass, branches=self.branches, df=df))
 
         split_datasets = set()
         for dataset in mapped_datasets:
             # Reduce size of selected klasses
-            if self.reducelist and dataset.klass in self.reducelist:
-                status.text('Reducing number of samples in klass {}...'.format(dataset.klass))
+            if self.reducelist and (dataset.klass in self.reducelist):
+                status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
                 ratio = self.reduceratio[dataset.klass]
-                dataset = dataset.reduce(ratio, seed=self.reduceseed)
+                dataset.reduce(ratio, seed=self.reduceseed)
 
             # Split datasets into train, validation, test and blackbox datasets
             if self.split == 'by_chr':
@@ -194,7 +186,7 @@ class MakeDatasets(Subcommand):
             dir_path = os.path.join(datasets_dir, 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, dataset.category)
-            dataset.save_to_file(file_path, zip=True)
+            dataset.save_to_file(file_path, do_zip=True)
 
         status.text('Finished!')
         return final_datasets
