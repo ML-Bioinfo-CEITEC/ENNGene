@@ -281,10 +281,10 @@ class Dataset:
                     if len(files) == 0:
                         # TODO or rather raise an exception to let user fix it?
                         # Anyway, let the user know if none were found, thus the path given is wrong (currently it looks like it went through)
-                        logger.info(
+                        logger.debug(
                             f"Didn\'t find appropriate conservation file for {row['chrom_name']}, skipping the chromosome.")
                     else:  # len(files) > 1
-                        logger.info(f"Found multiple conservation files for {row['chrom_name']}, skipping the chromosome.")
+                        logger.debug(f"Found multiple conservation files for {row['chrom_name']}, skipping the chromosome.")
                     continue
 
             if score and len(score) == (row['seq_end'] - row['seq_start']):

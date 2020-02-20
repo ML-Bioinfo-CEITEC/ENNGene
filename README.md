@@ -24,7 +24,8 @@ The framework is currently missing several key functions that will be hopefully 
 So far, the application consists of two modules - data preprocessing, and training a neural net on that data. 
 More functions will be added gradually (e.g. hyperparameter tuning or applying already trained model).
 
-To select a task browse the select box in the side panel.
+To select a task browse the select box in the side panel. 
+For now, all input files (or folders) must be defined by an absolute path.
 
 #### Data Preprocessing
 In the first module, RNA or DNA sequence data are prepared to be fed into a neural network. 
@@ -54,8 +55,11 @@ Selected **branches** must be the same as in the preprocessing step, **output fo
 You can select the checkbox to produce **Tensorboard files** (for more info see the [official site](https://www.tensorflow.org/tensorboard)).
 
 In the second section you can pick a **batch size**, **number of epochs** to be trained, **optimizer** (SGD, Adam, or RMSprop), and **learning rate**.
-When SGD is the optimizer of choice, you can use learning rate scheduler, instead of the usual fixed learning rate (currently lr finder and one cycle policy lr implementations are also being tested).
+When SGD is the optimizer of choice, you can use learning rate scheduler, instead of the usual fixed learning rate. 
 **Metric** and **loss function** are predefined as accuracy and categorical crossentropy for now.
+
+(Currently, learning rate finder and one cycle policy learning rate implementations are also being tested. 
+When the lr finder is selected, a mock training is run for one epoch, and the resulting plot can be found in lr_finder.png file in the output folder.) 
 
 Finally, the last section determines the network architecture. You must define architecture for each selected branch, and for the common part of the network after branches' concatenation.
 First set a **number of layers** per each part. For each layer you must select its **type** (convolutional, dense, or LSTM).

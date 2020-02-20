@@ -172,13 +172,13 @@ class Train(Subcommand):
 
     def run(self):
         status = st.empty()
-        logger.info('Using the following branches: ' + str(self.branches))
-        logger.info('Learning rate: ' + str(self.lr))
-        logger.info('Optimizer: ' + str(self.optimizer))
-        logger.info('Batch size: ' + str(self.batch_size))
-        logger.info('Epoch rounds: ' + str(self.epochs))
-        logger.info('Loss function: ' + str(self.loss))
-        logger.info('Metric function: ' + str(self.metric))
+        logger.debug('Using the following branches: ' + str(self.branches))
+        logger.debug('Learning rate: ' + str(self.lr))
+        logger.debug('Optimizer: ' + str(self.optimizer))
+        logger.debug('Batch size: ' + str(self.batch_size))
+        logger.debug('Epoch rounds: ' + str(self.epochs))
+        logger.debug('Loss function: ' + str(self.loss))
+        logger.debug('Metric function: ' + str(self.metric))
 
         status.text('Initializing network...')
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
@@ -211,8 +211,8 @@ class Train(Subcommand):
         history = self.train(model, self.epochs, self.batch_size, callbacks, train_x, valid_x, train_y, valid_y).history
         if self.lr_optim == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
-        logger.info('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
-        logger.info('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
+        logger.debug('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
+        logger.debug('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
         st.text('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
         st.text('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
 
@@ -224,8 +224,8 @@ class Train(Subcommand):
         status.text('Testing the network...')
         test_results = self.test(model, self.batch_size, test_x, test_y)
 
-        logger.info('Evaluation loss: ' + str(round(test_results[0], 4)))
-        logger.info('Evaluation acc: ' + str(round(test_results[1], 4)))
+        logger.debug('Evaluation loss: ' + str(round(test_results[0], 4)))
+        logger.debug('Evaluation acc: ' + str(round(test_results[1], 4)))
         st.text('Evaluation loss: ' + str(round(test_results[0], 4)))
         st.text('Evaluation acc: ' + str(round(test_results[1], 4)))
 

@@ -32,7 +32,7 @@ class DeepNet:
             'Select a task to be run:',
             list(available_subcommands.keys())
         )]
-        logger.info(f'DeepNet started with the following subcommand: {subcommand}')
+        logger.debug(f'DeepNet started with the following subcommand: {subcommand}')
 
         module_path = f'lib.{subcommand}.{subcommand}'
         subcommand_class = ''.join(x.title() for x in subcommand.split('_'))
