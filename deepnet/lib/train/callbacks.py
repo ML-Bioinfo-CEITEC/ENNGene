@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import pandas as pd
 import tensorflow as tf
 import warnings
 
@@ -17,11 +18,11 @@ class ProgressMonitor(tf.keras.callbacks.Callback):
         self.progress_status.text(f'Epoch {epoch+1}/{self.epochs}')
 
     def on_epoch_end(self, epoch, logs=None):
-        epoch_data = {'Training loss': [logs['loss']],
-                      'Training accuracy': [logs['accuracy']],
-                      'Validation loss': [logs['val_loss']],
-                      'Validation accuracy': [logs['val_accuracy']]}
-        # FIXME fix y axis in the chart
+        epoch_data = pd.DataFrame([['Training loss', round(logs['loss'], 2), epoch+1],
+                                   ['Training accuracy', round(logs['accuracy'], 2), epoch+1],
+                                   ['Validation loss', round(logs['val_loss'], 2), epoch+1],
+                                   ['Validation accuracy', round(logs['val_accuracy'], 2), epoch+1]],
+                                  columns=['Metric', 'Metric value', 'Epoch'])
         self.chart.add_rows(epoch_data)
 
 
