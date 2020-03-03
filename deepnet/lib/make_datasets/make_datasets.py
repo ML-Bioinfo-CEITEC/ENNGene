@@ -69,30 +69,6 @@ class MakeDatasets(Subcommand):
                 warning.markdown(
                     '**WARNING: Only files of following format are allowed: {}.**'.format(', '.join(self.allowed_extensions)))
 
-        st.markdown('## Data Split')
-        split_options = {'By chromosomes': 'by_chr',
-                         'Random': 'rand'}
-        self.split = split_options[st.radio(
-            'Choose a way to split Datasets into train, test, validation and blackbox categories:',
-            list(split_options.keys()))]
-        if self.split == 'by_chr':
-            self.chromosomes = {}
-            self.chromosomes.update({'validation':
-                                         set(st.multiselect('Validation Dataset', seq.VALID_CHRS, ['chr19', 'chr20']))})
-            self.chromosomes.update({'test':
-                                         set(st.multiselect('Test Dataset', seq.VALID_CHRS, ['chr21']))})
-            self.chromosomes.update({'blackbox':
-                                         set(st.multiselect('BlackBox Dataset', seq.VALID_CHRS, ['chr22']))})
-            default_train_set = list(set(seq.VALID_CHRS) - self.chromosomes['validation'] - self.chromosomes['test'] -
-                                 self.chromosomes['blackbox'])
-            self.chromosomes.update({'train':
-                                         set(st.multiselect('Training Dataset', seq.VALID_CHRS, default_train_set))})
-        elif self.split == 'rand':
-            self.splitratio_list = st.text_input(
-                'List a target ratio between the categories (required format: train:validation:test:blackbox)',
-                value='8:2:2:1').split(':')
-            self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
-
         st.markdown('## Dataset Size Reduction')
         self.reducelist = st.multiselect('Classes to be reduced (first specify input files)', self.klasses)
         if self.reducelist:
@@ -101,6 +77,40 @@ class MakeDatasets(Subcommand):
             for klass in self.reducelist:
                 self.reduceratio.update({klass: float(st.number_input("Target {} dataset size".format(klass),
                                                                       min_value=0.0, max_value=1.0, value=0.5))})
+
+        st.markdown('## Data Split')
+        split_options = {'Random': 'rand',
+                         'By chromosomes': 'by_chr'}
+        self.split = split_options[st.radio(
+            'Choose a way to split Datasets into train, test, validation and blackbox categories:',
+            list(split_options.keys()))]
+        if self.split == 'by_chr':
+            fasta = self.references['seq'] if ('seq' in self.references.keys()) else None
+            st.markdown('Note: Fasta file with reference genome must be provided to infer available chromosomes.')
+            if 'seq' not in self.references.keys():
+                st.markdown('**Please fill in a path to the fasta file below.**')
+                fasta = st.text_input('Path to reference fasta file')
+            if fasta:
+                st.markdown('Parsing reference fasta file to infer the available chromosomes. Might take up to few minutes...')
+                fasta_dict, self.valid_chromosomes = seq.read_and_cache(fasta)
+                self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
+
+                self.chromosomes = {}
+                self.chromosomes.update({'validation':
+                                             set(st.multiselect('Validation Dataset', self.valid_chromosomes, None))})
+                self.chromosomes.update({'test':
+                                             set(st.multiselect('Test Dataset', self.valid_chromosomes, None))})
+                self.chromosomes.update({'blackbox':
+                                             set(st.multiselect('BlackBox Dataset', self.valid_chromosomes, None))})
+                # default_train_set = list(self.valid_chromosomes - self.chromosomes['validation'] - self.chromosomes['test'] -
+                #                      self.chromosomes['blackbox'])
+                self.chromosomes.update({'train':
+                                             set(st.multiselect('Training Dataset', self.valid_chromosomes, None))})
+        elif self.split == 'rand':
+            self.splitratio_list = st.text_input(
+                'List a target ratio between the categories (required format: train:validation:test:blackbox)',
+                value='8:2:2:1').split(':')
+            self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
         st.markdown('---')
         if st.button('Run preprocessing'):
@@ -142,9 +152,9 @@ class MakeDatasets(Subcommand):
         merged_dataset = Dataset(branches=self.branches, df=Dataset.merge_dataframes(initial_datasets))
 
         # Read-in fasta file to dictionary
-        if 'seq' in self.branches or 'fold' in self.branches:
+        if 'seq' in self.branches and type(self.references['seq']) != dict:
             status.text('Reading in reference fasta file...')
-            fasta_dict = seq.fasta_to_dictionary(self.references['seq'])
+            fasta_dict, _ = seq.parse_fasta_reference(self.references['seq'])
             self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
         dir_path = os.path.join(datasets_dir, 'full_datasets')

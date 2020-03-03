@@ -1,9 +1,11 @@
+import altair as alt
 import datetime
 import os
 import logging
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import streamlit as st
 import tensorflow as tf
 
@@ -201,8 +203,8 @@ class Train(Subcommand):
 
         progress_bar = st.progress(0)
         progress_status = st.empty()
-        chart_data = {'Training loss': [], 'Training accuracy': [], 'Validation loss': [], 'Validation accuracy': []}
-        chart = st.line_chart(chart_data)
+        chart = st.altair_chart(self.initialize_altair_chart())
+
         callbacks = self.create_callbacks(
             train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.batch_size,
             self.lr, branch_shapes[self.branches[0]][0])
@@ -352,3 +354,15 @@ class Train(Subcommand):
         plt.legend(['Training', 'Validation'], loc='lower right')
         plt.savefig(out_dir + file_name, dpi=300)
         plt.clf()
+
+    @staticmethod
+    def initialize_altair_chart():
+        source = pd.DataFrame([], columns=['Metric', 'Metric value', 'Epoch'])
+        nearest = alt.selection(type='single', nearest=True, on='mouseover', fields=['Epoch'], empty='none')
+        line = alt.Chart(source).mark_line().encode(x='Epoch:Q', y='Metric value:Q', color='Metric:N')
+        selectors = alt.Chart(source).mark_point().encode(x='Epoch:Q', opacity=alt.value(0)).add_selection(nearest)
+        points = line.mark_point().encode(opacity=alt.condition(nearest, alt.value(1), alt.value(0)))
+        text = line.mark_text(align='left', dx=5, dy=-5).encode(text=alt.condition(nearest, 'Metric value:Q', alt.value(' ')))
+        rules = alt.Chart(source).mark_rule(color='gray').encode(x='Epoch:Q').transform_filter(nearest)
+        alt_chart = alt.layer(line, selectors, points, rules, text)
+        return alt_chart

@@ -1,20 +1,24 @@
 import logging
-from re import sub
+import re
 import streamlit as st
+import _io
 
 from . import file_utils as f
 
 logger = logging.getLogger('main')
 
-VALID_CHRS = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12',
-              'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrY', 'chrX',
-              'chrM', 'chrMT']
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
-def fasta_to_dictionary(fasta_file):
+@st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None})
+def read_and_cache(fasta):
+    return parse_fasta_reference(fasta)
+
+
+def parse_fasta_reference(fasta_file):
     file = f.filehandle_for(fasta_file)
     seq_dict = {}
+    chromosomes = []
 
     key = None
     value = ""
@@ -22,8 +26,9 @@ def fasta_to_dictionary(fasta_file):
     for line in file:
         if '>' in line:
             # Save finished previous key value pair (unless it's the first iteration)
-            if key in VALID_CHRS:
+            if key and is_valid_chr(key):
                 # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
+                chromosomes.append(key)
                 seq_dict.update({key: value.strip()})
 
             key = line.strip().strip('>')
@@ -36,10 +41,14 @@ def fasta_to_dictionary(fasta_file):
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
     # Save the last kay value pair
-    seq_dict.update({sub('>', '', key.strip()): value.strip()})
-
+    seq_dict.update({re.sub('>', '', key.strip()): value.strip()})
     file.close()
-    return seq_dict
+
+    return seq_dict, chromosomes
+
+
+def is_valid_chr(chromosome):
+    return not not re.search(r'^(chr)*((\d{1,3})|(M|m|MT|mt|x|X|y|Y))$', chromosome)
 
 
 def parse_wig_header(line):
