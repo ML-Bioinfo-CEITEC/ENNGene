@@ -103,11 +103,14 @@ class Dataset:
             df.columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
         else:
             raise Exception('Invalid format of a .bed file.')
-
         df['klass'] = self.klass
-        df = df[df['chrom_name'].isin(seq.VALID_CHRS)]
-        df = Dataset.apply_window(df, window_size, window_seed)
 
+        # TODO is it possible to do that in one line using just boolean masking? (could not manage that...)
+        def check_valid(row):
+            return row if seq.is_valid_chr(row['chrom_name']) else None
+
+        df = df.apply(check_valid, axis=1, result_type='broadcast').dropna()
+        df = Dataset.apply_window(df, window_size, window_seed)
         return df
 
     def reduce(self, ratio, seed):
