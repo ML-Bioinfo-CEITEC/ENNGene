@@ -28,12 +28,15 @@ To select a task browse the select box in the side panel.
 For now, all input files (or folders) must be defined by an absolute path.
 
 #### Data Preprocessing
+# TODO update info about fasta reference and chromosomes available, 
+warn about the read_and_cache, can be ignored by user, cant be removed
 In the first module, RNA or DNA sequence data are prepared to be fed into a neural network. 
 
 You must select one or more **branches** corresponding to different ways of data manipulation.
 * Raw sequence - select this branch if you wish to use pure sequence (one-hot encoded) as input. Requires reference genome in fasta file. 
 * Conservation score - original sequence gets mapped against reference conservation files (the reference  files are required). 
 * Secondary structure - secondary structure is estimated by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package and the values are then one-hot encoded.
+(Also requires the reference genome in fasta file).
 
 All the samples fed to the neural network must be of the same length, which can be defined by **window size**.
 Long sequences get shortened, while short sequences are filled in based on the reference by randomly placing window of selected size on the original sequence. 
@@ -44,7 +47,11 @@ Each input file is handled as a separate class during model training (note that 
 Selected class/es can be reduced to **target size** (again, use **seed** for reproducibility).
 
 Supplied data must be split into training, validation and testing datasets (blackbox dataset is not used for now). 
-This can be done either by choosing particular chromosomes per each category (currently based on human genome), or randomly based on defined **ratio** (again, use **seed** for reproducibility).
+This can be done either by choosing particular chromosomes per each category, or randomly, based on defined **ratio** (again, use **seed** for reproducibility).
+If you choose to separate categories by chromosomes, fasta file with reference genome must be provided (the same one required for raw sequence and secondary structure branches).
+List of available chromosomes is then inferred from the provided genome file (scaffolds are ignored) - that may take up to few minutes.
+(Note: When selecting the chromosomes per category Streamlit will issue a warning 'Running read_and_cache(...).'. 
+You may disregard that and continue selecting, filling in other attributes, or hit the run button to start processing the files.)
 
 After all the parameters are set and selected, press the **run** button. The preprocessing might take several minutes to hours, depending on amounts of data and branches selected.
 Files with processed datasets are exported to the **output folder** defined at the beginning. 
