@@ -63,6 +63,8 @@ class Train(Subcommand):
                           'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
             self.lr_optim = lr_options[st.radio('Learning rate options',
                 list(lr_options.keys()))]
+        else:
+            self.lr_optim = None
         self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
         self.loss = self.LOSSES[st.selectbox('Loss function', list(self.LOSSES.keys()))]
 
@@ -262,22 +264,23 @@ class Train(Subcommand):
 
         callbacks = [mcp, earlystopper, csv_logger, progress]
 
-        if lr_optim == 'lr_finder':
-            callbacks.append(LRFinder(num_samples=sample,
-                                      batch_size=sample//30,
-                                      minimum_lr=1e-5,
-                                      maximum_lr=1e0,
-                                      lr_scale='exp',
-                                      save_dir=out_dir))
-        elif lr_optim == 'one_cycle':
-            callbacks.append(OneCycleLR(max_lr=lr,
-                                        end_percentage=0.1,
-                                        scale_percentage=None,
-                                        maximum_momentum=0.95,
-                                        minimum_momentum=0.85,
-                                        verbose=True))
-        elif lr_optim == 'lr_scheduler':
-            callbacks.append(Train.step_decay_schedule())
+        if lr_optim:
+            if lr_optim == 'lr_finder':
+                callbacks.append(LRFinder(num_samples=sample,
+                                          batch_size=sample//30,
+                                          minimum_lr=1e-5,
+                                          maximum_lr=1e0,
+                                          lr_scale='exp',
+                                          save_dir=out_dir))
+            elif lr_optim == 'one_cycle':
+                callbacks.append(OneCycleLR(max_lr=lr,
+                                            end_percentage=0.1,
+                                            scale_percentage=None,
+                                            maximum_momentum=0.95,
+                                            minimum_momentum=0.85,
+                                            verbose=True))
+            elif lr_optim == 'lr_scheduler':
+                callbacks.append(Train.step_decay_schedule())
 
         if tb:
             callbacks.append(TensorBoard(log_dir=out_dir, histogram_freq=1, profile_batch=3))
