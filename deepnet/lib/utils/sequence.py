@@ -12,10 +12,8 @@ DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
 def read_and_cache(fasta):
-    status = st.empty()
-    status.markdown('Parsing reference fasta file to infer the available chromosomes. Might take up to few minutes...')
-    parsed = parse_fasta_reference(fasta)
-    status.markdown('')
+    with st.spinner('Parsing reference fasta file to infer the available chromosomes. Might take up to few minutes...'):
+        parsed = parse_fasta_reference(fasta)
     return parsed
 
 

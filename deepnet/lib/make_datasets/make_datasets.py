@@ -111,6 +111,7 @@ class MakeDatasets(Subcommand):
             self.splitratio_list = st.text_input(
                 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 value='8:2:2:1').split(':')
+            st.markdown('Note: The blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
         st.markdown('---')

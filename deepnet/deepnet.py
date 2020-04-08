@@ -25,13 +25,18 @@ class DeepNet:
         st.sidebar.title('Deepnet App')
 
         available_subcommands = {'Preprocess Data': 'make_datasets',
-                                 # 'Tune hyperparameters': 'train',
                                  'Train a Model': 'train'}
 
         subcommand = available_subcommands[st.sidebar.selectbox(
             'Select a task to be run:',
             list(available_subcommands.keys())
         )]
+
+        st.sidebar.markdown('')
+        st.sidebar.markdown('[Documentation](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/README.md)')
+        st.sidebar.markdown('[FAQ](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/FAQ.md)')
+        st.sidebar.markdown('[GitLab](https://gitlab.com/RBP_Bioinformatics/deepnet)')
+
         logger.debug(f'DeepNet started with the following subcommand: {subcommand}')
 
         module_path = f'lib.{subcommand}.{subcommand}'
