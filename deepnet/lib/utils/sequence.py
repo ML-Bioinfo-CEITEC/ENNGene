@@ -41,8 +41,10 @@ def parse_fasta_reference(fasta_file):
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
     # Save the last kay value pair
-    seq_dict.update({re.sub('>', '', key.strip()): value.strip()})
+    chromosomes.append(key)
+    seq_dict.update({key: value.strip()})
     file.close()
+    chromosomes.sort()
 
     return seq_dict, chromosomes
 
