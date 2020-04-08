@@ -10,9 +10,13 @@ logger = logging.getLogger('main')
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
-@st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None})
+@st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
 def read_and_cache(fasta):
-    return parse_fasta_reference(fasta)
+    status = st.empty()
+    status.markdown('Parsing reference fasta file to infer the available chromosomes. Might take up to few minutes...')
+    parsed = parse_fasta_reference(fasta)
+    status.markdown('')
+    return parsed
 
 
 def parse_fasta_reference(fasta_file):
@@ -41,8 +45,10 @@ def parse_fasta_reference(fasta_file):
                 raise Exception("Please provide a valid Fasta file (with '>' identifier).")
 
     # Save the last kay value pair
-    seq_dict.update({re.sub('>', '', key.strip()): value.strip()})
+    chromosomes.append(key)
+    seq_dict.update({key: value.strip()})
     file.close()
+    chromosomes.sort()
 
     return seq_dict, chromosomes
 

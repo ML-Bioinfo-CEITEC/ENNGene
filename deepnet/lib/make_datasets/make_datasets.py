@@ -86,14 +86,15 @@ class MakeDatasets(Subcommand):
             list(split_options.keys()))]
         if self.split == 'by_chr':
             fasta = self.references['seq'] if ('seq' in self.references.keys()) else None
-            st.markdown('Note: Fasta file with reference genome must be provided to infer available chromosomes.')
+            st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
             if 'seq' not in self.references.keys():
                 st.markdown('**Please fill in a path to the fasta file below.**')
                 fasta = st.text_input('Path to reference fasta file')
             if fasta:
-                st.markdown('Parsing reference fasta file to infer the available chromosomes. Might take up to few minutes...')
                 fasta_dict, self.valid_chromosomes = seq.read_and_cache(fasta)
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
+
+                st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, and continue selecting even while it's present.")
 
                 self.chromosomes = {}
                 self.chromosomes.update({'validation':

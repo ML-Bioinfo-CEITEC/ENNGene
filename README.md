@@ -28,8 +28,6 @@ To select a task browse the select box in the side panel.
 For now, all input files (or folders) must be defined by an absolute path.
 
 #### Data Preprocessing
-# TODO update info about fasta reference and chromosomes available, 
-warn about the read_and_cache, can be ignored by user, cant be removed
 In the first module, RNA or DNA sequence data are prepared to be fed into a neural network. 
 
 You must select one or more **branches** corresponding to different ways of data manipulation.
