@@ -9,7 +9,7 @@ class ModelBuilder:
 
     def __init__(self, branches=None, labels=None, branch_shapes=None, branches_layers=None, common_layers=None):
         if not branches and labels and branch_shapes and branches_layers and common_layers:
-            raise
+            raise AttributeError('Missing parameters to build a model.')
         self.branches = branches
         self.labels = labels
         self.branch_shapes = branch_shapes

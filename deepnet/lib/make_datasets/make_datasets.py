@@ -1,5 +1,4 @@
 import datetime
-import logging
 import os
 import streamlit as st
 
@@ -7,8 +6,6 @@ from ..utils.dataset import Dataset
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
-
-logger = logging.getLogger('main')
 
 
 # noinspection DuplicatedCode

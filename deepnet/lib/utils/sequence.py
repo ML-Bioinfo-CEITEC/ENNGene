@@ -1,11 +1,9 @@
-import logging
 import re
 import streamlit as st
 import _io
 
 from . import file_utils as f
-
-logger = logging.getLogger('main')
+from .exceptions import UserInputError
 
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
@@ -39,8 +37,7 @@ def parse_fasta_reference(fasta_file):
             if key:
                 value += line.strip()
             else:
-                logger.exception('Exception occurred.')
-                raise Exception("Please provide a valid Fasta file (with '>' identifier).")
+                raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
     # Save the last kay value pair
     chromosomes.append(key)
@@ -64,9 +61,7 @@ def parse_wig_header(line):
     header.update({'file_type': file_type})
 
     if file_type not in ['fixedStep', 'variableStep']:
-        logger.exception('Exception occurred.')
-        raise Exception(
-            f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
+        raise UserInputError(f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
 
     for part in parts:
         key, value = part.split('=')
@@ -106,8 +101,7 @@ def complement(sequence_list, dictionary):
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list' and class_name != 'ndarray':
-        logger.exception('Exception occurred.')
-        raise Exception(f'Alphabet must be a List. Instead, object of class {class_name} was provided.')
+        raise ValueError('Alphabet must be a List. Instead, object of class {class_name} was provided.')
 
     encoded_alphabet = {}
     for i, char in enumerate(alphabet):
@@ -131,13 +125,10 @@ def translate(char, encoding):
     if not char:
         return None
     if not encoding or not (encoding.__class__.__name__ == 'dict'):
-        logger.exception('Exception occurred.')
-        raise Exception('')
+        raise ValueError('Encoding missing...')
 
     if char.lower() in encoding.keys():
         return encoding[char.lower()]
     else:
-        warning = f"Invalid character '{char}' found. " \
-                  "Provided encoding must contain all possible characters (case-insensitive)."
-        logger.exception('Exception occurred.')
-        raise Exception(warning)
+        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. " \
+                            "Provided encoding must contain all possible characters (case-insensitive).")

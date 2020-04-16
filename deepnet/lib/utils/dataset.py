@@ -9,10 +9,11 @@ import tempfile
 from functools import reduce
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from ..utils.exceptions import UserInputError, ProcessError
 from . import file_utils as f
 from . import sequence as seq
 
-logger = logging.getLogger('main')
+logger = logging.getLogger('root')
 
 
 class Dataset:
@@ -102,7 +103,7 @@ class Dataset:
             df = df[[0, 1, 2, 5]]
             df.columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
         else:
-            raise Exception('Invalid format of a .bed file.')
+            raise UserInputError('Invalid format of a .bed file.')
         df['klass'] = self.klass
 
         # TODO is it possible to do that in one line using just boolean masking? (could not manage that...)
@@ -132,13 +133,13 @@ class Dataset:
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq':
-                logger.debug(f'Mapping sequences to fasta reference for sequence branch...')
+                logger.info(f'Mapping sequences to fasta reference for sequence branch...')
                 self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, encoding, strand)
             elif branch == 'cons':
-                logger.debug(f'Mapping sequences to wig reference for conservation branch...')
+                logger.info(f'Mapping sequences to wig reference for conservation branch...')
                 self.df = Dataset.map_to_wig(branch, self.df, reference)
             elif branch == 'fold':
-                logger.debug(f'Mapping and folding sequences for structure branch...')
+                logger.info(f'Mapping and folding sequences for structure branch...')
                 df = Dataset.map_to_fasta_dict(self.df, branch, reference, False, strand)
                 self.df = Dataset.fold_branch(df, branch, ncpu, dna=True)
 
@@ -153,7 +154,7 @@ class Dataset:
         self.df.to_csv(outfile_path, sep='\t', index=False)
 
         if do_zip:
-            logger.debug(f'Compressing dataset file...')
+            logger.info(f'Compressing dataset file...')
             zipped = ZipFile(f'{outfile_path}.zip', 'w')
             zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
             zipped.close()
@@ -186,7 +187,7 @@ class Dataset:
         df.dropna(subset=[branch], inplace=True)
 
         portion = round((df.shape[0] / old_shape * 100), 2)
-        logger.debug(f'Successfully mapped {portion}% of samples.')
+        logger.info(f'Successfully mapped {portion}% of samples.')
         return df
 
     @staticmethod
@@ -269,8 +270,7 @@ class Dataset:
                     if 'chrom' in line:
                         current_header = seq.parse_wig_header(line)
                     else:
-                        logger.exception('Exception occurred.')
-                        raise Exception('File not starting with a proper wig header.')
+                        raise UserInputError('File not starting with a proper wig header.')
                     result = Dataset.map_datapoint_to_wig(
                         score, zipped, row['seq_start'], row['seq_end'], current_file, current_header,
                         parsed_line)
@@ -284,10 +284,10 @@ class Dataset:
                     if len(files) == 0:
                         # TODO or rather raise an exception to let user fix it?
                         # Anyway, let the user know if none were found, thus the path given is wrong (currently it looks like it went through)
-                        logger.debug(
+                        logger.warning(
                             f"Didn\'t find appropriate conservation file for {row['chrom_name']}, skipping the chromosome.")
                     else:  # len(files) > 1
-                        logger.debug(f"Found multiple conservation files for {row['chrom_name']}, skipping the chromosome.")
+                        logger.warning(f"Found multiple conservation files for {row['chrom_name']}, skipping the chromosome.")
                     continue
 
             if score and len(score) == (row['seq_end'] - row['seq_start']):
@@ -390,7 +390,7 @@ class Dataset:
                         value.append(seq.translate(char, fold_encoding))
                     new_df.loc[index, branch] = Dataset.sequence_to_string(value)
         else:
-            raise Exception(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
+            raise ProcessError(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
             # We probably have no way to determine which were not folded if this happens
             sys.exit()
 
