@@ -19,8 +19,7 @@ try:
         logger.addHandler(console_handler)
         logger.addHandler(file_handler)
 except Exception as err:
-    st.warning(f'Failed to load logger, can not continue...')
-    raise err
+    st.warning(f'Failed to load logger, continuing without logging...')
 
 
 def deepNet():
