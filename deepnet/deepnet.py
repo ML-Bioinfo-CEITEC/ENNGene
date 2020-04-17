@@ -7,16 +7,17 @@ try:
     logger = logging.getLogger('root')
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',  datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    file_handler = logging.FileHandler('app.log', mode='a')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
+    if len(logger.handlers) == 0:  # TODO improve condition to check for the exact handler
+        file_handler = logging.FileHandler('app.log', mode='a')
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-    console_handler.setFormatter(formatter)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(formatter)
 
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
 except Exception as err:
     st.warning(f'Failed to load logger, can not continue...')
     raise err
