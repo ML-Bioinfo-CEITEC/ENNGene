@@ -123,7 +123,7 @@ class MakeDatasets(Subcommand):
     def run(self):
         status = st.empty()
 
-        datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
         self.ensure_dir(datasets_dir)
 
         # zipped_files = f.list_files_in_dir(datasets_dir, 'zip')

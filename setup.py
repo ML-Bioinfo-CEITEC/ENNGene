@@ -92,7 +92,7 @@ setup(
     packages=find_packages('deepnet'),
     install_requires=REQUIRED,
     include_package_data=True,
-    license='MIT',
+    license='GNU Affero General Public License v3',
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
