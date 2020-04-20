@@ -230,6 +230,8 @@ class Train(Subcommand):
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:
             json_file.write(model_json)
+
+        self.finalize_run(logger, train_dir)
         status.text('Finished!')
     
     @staticmethod

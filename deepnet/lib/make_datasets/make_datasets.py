@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import streamlit as st
 
@@ -6,6 +7,9 @@ from ..utils.dataset import Dataset
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
+
+
+logger = logging.getLogger('root')
 
 
 # noinspection DuplicatedCode
@@ -197,5 +201,6 @@ class MakeDatasets(Subcommand):
             file_path = os.path.join(dir_path, dataset.category)
             dataset.save_to_file(file_path, do_zip=True)
 
+        self.finalize_run(logger, datasets_dir)
         status.text('Finished!')
         return final_datasets

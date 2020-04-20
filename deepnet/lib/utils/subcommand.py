@@ -1,8 +1,7 @@
-import argparse
 from datetime import datetime
 import os
+import shutil
 import streamlit as st
-import sys
 
 
 # noinspection PyAttributeOutsideInit
@@ -40,3 +39,9 @@ class Subcommand:
     def ensure_dir(dir_path):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+
+    @staticmethod
+    def finalize_run(logger, out_dir):
+        logfile_path = logger.handlers[0].baseFilename
+        logfile_name = os.path.basename(logfile_path)
+        shutil.move(logfile_path, os.path.join(out_dir, logfile_name))
