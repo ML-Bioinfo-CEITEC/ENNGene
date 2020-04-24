@@ -9,7 +9,7 @@ import tempfile
 from functools import reduce
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from ..utils.exceptions import UserInputError, ProcessError
+from .exceptions import UserInputError, ProcessError
 from . import file_utils as f
 from . import sequence as seq
 

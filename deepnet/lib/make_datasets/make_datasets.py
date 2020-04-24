@@ -43,7 +43,7 @@ class MakeDatasets(Subcommand):
             consdir = st.text_input('Path to folder containing reference conservation files')
             self.references.update({'cons': consdir})
 
-        self.win = int(st.number_input('Window size', min_value=0, max_value=500, value=100))
+        self.win = int(st.number_input('Window size', min_value=3, max_value=500, value=100))
         self.winseed = int(st.number_input('Seed for semi-random window placement upon the sequences', value=42))
 
         st.markdown('## Input Coordinate Files')
@@ -53,7 +53,7 @@ class MakeDatasets(Subcommand):
 
         warning = st.empty()
         self.input_files = []
-        no_files = st.number_input('Number of input files (= no. of classes):', min_value=0, value=0)
+        no_files = st.number_input('Number of input files (= no. of classes):', min_value=1, value=1)
         for i in range(no_files):
             self.input_files.append(st.text_input(f'File no. {i+1} (.bed)'))
 
