@@ -4,7 +4,6 @@ import os
 import streamlit as st
 
 from ..utils.dataset import Dataset
-from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
@@ -88,7 +87,7 @@ class MakeDatasets(Subcommand):
             self.reduceratio = {}
             for klass in self.reducelist:
                 self.reduceratio.update({klass: float(st.number_input("Target {} dataset size".format(klass),
-                                                                      min_value=0.0, max_value=1.0, value=0.5))})
+                                                                      min_value=0.01, max_value=1.0, value=0.5))})
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',

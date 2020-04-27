@@ -46,11 +46,11 @@ class Train(Subcommand):
 
         st.markdown('## Training Options')
         # TODO make sure batch size is smaller than dataset size
-        self.batch_size = st.number_input('Batch size', min_value=0, value=256)
-        self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
+        self.batch_size = st.number_input('Batch size', min_value=1, value=256)
+        self.epochs = st.number_input('No. of training epochs', min_value=1, value=100)
         self.early_stop = st.checkbox('Apply early stopping', value=True)
         self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
-        self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
+        self.lr = st.number_input('Learning rate', min_value=0.0001, max_value=0.1, value=0.005, step=0.0001, format='%.4f')
         if self.optimizer == 'sgd':
             # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
             lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
