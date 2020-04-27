@@ -53,6 +53,7 @@ class Train(Subcommand):
         # TODO make sure batch size is smaller than dataset size
         self.batch_size = st.number_input('Batch size', min_value=0, value=256)
         self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
+        self.early_stop = st.checkbox('Apply early stopping', value=True)
         self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
         self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
         if self.optimizer == 'sgd':
@@ -202,7 +203,7 @@ class Train(Subcommand):
         chart = st.altair_chart(self.initialize_altair_chart())
 
         callbacks = self.create_callbacks(
-            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.batch_size,
+            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.early_stop,
             self.lr, branch_shapes[self.branches[0]][0])
 
         if self.lr_optim == 'lr_finder': self.epochs = 1
@@ -241,16 +242,10 @@ class Train(Subcommand):
         return LearningRateScheduler(schedule)
 
     @staticmethod
-    def create_callbacks(out_dir, lr_optim, tb, epochs, progress_bar, progress_status, chart, bs, lr, sample):
+    def create_callbacks(out_dir, lr_optim, tb, epochs, progress_bar, progress_status, chart, early_stop, lr, sample):
         mcp = ModelCheckpoint(filepath=out_dir + '/model.hdf5',
                               verbose=0,
                               save_best_only=True)
-
-        earlystopper = EarlyStopping(monitor='val_loss',
-                                     patience=50,
-                                     min_delta=0.01,
-                                     verbose=1,
-                                     mode='auto')
 
         csv_logger = CSVLogger(out_dir + '/log.csv',
                                append=True,
@@ -258,7 +253,15 @@ class Train(Subcommand):
 
         progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
 
-        callbacks = [mcp, earlystopper, csv_logger, progress]
+        callbacks = [mcp, csv_logger, progress]
+
+        if early_stop:
+            earlystopper = EarlyStopping(monitor='val_loss',
+                                         patience=50,
+                                         min_delta=0.01,
+                                         verbose=1,
+                                         mode='auto')
+            callbacks.append(earlystopper)
 
         if lr_optim:
             if lr_optim == 'lr_finder':
