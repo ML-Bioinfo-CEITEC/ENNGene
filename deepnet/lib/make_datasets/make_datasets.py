@@ -16,6 +16,13 @@ logger = logging.getLogger('root')
 class MakeDatasets(Subcommand):
 
     def __init__(self):
+        self.validation_hash = {'is_bed': [],
+                                'is_fasta': [],
+                                'is_wig_dir': [],
+                                'not_empty_branches': [],
+                                'min_one_file': [],
+                                'is_ratio': []}
+
         st.markdown('# Data Preprocessing')
 
         # TODO add show/hide separate section after stateful operations are allowed
@@ -39,9 +46,11 @@ class MakeDatasets(Subcommand):
         if 'seq' in self.branches or 'fold' in self.branches:
             fasta = st.text_input('Path to reference fasta file')
             self.references.update({'seq': fasta, 'fold': fasta})
+            self.validation_hash['is_fasta'].append(fasta)
         if 'cons' in self.branches:
             consdir = st.text_input('Path to folder containing reference conservation files')
             self.references.update({'cons': consdir})
+            self.validation_hash['is_wig_dir'].append(consdir)
 
         self.win = int(st.number_input('Window size', min_value=3, max_value=500, value=100))
         self.winseed = int(st.number_input('Seed for semi-random window placement upon the sequences', value=42))
@@ -56,11 +65,13 @@ class MakeDatasets(Subcommand):
         no_files = st.number_input('Number of input files (= no. of classes):', min_value=1, value=1)
         for i in range(no_files):
             self.input_files.append(st.text_input(f'File no. {i+1} (.bed)'))
+        self.validation_hash['min_one_file'].append(list(filter(str.strip, self.input_files)))
 
         self.klasses = []
         self.allowed_extensions = ['.bed', '.narrowPeak']
         for file in self.input_files:
             if not file: continue
+            self.validation_hash['is_bed'].append(file)
             file_name = os.path.basename(file)
             if any(ext in file_name for ext in self.allowed_extensions):
                 for ext in self.allowed_extensions:
@@ -112,13 +123,11 @@ class MakeDatasets(Subcommand):
             self.splitratio_list = st.text_input(
                 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 value='8:2:2:1').split(':')
+            self.validation_hash['is_ratio'].append(self.splitratio_list)
             st.markdown('Note: The blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
-        st.markdown('---')
-        if st.button('Run preprocessing'):
-            # TODO check input presence & validity, if OK continue to run
-            self.run()
+        self.validate_and_run(self.validation_hash)
 
     def run(self):
         status = st.empty()

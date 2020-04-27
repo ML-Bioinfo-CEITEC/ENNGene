@@ -31,21 +31,16 @@ class Train(Subcommand):
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
 
     def __init__(self):
+        self.validation_hash = {'not_empty_branches': [],
+                                'is_dataset_dir': []}
+
         st.markdown('# Train a Model')
 
         st.markdown('## General Options')
         self.add_general_options()
 
-        input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
-        warning_on_input = st.empty()
-        if input_folder:
-            files = f.list_files_in_dir(input_folder, 'zip')
-            dss = ['train', 'validation', 'test']
-            # TODO this does not check that each of them is present exactly once
-            self.dataset_files = [file for file in files if any(ds in file for ds in dss)]
-            if len(self.dataset_files) < 3:
-                warning_on_input.markdown(
-                    '**WARNING: Selected folder does not contain all the datasets (train, validation, test).**')
+        self.input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
+        self.validation_hash['is_dataset_dir'].append(self.input_folder)
 
         self.tb = st.checkbox('Output TensorBoard log files', value=False)
 
@@ -117,11 +112,7 @@ class Train(Subcommand):
             else:
                 self.common_layers.append(layer)
 
-        st.markdown('---')
-        if st.button('Train a model'):
-            # self.check_required()
-            # TODO check input presence & validity, if OK continue to run
-            self.run()
+        self.validate_and_run(self.validation_hash)
 
     @staticmethod
     # TODO adjust when stateful ops enabled
@@ -179,6 +170,9 @@ class Train(Subcommand):
         status = st.empty()
         status.text('Initializing network...')
 
+        candidate_files = f.list_files_in_dir(self.input_folder, 'zip')
+        cateogires = ['train', 'validation', 'test']  # TODO add blackbox when in use
+        self.dataset_files = [file for file in candidate_files if any(category in file for category in cateogires)]
 
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.branches, labels)
