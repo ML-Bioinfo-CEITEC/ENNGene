@@ -40,8 +40,9 @@ def parse_fasta_reference(fasta_file):
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
     # Save the last kay value pair
-    chromosomes.append(key)
-    seq_dict.update({key: value.strip()})
+    if key and is_valid_chr(key):
+        chromosomes.append(key)
+        seq_dict.update({key: value.strip()})
     file.close()
     chromosomes.sort()
 
