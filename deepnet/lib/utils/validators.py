@@ -1,5 +1,6 @@
 import os
 
+from .dataset import Dataset
 from . import file_utils as f
 
 
@@ -108,7 +109,7 @@ def is_dataset_dir(folder):
         for file in files:
             category = next((category for category in dataset_files.keys() if category in file), None)
             if category: dataset_files[category].append(file)
-        for _, files in dataset_files.items():
+        for category, files in dataset_files.items():
             if len(files) != 1:
                 invalid = True
                 warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
@@ -119,5 +120,24 @@ def is_dataset_dir(folder):
     else:
         invalid = True
         warning = 'Given folder with preprocessed files does not exist.'
+
+    return warning if invalid else None
+
+
+def is_full_dataset(file_path=None, branches=None):
+    invalid = False
+    try:
+        dataset = Dataset.load_from_file(file_path)
+        category = dataset.category
+        base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
+        if category or not all(col in dataset.df.columns for col in base_columns):
+            invalid = True
+            warning = 'Given mapped file does not contain necessary data. Please check the file.'
+        if not all(col in dataset.df.columns for col in branches):
+            invalid = True
+            warning = 'Given mapped file does not contain selected branches.'
+    except Exception:
+        invalid = True
+        warning = 'Sorry, could not parse given mapped file. Please check the file.'
 
     return warning if invalid else None

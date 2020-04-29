@@ -51,7 +51,10 @@ class Subcommand:
         warnings = []
         for validator, items in validation_hash.items():
             for item in items:
-                warnings.append(getattr(validators, validator)(item))
+                if type(item) == dict:
+                    warnings.append(getattr(validators, validator)(**item))
+                else:
+                    warnings.append(getattr(validators, validator)(item))
 
         return list(filter(None, warnings))
 

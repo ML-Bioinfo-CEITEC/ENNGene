@@ -1,7 +1,9 @@
+import _io
 import logging
 import numpy as np
 import os
 import pandas as pd
+import streamlit as st
 import subprocess
 import sys
 import tempfile
@@ -17,6 +19,15 @@ logger = logging.getLogger('root')
 
 
 class Dataset:
+
+    @classmethod
+    @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
+    def load_and_cache(cls, file_path):
+        with st.spinner('Reading in the mapped file. Might take up to few minutes...'):
+            full_dataset = cls.load_from_file(file_path)
+            klasses = list(full_dataset.df['klass'].unique())
+            valid_chromosomes = list(full_dataset.df['chrom_name'].unique())
+        return klasses, valid_chromosomes
 
     @classmethod
     def load_from_file(cls, file_path):
