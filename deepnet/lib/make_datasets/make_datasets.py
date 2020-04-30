@@ -131,22 +131,20 @@ class MakeDatasets(Subcommand):
                     and continue selecting even while it's present.")
 
                 self.chromosomes = {}
+                self.chromosomes.update({'train':
+                                             set(st.multiselect('Training Dataset', self.valid_chromosomes, None))})
                 self.chromosomes.update({'validation':
                                              set(st.multiselect('Validation Dataset', self.valid_chromosomes, None))})
                 self.chromosomes.update({'test':
                                              set(st.multiselect('Test Dataset', self.valid_chromosomes, None))})
                 self.chromosomes.update({'blackbox':
                                              set(st.multiselect('BlackBox Dataset', self.valid_chromosomes, None))})
-                # default_train_set = list(self.valid_chromosomes - self.chromosomes['validation'] - self.chromosomes['test'] -
-                #                      self.chromosomes['blackbox'])
-                self.chromosomes.update({'train':
-                                             set(st.multiselect('Training Dataset', self.valid_chromosomes, None))})
         elif self.split == 'rand':
             self.splitratio_list = st.text_input(
                 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 value='8:2:2:1').split(':')
             self.validation_hash['is_ratio'].append(self.splitratio_list)
-            st.markdown('Note: The blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
+            st.markdown('Note: blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
         self.validate_and_run(self.validation_hash)
