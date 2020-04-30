@@ -12,7 +12,6 @@ try:
 
     if any(type(handler) == logging.FileHandler for handler in logger.handlers):
         file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler][0]
-        print(file_handler)
         if not os.path.isfile(file_handler.baseFilename):
             logger.removeHandler(file_handler)
 
@@ -67,6 +66,8 @@ if __name__ == '__main__':
         st.warning(f'{err}\n Exiting...')
     except Exception as err:
         logger.exception(f'{err.__class__.__name__}: {err}')
-        logfile_path = logger.handlers[0].baseFilename
+        file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
+        if file_handler:
+            logfile_path = file_handler[0].baseFilename
         st.warning(
             f'Unexpected error occurred in the application. Exiting... \n For more details check the log file at {logfile_path}.')

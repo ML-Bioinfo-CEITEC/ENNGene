@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import os
 import shutil
 import streamlit as st
@@ -71,6 +72,8 @@ class Subcommand:
 
     @staticmethod
     def finalize_run(logger, out_dir):
-        logfile_path = logger.handlers[0].baseFilename
-        logfile_name = os.path.basename(logfile_path)
-        shutil.move(logfile_path, os.path.join(out_dir, logfile_name))
+        file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
+        if file_handler:
+            logfile_path = file_handler[0].baseFilename
+            logfile_name = os.path.basename(logfile_path)
+            shutil.move(logfile_path, os.path.join(out_dir, logfile_name))
