@@ -141,3 +141,14 @@ def is_full_dataset(file_path=None, branches=None):
         warning = 'Sorry, could not parse given mapped file. Please check the file.'
 
     return warning if invalid else None
+
+
+def not_empty_chromosomes(chromosomes_list):
+    invalid = False
+    for category, chromosomes in chromosomes_list:
+        if category == 'blackbox': continue  # remove when blackbox category usage is implemented
+        if not chromosomes:
+            invalid = True
+            warning = 'You must select at least one chromosome per each category.'
+
+    return warning if invalid else None

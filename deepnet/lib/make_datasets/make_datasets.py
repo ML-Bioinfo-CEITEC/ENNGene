@@ -22,7 +22,8 @@ class MakeDatasets(Subcommand):
                                 'not_empty_branches': [],
                                 'min_one_file': [],
                                 'is_full_dataset': [],
-                                'is_ratio': []}
+                                'is_ratio': [],
+                                'not_empty_chromosomes': []}
         self.valid_chromosomes = []
         self.klasses = []
 
@@ -140,6 +141,7 @@ class MakeDatasets(Subcommand):
                                              set(st.multiselect('Test Dataset', self.valid_chromosomes, None))})
                 # self.chromosomes.update({'blackbox':
                 #                              set(st.multiselect('BlackBox Dataset', self.valid_chromosomes, None))})
+                self.validation_hash['not_empty_chromosomes'].append(list(self.chromosomes.items()))
         elif self.split == 'rand':
             self.splitratio_list = st.text_input(
                 # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
