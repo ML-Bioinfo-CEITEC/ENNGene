@@ -114,12 +114,18 @@ class MakeDatasets(Subcommand):
             'Choose a way to split Datasets into train, test and validation categories:',
             list(split_options.keys()))]
         if self.split == 'by_chr':
-            if not self.use_mapped:
-                fasta = self.references['seq'] if ('seq' in self.references.keys()) else None
-                st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
-                if 'seq' not in self.references.keys():
+            if self.use_mapped:
+                if not self.full_dataset_file:
+                    st.markdown('(The mapped file must be provided first to infer available chromosomes.)')
+            else:
+                if 'seq' in self.references.keys():
+                    fasta = self.references['seq']
+                    if not fasta:
+                        st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
+                else:
                     st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
                     fasta = st.text_input('Path to reference fasta file')
+
                 if fasta:
                     try:
                         fasta_dict, self.valid_chromosomes = seq.read_and_cache(fasta)
