@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import shutil
 import streamlit as st
 
 from ..utils.dataset import Dataset
@@ -164,10 +165,14 @@ class MakeDatasets(Subcommand):
 
         datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
         self.ensure_dir(datasets_dir)
+        full_data_dir_path = os.path.join(datasets_dir, 'full_datasets')
+        self.ensure_dir(full_data_dir_path)
+        full_data_file_path = os.path.join(full_data_dir_path, 'merged_all')
 
         if self.use_mapped:
             status.text('Reading in already mapped file with all the samples...')
             merged_dataset = Dataset.load_from_file(self.full_dataset_file)
+            shutil.copyfile(self.full_dataset_file, full_data_file_path)
             # Keep only selected branches
             cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.branches
             merged_dataset.df = merged_dataset.df[cols]
@@ -199,15 +204,11 @@ class MakeDatasets(Subcommand):
                 fasta_dict, _ = seq.parse_fasta_reference(self.references['seq'])
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            dir_path = os.path.join(datasets_dir, 'full_datasets')
-            self.ensure_dir(dir_path)
-            outfile_path = os.path.join(dir_path, 'merged_all')
-
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
                 f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, encoding, self.strand, outfile_path, self.ncpu)
+                self.references, encoding, self.strand, full_data_file_path, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
