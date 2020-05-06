@@ -49,8 +49,9 @@ class Dataset:
         return split_datasets
 
     @classmethod
-    def split_random(cls, dataset, ratio_list, seed):
+    def split_random(cls, dataset, ratio, seed):
         # so far the categories are fixed, not sure if there would be need for custom categories
+        ratio_list = ratio.split(':') + [0]  # zero for blackbox for now
         ratio_list = [float(x) for x in ratio_list]
         dataset_size = dataset.df.shape[0]
         total = sum(ratio_list)

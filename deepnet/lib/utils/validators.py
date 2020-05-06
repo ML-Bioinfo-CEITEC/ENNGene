@@ -86,7 +86,7 @@ def is_wig_dir(folder):
 
 def is_ratio(string):
     invalid = False
-    if ':' in string and len(string.split(':')) == 4:
+    if (':' in string) and len(string.split(':')) == 3:  # adjust when blackbox is used
         try:
             ints = [int(part) for part in string.split(':')]
         except Exception:

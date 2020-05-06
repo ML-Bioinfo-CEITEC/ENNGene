@@ -149,11 +149,11 @@ class MakeDatasets(Subcommand):
                 #                              set(st.multiselect('BlackBox Dataset', self.valid_chromosomes, None))})
                 self.validation_hash['not_empty_chromosomes'].append(list(self.chromosomes.items()))
         elif self.split == 'rand':
-            self.splitratio_list = st.text_input(
+            self.split_ratio = st.text_input(
                 # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 'List a target ratio between the categories (required format: train:validation:test)',
-                value='8:2:2').split(':')
-            self.validation_hash['is_ratio'].append(self.splitratio_list)
+                value='8:2:2')
+            self.validation_hash['is_ratio'].append(self.split_ratio)
             # st.markdown('Note: blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
             self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
 
@@ -227,7 +227,7 @@ class MakeDatasets(Subcommand):
             if self.split == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
             elif self.split == 'rand':
-                split_subdatasets = Dataset.split_random(dataset, self.splitratio_list, self.split_seed)
+                split_subdatasets = Dataset.split_random(dataset, self.split_ratio, self.split_seed)
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
