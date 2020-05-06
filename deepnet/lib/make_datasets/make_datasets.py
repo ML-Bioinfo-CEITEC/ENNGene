@@ -98,14 +98,16 @@ class MakeDatasets(Subcommand):
                 except Exception:
                     raise UserInputError('Invalid dataset file!')
 
-            st.markdown('## Dataset Size Reduction')
-            self.reducelist = st.multiselect('Classes to be reduced (first specify input files)', self.klasses)
-            if self.reducelist:
-                self.reduceseed = int(st.number_input('Seed for semi-random reduction of number of samples', value=112))
-                self.reduceratio = {}
-                for klass in self.reducelist:
-                    self.reduceratio.update({klass: float(st.number_input("Target {} dataset size".format(klass),
-                                                                          min_value=0.01, max_value=1.0, value=0.5))})
+        st.markdown('## Dataset Size Reduction')
+        st.markdown('Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+                    'splitting the dataset by chromosomes, some categories might end up empty.')
+        self.reducelist = st.multiselect('Classes to be reduced (first specify input files)', self.klasses)
+        if self.reducelist:
+            self.reduceseed = int(st.number_input('Seed for semi-random reduction of number of samples', value=112))
+            self.reduceratio = {}
+            for klass in self.reducelist:
+                self.reduceratio.update({klass: float(st.number_input("Target {} dataset size".format(klass),
+                                                                      min_value=0.01, max_value=1.0, value=0.5))})
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
