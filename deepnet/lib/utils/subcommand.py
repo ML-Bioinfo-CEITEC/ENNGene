@@ -1,8 +1,11 @@
-import argparse
 from datetime import datetime
+import logging
 import os
+import shutil
 import streamlit as st
-import sys
+
+from . import validators
+from .exceptions import UserInputError
 
 
 # noinspection PyAttributeOutsideInit
@@ -17,8 +20,13 @@ class Subcommand:
             'Output path were result files will be exported (cwd used as default)',
             value=os.path.join(os.getcwd(), 'deepnet_output')
         )
-        self.ensure_dir(self.output_folder)
+        try:
+            self.ensure_dir(self.output_folder)
+        except Exception:
+            raise UserInputError(f'Failed to create output folder at given path: {self.output_folder}.')
+
         self.branches = list(map(lambda name: self.BRANCHES[name], st.multiselect('Branches', list(self.BRANCHES.keys()))))
+        self.validation_hash['not_empty_branches'].append(self.branches)
 
         # FIXME does not work with streamlit
         # max_cpu = os.cpu_count() or 1
@@ -30,6 +38,27 @@ class Subcommand:
 
         # self.verbose = self.args.verbose
 
+    def validate_and_run(self, validation_hash):
+        st.markdown('---')
+        if st.button('Run preprocessing'):
+            warnings = self.validate_input(validation_hash)
+            if len(warnings) == 0:
+                self.run()
+            else:
+                st.warning('  \n'.join(warnings))
+
+    @staticmethod
+    def validate_input(validation_hash):
+        warnings = []
+        for validator, items in validation_hash.items():
+            for item in items:
+                if type(item) == dict:
+                    warnings.append(getattr(validators, validator)(**item))
+                else:
+                    warnings.append(getattr(validators, validator)(item))
+
+        return list(filter(None, warnings))
+
     @staticmethod
     def spent_time(time1):
         time2 = datetime.now()
@@ -40,3 +69,11 @@ class Subcommand:
     def ensure_dir(dir_path):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+
+    @staticmethod
+    def finalize_run(logger, out_dir):
+        file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
+        if file_handler:
+            logfile_path = file_handler[0].baseFilename
+            logfile_name = os.path.basename(logfile_path)
+            shutil.move(logfile_path, os.path.join(out_dir, logfile_name))

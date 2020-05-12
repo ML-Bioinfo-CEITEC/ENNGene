@@ -1,8 +1,10 @@
+import logging
 import numpy as np
 import os
 import pandas as pd
 import tensorflow as tf
-import warnings
+
+logger = logging.getLogger('root')
 
 
 class ProgressMonitor(tf.keras.callbacks.Callback):
@@ -218,11 +220,11 @@ class OneCycleLR(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         if self.verbose:
             if self._update_momentum:
-                print(" - lr: %0.5f - momentum: %0.2f " %
+                logger.info(" - lr: %0.5f - momentum: %0.2f " %
                       (self.history['lr'][-1], self.history['momentum'][-1]))
 
             else:
-                print(" - lr: %0.5f " % (self.history['lr'][-1]))
+                logger.info(" - lr: %0.5f " % (self.history['lr'][-1]))
 
 
 # Code is authored by https://github.com/titu1994/keras-one-cycle, originally ported from https://github.com/fastai/fastai
@@ -310,7 +312,7 @@ class LRFinder(tf.keras.callbacks.Callback):
             if validation_sample_rate > 0 or validation_sample_rate < 0:
                 self.validation_sample_rate = validation_sample_rate
             else:
-                raise ValueError("`validation_sample_rate` must be a positive or negative integer other than o")
+                raise ValueError("`validation_sample_rate` must be a positive or negative integer other than 0")
         else:
             self.use_validation_set = False
             self.validation_sample_rate = 0
@@ -352,15 +354,13 @@ class LRFinder(tf.keras.callbacks.Callback):
         self.current_epoch_ = 1
         tf.keras.backend.set_value(self.model.optimizer.lr, self.initial_lr)
 
-        warnings.simplefilter("ignore")
-
     def on_epoch_begin(self, epoch, logs=None):
         self.current_batch_ = 0
 
         if self.current_epoch_ > 1:
-            warnings.warn(
-                "\n\nLearning rate finder should be used only with a single epoch. "
-                "Hereafter, the callback will not measure the losses.\n\n")
+            msg = "\n\nLearning rate finder should be used only with a single epoch. " \
+                       "Hereafter, the callback will not measure the losses.\n\n"
+            logger.warning(msg)
 
     def on_batch_begin(self, batch, logs=None):
         self.current_batch_ += 1
@@ -399,7 +399,7 @@ class LRFinder(tf.keras.callbacks.Callback):
                 self.stopping_criterion_factor * self.best_loss_):
 
             if self.verbose:
-                print(" - LRFinder: Skipping iteration since loss is %d times as large as best loss (%0.4f)"
+                logger.info(" - LRFinder: Skipping iteration since loss is %d times as large as best loss (%0.4f)"
                       % (self.stopping_criterion_factor, self.best_loss_))
             return
 
@@ -428,10 +428,10 @@ class LRFinder(tf.keras.callbacks.Callback):
 
         if self.verbose:
             if self.use_validation_set:
-                print(" - LRFinder: val_loss: %1.4f - lr = %1.8f " %
+                logger.info(" - LRFinder: val_loss: %1.4f - lr = %1.8f " %
                       (values[0], current_lr))
             else:
-                print(" - LRFinder: lr = %1.8f " % current_lr)
+                logger.info(" - LRFinder: lr = %1.8f " % current_lr)
 
     def on_epoch_end(self, epoch, logs=None):
         if self.save_dir is not None and self.current_epoch_ <= 1:
@@ -445,12 +445,9 @@ class LRFinder(tf.keras.callbacks.Callback):
             np.save(lrs_path, self.lrs)
 
             if self.verbose:
-                print("\tLR Finder : Saved the losses and learning rate values in path : {%s}"
-                      % (self.save_dir))
+                logger.info("\tLR Finder : Saved the losses and learning rate values in path : {%s}" % (self.save_dir))
 
         self.current_epoch_ += 1
-
-        warnings.simplefilter("default")
 
     def plot_schedule(self, clip_beginning=None, clip_endding=None):
         """
@@ -468,9 +465,7 @@ class LRFinder(tf.keras.callbacks.Callback):
             import matplotlib.pyplot as plt
             plt.style.use('seaborn-white')
         except ImportError:
-            print(
-                "Matplotlib not found. Please use `pip install matplotlib` first."
-            )
+            logger.warning("Matplotlib not found. Please use `pip install matplotlib` first.")
             return
 
         if clip_beginning is not None and clip_beginning < 0:
@@ -527,7 +522,7 @@ class LRFinder(tf.keras.callbacks.Callback):
         lrs_path = os.path.join(directory, 'lrs.npy')
 
         if not os.path.exists(losses_path) or not os.path.exists(lrs_path):
-            print("%s and %s could not be found at directory : {%s}" %
+            logger.info("%s and %s could not be found at directory : {%s}" %
                   (losses_path, lrs_path, directory))
 
             losses = None
@@ -570,7 +565,7 @@ class LRFinder(tf.keras.callbacks.Callback):
             import matplotlib.pyplot as plt
             plt.style.use('seaborn-white')
         except ImportError:
-            print("Matplotlib not found. Please use `pip install matplotlib` first.")
+            logger.warning("Matplotlib not found. Please use `pip install matplotlib` first.")
             return
 
         losses, lrs = cls.restore_schedule_from_dir(

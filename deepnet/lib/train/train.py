@@ -20,7 +20,7 @@ from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
 
-logger = logging.getLogger('main')
+logger = logging.getLogger('root')
 
 
 class Train(Subcommand):
@@ -31,30 +31,26 @@ class Train(Subcommand):
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
 
     def __init__(self):
+        self.validation_hash = {'not_empty_branches': [],
+                                'is_dataset_dir': []}
+
         st.markdown('# Train a Model')
 
         st.markdown('## General Options')
         self.add_general_options()
 
-        input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
-        warning_on_input = st.empty()
-        if input_folder:
-            files = f.list_files_in_dir(input_folder, 'zip')
-            dss = ['train', 'validation', 'test']
-            # TODO this does not check that each of them is present exactly once
-            self.dataset_files = [file for file in files if any(ds in file for ds in dss)]
-            if len(self.dataset_files) < 3:
-                warning_on_input.markdown(
-                    '**WARNING: Selected folder does not contain all the datasets (train, validation, test).**')
+        self.input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
+        self.validation_hash['is_dataset_dir'].append(self.input_folder)
 
         self.tb = st.checkbox('Output TensorBoard log files', value=False)
 
         st.markdown('## Training Options')
         # TODO make sure batch size is smaller than dataset size
-        self.batch_size = st.number_input('Batch size', min_value=0, value=256)
-        self.epochs = st.slider('No. of training epochs', min_value=0, max_value=1000, value=600)
+        self.batch_size = st.number_input('Batch size', min_value=1, value=256)
+        self.epochs = st.number_input('No. of training epochs', min_value=1, value=100)
+        self.early_stop = st.checkbox('Apply early stopping', value=True)
         self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
-        self.lr = st.number_input('Learning rate', min_value=0.0, max_value=0.1, value=0.0001, step=0.0001, format='%.4f')
+        self.lr = st.number_input('Learning rate', min_value=0.0001, max_value=0.1, value=0.005, step=0.0001, format='%.4f')
         if self.optimizer == 'sgd':
             # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
             lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
@@ -102,13 +98,11 @@ class Train(Subcommand):
 
         st.markdown(f'### {len(self.branches)+1}. Connected (after branches\' concatenation)')
         self.common_layers = []
-        allowed_common = list(LAYERS.keys())
-        allowed_common.remove('Convolutional layer')
         no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
         for i in range(no):
             layer = {'args': {}}
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', allowed_common, key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), key=f'common_layer{i}')))
             layer = self.layer_options(layer, i)
             st.markdown('---')
             if len(self.common_layers) > i:
@@ -116,11 +110,7 @@ class Train(Subcommand):
             else:
                 self.common_layers.append(layer)
 
-        st.markdown('---')
-        if st.button('Train a model'):
-            # self.check_required()
-            # TODO check input presence & validity, if OK continue to run
-            self.run()
+        self.validate_and_run(self.validation_hash)
 
     @staticmethod
     # TODO adjust when stateful ops enabled
@@ -128,12 +118,16 @@ class Train(Subcommand):
         if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
             layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
             layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.0, key=f'do{branch}{i}')})
-            if layer['name'] == 'Convolutional layer':
-                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=0, value=40, key=f'filters{branch}{i}')})
-                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=0, value=4, key=f'kernel{branch}{i}')})
-            elif layer['name'] == 'Dense layer':
+            if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=40, key=f'filters{branch}{i}')})
+                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=4, key=f'kernel{branch}{i}')})
+            elif layer['name'] in ['Dense', 'RNN', 'GRU', 'LSTM']:
                 layer['args'].update(
-                    {'units': st.number_input('Number of units:', min_value=0, value=32, key=f'units{branch}{i}')})
+                    {'units': st.number_input('Number of units:', min_value=1, value=32, key=f'units{branch}{i}')})
+            elif layer['name'] == 'IGLOO1D':
+                layer['args'].update({'batches': st.number_input('Number of batches:', min_value=1, value=50, key=f'batches{branch}{i}')})
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=50, key=f'filters{branch}{i}')})
+                layer['args'].update({'return_seqs': st.checkbox('Return sequences:', value=False, key=f'seq{branch}{i}')})
         return layer
 
     @staticmethod
@@ -176,15 +170,12 @@ class Train(Subcommand):
 
     def run(self):
         status = st.empty()
-        logger.debug('Using the following branches: ' + str(self.branches))
-        logger.debug('Learning rate: ' + str(self.lr))
-        logger.debug('Optimizer: ' + str(self.optimizer))
-        logger.debug('Batch size: ' + str(self.batch_size))
-        logger.debug('Epoch rounds: ' + str(self.epochs))
-        logger.debug('Loss function: ' + str(self.loss))
-        logger.debug('Metric function: ' + str(self.metric))
-
         status.text('Initializing network...')
+
+        candidate_files = f.list_files_in_dir(self.input_folder, 'zip')
+        cateogires = ['train', 'validation', 'test']  # TODO add blackbox when in use
+        self.dataset_files = [file for file in candidate_files if any(category in file for category in cateogires)]
+
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.branches, labels)
         branch_shapes = self.get_shapes(train_x, self.branches)
@@ -208,15 +199,15 @@ class Train(Subcommand):
         chart = st.altair_chart(self.initialize_altair_chart())
 
         callbacks = self.create_callbacks(
-            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.batch_size,
+            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.early_stop,
             self.lr, branch_shapes[self.branches[0]][0])
 
         if self.lr_optim == 'lr_finder': self.epochs = 1
         history = self.train(model, self.epochs, self.batch_size, callbacks, train_x, valid_x, train_y, valid_y).history
         if self.lr_optim == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
-        logger.debug('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
-        logger.debug('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
+        logger.info('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
+        logger.info('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
         st.text('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
         st.text('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
 
@@ -228,14 +219,16 @@ class Train(Subcommand):
         status.text('Testing the network...')
         test_results = self.test(model, self.batch_size, test_x, test_y)
 
-        logger.debug('Evaluation loss: ' + str(round(test_results[0], 4)))
-        logger.debug('Evaluation acc: ' + str(round(test_results[1], 4)))
+        logger.info('Evaluation loss: ' + str(round(test_results[0], 4)))
+        logger.info('Evaluation acc: ' + str(round(test_results[1], 4)))
         st.text('Evaluation loss: ' + str(round(test_results[0], 4)))
         st.text('Evaluation acc: ' + str(round(test_results[1], 4)))
 
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:
             json_file.write(model_json)
+
+        self.finalize_run(logger, train_dir)
         status.text('Finished!')
     
     @staticmethod
@@ -245,16 +238,10 @@ class Train(Subcommand):
         return LearningRateScheduler(schedule)
 
     @staticmethod
-    def create_callbacks(out_dir, lr_optim, tb, epochs, progress_bar, progress_status, chart, bs, lr, sample):
+    def create_callbacks(out_dir, lr_optim, tb, epochs, progress_bar, progress_status, chart, early_stop, lr, sample):
         mcp = ModelCheckpoint(filepath=out_dir + '/model.hdf5',
                               verbose=0,
                               save_best_only=True)
-
-        earlystopper = EarlyStopping(monitor='val_loss',
-                                     patience=50,
-                                     min_delta=0.01,
-                                     verbose=1,
-                                     mode='auto')
 
         csv_logger = CSVLogger(out_dir + '/log.csv',
                                append=True,
@@ -262,7 +249,15 @@ class Train(Subcommand):
 
         progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
 
-        callbacks = [mcp, earlystopper, csv_logger, progress]
+        callbacks = [mcp, csv_logger, progress]
+
+        if early_stop:
+            earlystopper = EarlyStopping(monitor='val_loss',
+                                         patience=50,
+                                         min_delta=0.01,
+                                         verbose=1,
+                                         mode='auto')
+            callbacks.append(earlystopper)
 
         if lr_optim:
             if lr_optim == 'lr_finder':
