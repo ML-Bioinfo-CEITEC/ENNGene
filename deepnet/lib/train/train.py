@@ -98,13 +98,11 @@ class Train(Subcommand):
 
         st.markdown(f'### {len(self.branches)+1}. Connected (after branches\' concatenation)')
         self.common_layers = []
-        allowed_common = list(LAYERS.keys())
-        allowed_common.remove('Convolutional layer')
         no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
         for i in range(no):
             layer = {'args': {}}
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', allowed_common, key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), key=f'common_layer{i}')))
             layer = self.layer_options(layer, i)
             st.markdown('---')
             if len(self.common_layers) > i:
@@ -120,12 +118,16 @@ class Train(Subcommand):
         if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
             layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
             layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.0, key=f'do{branch}{i}')})
-            if layer['name'] == 'Convolutional layer':
-                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=0, value=40, key=f'filters{branch}{i}')})
-                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=0, value=4, key=f'kernel{branch}{i}')})
-            elif layer['name'] == 'Dense layer':
+            if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=40, key=f'filters{branch}{i}')})
+                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=4, key=f'kernel{branch}{i}')})
+            elif layer['name'] in ['Dense', 'RNN', 'GRU', 'LSTM']:
                 layer['args'].update(
-                    {'units': st.number_input('Number of units:', min_value=0, value=32, key=f'units{branch}{i}')})
+                    {'units': st.number_input('Number of units:', min_value=1, value=32, key=f'units{branch}{i}')})
+            elif layer['name'] == 'IGLOO1D':
+                layer['args'].update({'batches': st.number_input('Number of batches:', min_value=1, value=50, key=f'batches{branch}{i}')})
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=50, key=f'filters{branch}{i}')})
+                layer['args'].update({'return_seqs': st.checkbox('Return sequences:', value=False, key=f'seq{branch}{i}')})
         return layer
 
     @staticmethod
