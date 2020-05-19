@@ -40,7 +40,7 @@ class Subcommand:
 
     def validate_and_run(self, validation_hash):
         st.markdown('---')
-        if st.button('Run preprocessing'):
+        if st.button('Run'):
             warnings = self.validate_input(validation_hash)
             if len(warnings) == 0:
                 self.run()
