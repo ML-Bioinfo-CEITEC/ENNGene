@@ -51,7 +51,7 @@ class Dataset:
     @classmethod
     def split_random(cls, dataset, ratio, seed):
         # so far the categories are fixed, not sure if there would be need for custom categories
-        ratio_list = ratio.split(':') + [0]  # zero for blackbox for now
+        ratio_list = ratio.split(':')
         ratio_list = [float(x) for x in ratio_list]
         dataset_size = dataset.df.shape[0]
         total = sum(ratio_list)
@@ -61,11 +61,11 @@ class Dataset:
 
         validation_size = int(dataset_size * ratio_list[1] / total)
         test_size = (int(dataset_size * ratio_list[2] / total))
-        blackbox_size = (int(dataset_size * ratio_list[3] / total))
+        # blackbox_size = (int(dataset_size * ratio_list[3] / total))
         dfs = {'validation': dataset.df[:validation_size]}
         dfs.update({'test': dataset.df[validation_size:(validation_size + test_size)]})
-        dfs.update({'blackbox': dataset.df[(validation_size + test_size):(validation_size + test_size + blackbox_size)]})
-        dfs.update({'train': dataset.df[(validation_size + test_size + blackbox_size):]})
+        # dfs.update({'blackbox': dataset.df[(validation_size + test_size):(validation_size + test_size + blackbox_size)]})
+        dfs.update({'train': dataset.df[(validation_size + test_size):]})  # + blackbox_size):]})
 
         for category, df in dfs.items():
             split_datasets.add(
