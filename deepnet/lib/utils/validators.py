@@ -49,6 +49,8 @@ def is_fasta(file):
                 invalid = True
             if not ('>' in line1) or not line2:
                 invalid = True
+    else:
+        invalid = True
 
     warning = f"File {file} does not look like valid FASTA file."
     return warning if invalid else None
@@ -104,7 +106,7 @@ def is_dataset_dir(folder):
 
     if os.path.isdir(folder):
         # TODO later check also the metadata file
-        files = f.list_files_in_dir(folder)
+        files = f.list_files_in_dir(folder, 'zip')
         dataset_files = {'train': [], 'validation': [], 'test': []}  # TODO later add also blackbox
         for file in files:
             category = next((category for category in dataset_files.keys() if category in file), None)
