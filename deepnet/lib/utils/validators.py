@@ -9,9 +9,9 @@ def not_empty_branches(branches):
     return warning if len(branches) == 0 else None
 
 
-def min_one_file(input_files):
-    warning = 'You must provide at least one input file.'
-    return warning if len(input_files) == 0 else None
+def min_two_files(input_files):
+    warning = 'You must provide at least two input files for a classification problem.'
+    return warning if len(input_files) < 2 else None
 
 
 def is_bed(file):

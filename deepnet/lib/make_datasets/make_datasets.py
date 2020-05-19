@@ -21,7 +21,7 @@ class MakeDatasets(Subcommand):
                                 'is_fasta': [],
                                 'is_wig_dir': [],
                                 'not_empty_branches': [],
-                                'min_one_file': [],
+                                'min_two_files': [],
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
@@ -70,10 +70,10 @@ class MakeDatasets(Subcommand):
 
             warning = st.empty()
             self.input_files = []
-            no_files = st.number_input('Number of input files (= no. of classes):', min_value=1, value=1)
+            no_files = st.number_input('Number of input files (= no. of classes):', min_value=2, value=2)
             for i in range(no_files):
                 self.input_files.append(st.text_input(f'File no. {i+1} (.bed)'))
-            self.validation_hash['min_one_file'].append(list(filter(str.strip, self.input_files)))
+            self.validation_hash['min_two_files'].append(list(filter(str.strip, self.input_files)))
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
             for file in self.input_files:
