@@ -9,9 +9,9 @@ def not_empty_branches(branches):
     return warning if len(branches) == 0 else None
 
 
-def min_one_file(input_files):
-    warning = 'You must provide at least one input file.'
-    return warning if len(input_files) == 0 else None
+def min_two_files(input_files):
+    warning = 'You must provide at least two input files for a classification problem.'
+    return warning if len(input_files) < 2 else None
 
 
 def is_bed(file):
@@ -49,6 +49,8 @@ def is_fasta(file):
                 invalid = True
             if not ('>' in line1) or not line2:
                 invalid = True
+    else:
+        invalid = True
 
     warning = f"File {file} does not look like valid FASTA file."
     return warning if invalid else None
@@ -104,7 +106,7 @@ def is_dataset_dir(folder):
 
     if os.path.isdir(folder):
         # TODO later check also the metadata file
-        files = f.list_files_in_dir(folder)
+        files = f.list_files_in_dir(folder, 'zip')
         dataset_files = {'train': [], 'validation': [], 'test': []}  # TODO later add also blackbox
         for file in files:
             category = next((category for category in dataset_files.keys() if category in file), None)
