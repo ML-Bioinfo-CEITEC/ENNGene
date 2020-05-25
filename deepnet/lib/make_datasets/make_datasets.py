@@ -15,8 +15,11 @@ logger = logging.getLogger('root')
 
 # noinspection DuplicatedCode
 class MakeDatasets(Subcommand):
+    ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
+                 'RNA': ['A', 'C', 'G', 'U', 'N']}
 
     def __init__(self):
+        self.params = {'task': 'MakeDatasets'}
         self.validation_hash = {'is_bed': [],
                                 'is_fasta': [],
                                 'is_wig_dir': [],
@@ -25,7 +28,7 @@ class MakeDatasets(Subcommand):
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
-        self.valid_chromosomes = []
+        self.params['valid_chromosomes'] = []
         self.klasses = []
 
         st.markdown('# Data Preprocessing')
@@ -34,34 +37,32 @@ class MakeDatasets(Subcommand):
         st.markdown('## General Options')
         self.add_general_options()
 
-        self.use_mapped = st.checkbox('Use already mapped file from a previous run')
+        self.params['use_mapped'] = st.checkbox('Use already mapped file from a previous run', self.defaults['use_mapped'])
 
-        if not self.use_mapped:
+        if not self.params['use_mapped']:
             self.references = {}
-
-            if 'seq' in self.branches:
-                alphabets = {'DNA': ['A', 'C', 'G', 'T', 'N'],
-                             'RNA': ['A', 'C', 'G', 'U', 'N']}
+            if 'seq' in self.params['branches']:
                 # TODO allow option custom, to be specified by text input
                 # TODO add amino acid alphabet - in that case disable cons and fold i guess
-                self.onehot = alphabets[st.selectbox(
-                    'Select used alphabet:',
-                    list(alphabets.keys())
-                )]
-                self.strand = st.checkbox('Apply strandedness', True)
+                alphabets = ['DNA', 'RNA']
+                self.params['alphabet'] = st.selectbox('Select alphabet:',
+                                                       alphabets, index=alphabets.index(self.defaults['alphabet']))
+                self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
             else:
-                self.onehot = None; self.strand = False
-            if 'seq' in self.branches or 'fold' in self.branches:
-                fasta = st.text_input('Path to reference fasta file')
-                self.references.update({'seq': fasta, 'fold': fasta})
-                self.validation_hash['is_fasta'].append(fasta)
-            if 'cons' in self.branches:
-                consdir = st.text_input('Path to folder containing reference conservation files')
-                self.references.update({'cons': consdir})
-                self.validation_hash['is_wig_dir'].append(consdir)
+                self.params['alphabet'] = None; self.params['strand'] = False
+            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
+                self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})
+                self.validation_hash['is_fasta'].append(self.params['fasta'])
+            if 'cons' in self.params['branches']:
+                self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
+                                                        value=self.defaults['cons_dir'])
+                self.references.update({'cons': self.params['cons_dir']})
+                self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 
-            self.win = int(st.number_input('Window size', min_value=3, max_value=500, value=100))
-            self.winseed = int(st.number_input('Seed for semi-random window placement upon the sequences', value=42))
+            self.params['win'] = int(st.number_input('Window size', min_value=3, value=self.defaults['win']))
+            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                         value=self.defaults['winseed']))
 
             st.markdown('## Input Coordinate Files')
             # TODO change to plus button when stateful operations enabled
@@ -69,14 +70,17 @@ class MakeDatasets(Subcommand):
             # TODO accept also web address if possible
 
             warning = st.empty()
-            self.input_files = []
-            no_files = st.number_input('Number of input files (= no. of classes):', min_value=2, value=2)
+            self.params['input_files'] = self.defaults['input_files']
+            no_files = st.number_input('Number of input files (= no. of classes):', min_value=2,
+                                       value=max(2, len(self.defaults['input_files'])))
             for i in range(no_files):
-                self.input_files.append(st.text_input(f'File no. {i+1} (.bed)'))
-            self.validation_hash['min_two_files'].append(list(filter(str.strip, self.input_files)))
+                self.params['input_files'].append(st.text_input(
+                    f'File no. {i+1} (.bed)',
+                    value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else '')))
+            self.validation_hash['min_two_files'].append(list(filter(str.strip, self.params['input_files'])))
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
-            for file in self.input_files:
+            for file in self.params['input_files']:
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
                 file_name = os.path.basename(file)
@@ -89,148 +93,150 @@ class MakeDatasets(Subcommand):
                         '**WARNING: Only files of following format are allowed: {}.**'.format(', '.join(self.allowed_extensions)))
         else:
             # When using already mapped file
-            self.full_dataset_file = st.text_input(f'Path to the mapped file')
-            self.validation_hash['is_full_dataset'].append({'file_path': self.full_dataset_file, 'branches': self.branches})
+            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])
+            self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
 
-            if self.full_dataset_file:
+            if self.params['full_dataset_file']:
                 try:
-                    self.klasses, self.valid_chromosomes = Dataset.load_and_cache(self.full_dataset_file)
+                    self.klasses, self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
                 except Exception:
                     raise UserInputError('Invalid dataset file!')
 
         st.markdown('## Dataset Size Reduction')
         st.markdown('Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories might end up empty.')
-        self.reducelist = st.multiselect('Classes to be reduced (first specify input files)', self.klasses)
-        if self.reducelist:
-            self.reduceseed = int(st.number_input('Seed for semi-random reduction of number of samples', value=112))
-            self.reduceratio = {}
-            for klass in self.reducelist:
-                self.reduceratio.update({klass: float(st.number_input("Target {} dataset size".format(klass),
+        self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
+                                                   self.klasses, self.defaults['reducelist'])
+        if self.params['reducelist']:
+            self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
+                                                            value=self.defaults['reduceseed']))
+            self.params['reduceratio'] = self.defaults['reduceratio']
+            for klass in self.params['reducelist']:
+                self.params['reduceratio'].update({klass: float(st.number_input("Target {} dataset size".format(klass),
                                                                       min_value=0.01, max_value=1.0, value=0.5))})
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
                          'By chromosomes': 'by_chr'}
-        self.split = split_options[st.radio(
+        self.params['split'] = split_options[st.radio(
             # 'Choose a way to split Datasets into train, test, validation and blackbox categories:',
             'Choose a way to split Datasets into train, test and validation categories:',
-            list(split_options.keys()))]
-        if self.split == 'by_chr':
-            if self.use_mapped:
-                if not self.full_dataset_file:
+            list(split_options.keys()), index=list(split_options.values()).index(self.defaults['split']))]
+        if self.params['split'] == 'by_chr':
+            if self.params['use_mapped']:
+                if not self.params['full_dataset_file']:
                     st.markdown('(The mapped file must be provided first to infer available chromosomes.)')
             else:
                 if 'seq' in self.references.keys():
-                    fasta = self.references['seq']
-                    if not fasta:
+                    self.params['fasta'] = self.references['seq']
+                    if not self.params['fasta']:
                         st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
                 else:
                     st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
-                    fasta = st.text_input('Path to reference fasta file')
+                    self.params['fasta'] = st.text_input('Path to reference fasta file')
 
-                if fasta:
+                if self.params['fasta']:
                     try:
-                        fasta_dict, self.valid_chromosomes = seq.read_and_cache(fasta)
+                        fasta_dict, self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            if self.valid_chromosomes:
-                if not self.use_mapped:
+            if self.params['valid_chromosomes']:
+                if not self.params['use_mapped']:
                     st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
                     and continue selecting even while it's present.")
-
-                self.chromosomes = {'blackbox': []}
-                self.chromosomes.update({'train':
-                                             set(st.multiselect('Training Dataset', self.valid_chromosomes, None))})
-                self.chromosomes.update({'validation':
-                                             set(st.multiselect('Validation Dataset', self.valid_chromosomes, None))})
-                self.chromosomes.update({'test':
-                                             set(st.multiselect('Test Dataset', self.valid_chromosomes, None))})
-                # self.chromosomes.update({'blackbox':
-                #                              set(st.multiselect('BlackBox Dataset', self.valid_chromosomes, None))})
-                self.validation_hash['not_empty_chromosomes'].append(list(self.chromosomes.items()))
-        elif self.split == 'rand':
-            self.split_ratio = st.text_input(
+                self.params['chromosomes'] = self.defaults['chromosomes']
+                self.params['chromosomes'].update({'train': set(st.multiselect(
+                    'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
+                self.params['chromosomes'].update({'validation': set(
+                    st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
+                self.params['chromosomes'].update({'test': set(
+                    st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
+                # self.params['chromosomes'].update({'blackbox': set(
+                #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
+        elif self.params['split'] == 'rand':
+            self.params['split_ratio'] = st.text_input(
                 # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 'List a target ratio between the categories (required format: train:validation:test)',
-                value='8:2:2')
-            self.validation_hash['is_ratio'].append(self.split_ratio)
+                value=self.defaults['split_ratio'])
+            self.validation_hash['is_ratio'].append(self.params['split_ratio'])
             # st.markdown('Note: blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
-            self.split_seed = int(st.number_input('Seed for semi-random split of samples in a Dataset', value=89))
+            self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a Dataset',
+                                                            value=self.defaults['split_seed']))
 
         self.validate_and_run(self.validation_hash)
 
     def run(self):
         status = st.empty()
 
-        datasets_dir = os.path.join(self.output_folder, 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
+        datasets_dir = os.path.join(self.params['output_folder'], 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
         self.ensure_dir(datasets_dir)
         full_data_dir_path = os.path.join(datasets_dir, 'full_datasets')
         self.ensure_dir(full_data_dir_path)
         full_data_file_path = os.path.join(full_data_dir_path, 'merged_all')
 
-        if self.use_mapped:
+        if self.params['use_mapped']:
             status.text('Reading in already mapped file with all the samples...')
-            merged_dataset = Dataset.load_from_file(self.full_dataset_file)
-            shutil.copyfile(self.full_dataset_file, full_data_file_path)
+            merged_dataset = Dataset.load_from_file(self.params['full_dataset_file'])
+            shutil.copyfile(self.params['full_dataset_file'], full_data_file_path)
             # Keep only selected branches
-            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.branches
+            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
             merged_dataset.df = merged_dataset.df[cols]
         else:
-            if self.onehot:
+            if self.params['alphabet']:
                 status.text('Encoding alphabet...')
-                encoding = seq.onehot_encode_alphabet(self.onehot)
+                encoding = seq.onehot_encode_alphabet(self.ALPHABETS[self.params['alphabet']])
             else:
                 encoding = None
 
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
             status.text('Reading in given interval files and applying window...')
-            for file in self.input_files:
+            for file in self.params['input_files']:
                 klass = os.path.basename(file)
                 for ext in self.allowed_extensions:
                     if ext in klass:
                         klass = klass.replace(ext, '')
 
                 initial_datasets.add(
-                    Dataset(klass=klass, branches=self.branches, bed_file=file, win=self.win, winseed=self.winseed))
+                    Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'], winseed=self.params['winseed']))
 
             # Merging data from all klasses to map them more efficiently all together at once
-            merged_dataset = Dataset(branches=self.branches, df=Dataset.merge_dataframes(initial_datasets))
+            merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
             # Read-in fasta file to dictionary
-            if 'seq' in self.branches and type(self.references['seq']) != dict:
+            if 'seq' in self.params['branches'] and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
                 fasta_dict, _ = seq.parse_fasta_reference(self.references['seq'])
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
-                f'Mapping intervals from all classes to {len(self.branches)} branch(es) and exporting...')
+                f"Mapping intervals from all classes to {len(self.params['branches'])} branch(es) and exporting...")
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, encoding, self.strand, full_data_file_path, self.ncpu)
+                self.references, encoding, self.params['strand'], full_data_file_path, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
         for klass in self.klasses:
             df = merged_dataset.df[merged_dataset.df['klass'] == klass]
-            mapped_datasets.add(Dataset(klass=klass, branches=self.branches, df=df))
+            mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
         split_datasets = set()
         for dataset in mapped_datasets:
             # Reduce size of selected klasses
-            if self.reducelist and (dataset.klass in self.reducelist):
+            if self.params['reducelist'] and (dataset.klass in self.params['reducelist']):
                 status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
-                ratio = self.reduceratio[dataset.klass]
-                dataset.reduce(ratio, seed=self.reduceseed)
+                ratio = self.params['reduceratio'][dataset.klass]
+                dataset.reduce(ratio, seed=self.params['reduceseed'])
 
             # Split datasets into train, validation, test and blackbox datasets
-            if self.split == 'by_chr':
-                split_subdatasets = Dataset.split_by_chr(dataset, self.chromosomes)
-            elif self.split == 'rand':
-                split_subdatasets = Dataset.split_random(dataset, self.split_ratio, self.split_seed)
+            if self.params['split'] == 'by_chr':
+                split_subdatasets = Dataset.split_by_chr(dataset, self.params['chromosomes'])
+            elif self.params['split'] == 'rand':
+                split_subdatasets = Dataset.split_random(dataset, self.params['split_ratio'], self.params['split_seed'])
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
@@ -243,6 +249,28 @@ class MakeDatasets(Subcommand):
             file_path = os.path.join(dir_path, dataset.category)
             dataset.save_to_file(file_path, do_zip=True)
 
-        self.finalize_run(logger, datasets_dir)
+        self.finalize_run(logger, datasets_dir, self.params)
         status.text('Finished!')
-        return final_datasets
+
+    @staticmethod
+    def default_params():
+        return {
+            'alphabet': 'DNA',
+            'branches': [],
+            'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
+            'cons_dir': '',
+            'fasta': '',
+            'full_dataset_file': '',
+            'input_files': [],
+            'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
+            'reducelist': [],
+            'reduceratio': {},
+            'reduceseed': 112,
+            'split': 'rand',
+            'split_ratio': '8:2:2',
+            'split_seed': 89,
+            'strand': True,
+            'use_mapped': False,
+            'win': 100,
+            'winseed': 42
+        }

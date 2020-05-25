@@ -1,5 +1,6 @@
 import altair as alt
 import datetime
+import copy
 import os
 import logging
 import math
@@ -31,6 +32,7 @@ class Train(Subcommand):
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
 
     def __init__(self):
+        self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
                                 'is_dataset_dir': []}
 
@@ -39,30 +41,38 @@ class Train(Subcommand):
         st.markdown('## General Options')
         self.add_general_options()
 
-        self.input_folder = st.text_input('Path to folder containing all preprocessed files (train, validation, test)')
-        self.validation_hash['is_dataset_dir'].append(self.input_folder)
+        self.params['input_folder'] = st.text_input(
+            'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])
+        self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
 
-        self.tb = st.checkbox('Output TensorBoard log files', value=False)
+        self.params['tb'] = st.checkbox('Output TensorBoard log files', value=self.defaults['tb'])
 
         st.markdown('## Training Options')
         # TODO make sure batch size is smaller than dataset size
-        self.batch_size = st.number_input('Batch size', min_value=1, value=256)
-        self.epochs = st.number_input('No. of training epochs', min_value=1, value=100)
-        self.early_stop = st.checkbox('Apply early stopping', value=True)
-        self.optimizer = self.OPTIMIZERS[st.selectbox('Optimizer', list(self.OPTIMIZERS.keys()))]
-        self.lr = st.number_input('Learning rate', min_value=0.0001, max_value=0.1, value=0.005, step=0.0001, format='%.4f')
-        if self.optimizer == 'sgd':
+        self.params['batch_size'] = st.number_input('Batch size', min_value=1, value=self.defaults['batch_size'])
+        self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
+        self.params['early_stop'] = st.checkbox('Apply early stopping', value=self.defaults['early_stop'])
+        self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
+            'Optimizer', list(self.OPTIMIZERS.keys()), index=list(self.OPTIMIZERS.values()).index(self.defaults['optimizer']))]
+        self.params['lr'] = st.number_input(
+            'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
+        if self.params['optimizer'] == 'sgd':
             # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
             lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
                           'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
                           'Use learning rate finder (beta)': 'lr_finder',
                           'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
-            self.lr_optim = lr_options[st.radio('Learning rate options',
-                list(lr_options.keys()))]
+            self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
+                                                          list(lr_options.keys()),
+                                                          index=list(lr_options.values()).index(self.defaults['lr_optim']))]
         else:
-            self.lr_optim = None
-        self.metric = self.METRICS[st.selectbox('Metric', list(self.METRICS.keys()))]
-        self.loss = self.LOSSES[st.selectbox('Loss function', list(self.LOSSES.keys()))]
+            self.params['lr_optim'] = None
+        self.params['metric'] = self.METRICS[st.selectbox('Metric',
+                                                          list(self.METRICS.keys()),
+                                                          index=list(self.METRICS.values()).index(self.defaults['metric']))]
+        self.params['loss'] = self.LOSSES[st.selectbox('Loss function',
+                                                       list(self.LOSSES.keys()),
+                                                       list(self.LOSSES.values()).index(self.defaults['loss']))]
 
         # TODO change the logic when stateful design is enabled
         # self.branch_layers = {}
@@ -79,55 +89,71 @@ class Train(Subcommand):
         #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
         #         print(self.branch_layers[branch])
 
-        st.markdown('## Network Architecture')
-        self.branches_layers = {}
-        for i, branch in enumerate(self.branches):
-            st.markdown(f'### {i+1}. {list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch')
-            self.branches_layers.update({branch: []})
-            no = st.number_input('Number of layers in the branch:', min_value=0, value=1, key=f'{branch}_no')
-            for i in range(no):
-                layer = dict(args={})
-                st.markdown(f'#### Layer {i + 1}')
-                layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), key=f'layer{branch}{i}')))
-                layer = self.layer_options(layer, i, branch)
-                st.markdown('---')
-                if len(self.branches_layers[branch]) > i:
-                    self.branches_layers[branch][i] = layer
-                else:
-                    self.branches_layers[branch].append(layer)
+        default_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32}
 
-        st.markdown(f'### {len(self.branches)+1}. Connected (after branches\' concatenation)')
-        self.common_layers = []
-        no = st.number_input('Number of layers after concatenation of branches:', min_value=0, value=1, key=f'common_no')
-        for i in range(no):
-            layer = {'args': {}}
-            st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), key=f'common_layer{i}')))
-            layer = self.layer_options(layer, i)
-            st.markdown('---')
-            if len(self.common_layers) > i:
-                self.common_layers[i] = layer
+        st.markdown('## Network Architecture')
+        self.params['branches_layers'] = self.defaults['branches_layers']
+        for i, branch in enumerate(self.params['branches']):
+            st.markdown(f'### {i+1}. {list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch')
+            self.params['no_branches_layers'] = st.number_input(
+                'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'], key=f'{branch}_no')
+            for i in range(self.params['no_branches_layers']):
+                if self.params_loaded:
+                    default_args = self.defaults['branches_layers'][branch][i]['args']
+                    layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
+                    checkbox = True
+                else:
+                    layer = {'name': 'CNN', 'args': {}}
+                    checkbox = False
+                st.markdown(f'#### Layer {i + 1}')
+                default_i = list(LAYERS.keys()).index(layer['name'])
+                layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'layer{branch}{i}')))
+                layer = self.layer_options(layer, i, checkbox, default_args, branch)
+                st.markdown('---')
+                if len(self.params['branches_layers'][branch]) > i:
+                    self.params['branches_layers'][branch][i] = layer
+                else:
+                    self.params['branches_layers'][branch].append(layer)
+
+        st.markdown(f"### {len(self.params['branches'])+1}. Connected (after branches' concatenation)")
+        self.params['common_layers'] = self.defaults['common_layers']
+        self.params['no_common_layers'] = st.number_input(
+            'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
+        for i in range(self.params['no_common_layers']):
+            if self.params_loaded:
+                default_args = self.defaults['common_layers'][i]['args']
+                layer = copy.deepcopy(self.defaults['common_layers'][i])
+                checkbox = True
             else:
-                self.common_layers.append(layer)
+                layer = {'name': 'Dense', 'args': {}}
+                checkbox = False
+            default_i = list(LAYERS.keys()).index(layer['name'])
+            st.markdown(f'#### Layer {i + 1}')
+            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
+            layer = self.layer_options(layer, i, checkbox, default_args)
+            st.markdown('---')
+            if len(self.params['common_layers']) > i:
+                self.params['common_layers'][i] = layer
+            else:
+                self.params['common_layers'].append(layer)
 
         self.validate_and_run(self.validation_hash)
 
-    @staticmethod
     # TODO adjust when stateful ops enabled
-    def layer_options(layer, i, branch=None):
-        if st.checkbox('Show advanced options', value=False, key=f'show{branch}{i}'):
-            layer['args'].update({'batchnorm': st.checkbox('Batch normalization', value=False, key=f'batch{branch}{i}')})
-            layer['args'].update({'dropout': st.slider('Dropout rate', min_value=0.0, max_value=1.0, value=0.0, key=f'do{branch}{i}')})
+    def layer_options(self, layer, i, checkbox, defaults=None, branch=None):
+        if st.checkbox('Show advanced options', value=checkbox, key=f'show{branch}{i}'):
+            layer['args'].update({'batchnorm': st.checkbox(
+                'Batch normalization', value=defaults['batchnorm'], key=f'batch{branch}{i}')})
+            layer['args'].update({'dropout': st.slider(
+                'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}')})
             if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
-                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=40, key=f'filters{branch}{i}')})
-                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=4, key=f'kernel{branch}{i}')})
+                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=
+                defaults['filters'], key=f'filters{branch}{i}')})
+                layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=
+                defaults['kernel'], key=f'kernel{branch}{i}')})
             elif layer['name'] in ['Dense', 'RNN', 'GRU', 'LSTM']:
-                layer['args'].update(
-                    {'units': st.number_input('Number of units:', min_value=1, value=32, key=f'units{branch}{i}')})
-            elif layer['name'] == 'IGLOO1D':
-                layer['args'].update({'batches': st.number_input('Number of batches:', min_value=1, value=50, key=f'batches{branch}{i}')})
-                layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=50, key=f'filters{branch}{i}')})
-                layer['args'].update({'return_seqs': st.checkbox('Return sequences:', value=False, key=f'seq{branch}{i}')})
+                layer['args'].update({'units': st.number_input('Number of units:', min_value=1, value=
+                defaults['units'], key=f'units{branch}{i}')})
         return layer
 
     @staticmethod
@@ -172,24 +198,24 @@ class Train(Subcommand):
         status = st.empty()
         status.text('Initializing network...')
 
-        candidate_files = f.list_files_in_dir(self.input_folder, 'zip')
+        candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         cateogires = ['train', 'validation', 'test']  # TODO add blackbox when in use
         self.dataset_files = [file for file in candidate_files if any(category in file for category in cateogires)]
 
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
-        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.branches, labels)
-        branch_shapes = self.get_shapes(train_x, self.branches)
+        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.params['branches'], labels)
+        branch_shapes = self.get_shapes(train_x, self.params['branches'])
 
-        train_dir = os.path.join(self.output_folder, 'training',
+        train_dir = os.path.join(self.params['output_folder'], 'training',
                                  f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         self.ensure_dir(train_dir)
 
-        model = ModelBuilder(self.branches, labels, branch_shapes, self.branches_layers, self.common_layers).build_model()
-        optimizer = self.create_optimizer(self.optimizer, self.lr)
+        model = ModelBuilder(self.params['branches'], labels, branch_shapes, self.params['branches_layers'], self.params['common_layers']).build_model()
+        optimizer = self.create_optimizer(self.params['optimizer'], self.params['lr'])
         model.compile(
             optimizer=optimizer,
-            loss=[self.loss],
-            metrics=[self.metric])
+            loss=[self.params['loss']],
+            metrics=[self.params['metric']])
 
         # Training & testing the model
         status.text('Training the network...')
@@ -199,25 +225,25 @@ class Train(Subcommand):
         chart = st.altair_chart(self.initialize_altair_chart())
 
         callbacks = self.create_callbacks(
-            train_dir, self.lr_optim, self.tb, self.epochs, progress_bar, progress_status, chart, self.early_stop,
-            self.lr, branch_shapes[self.branches[0]][0])
+            train_dir, self.params['lr_optim'], self.params['tb'], self.params['epochs'], progress_bar, progress_status, chart, self.params['early_stop'],
+            self.params['lr'], branch_shapes[self.params['branches'][0]][0])
 
-        if self.lr_optim == 'lr_finder': self.epochs = 1
-        history = self.train(model, self.epochs, self.batch_size, callbacks, train_x, valid_x, train_y, valid_y).history
-        if self.lr_optim == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
+        if self.params['lr_optim'] == 'lr_finder': self.params['epochs'] = 1
+        history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
+        if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
-        logger.info('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
-        logger.info('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
-        st.text('Best achieved ' + self.metric + ' - ' + str(round(max(history[self.metric]), 4)))
-        st.text('Best achieved ' + f'val_{self.metric}' + ' - ' + str(round(max(history[f'val_{self.metric}']), 4)))
+        logger.info('Best achieved ' + self.params['metric'] + ' - ' + str(round(max(history[self.params['metric']]), 4)))
+        logger.info('Best achieved ' + f"val_{self.params['metric']}" + ' - ' + str(round(max(history[f"val_{self.params['metric']}"]), 4)))
+        st.text('Best achieved ' + self.params['metric'] + ' - ' + str(round(max(history[self.params['metric']]), 4)))
+        st.text('Best achieved ' + f"val_{self.params['metric']}" + ' - ' + str(round(max(history[f"val_{self.params['metric']}"]), 4)))
 
         # Plot metrics
-        self.plot_graph(history, self.metric, self.metric.capitalize(), train_dir)
-        self.plot_graph(history, 'loss', f'Loss: {self.loss.capitalize()}', train_dir)
+        self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), train_dir)
+        self.plot_graph(history, 'loss', f"Loss: {self.params['loss'].capitalize()}", train_dir)
         tf.keras.utils.plot_model(model, to_file=f'{train_dir}/model.png', show_shapes=True, dpi=300)
 
         status.text('Testing the network...')
-        test_results = self.test(model, self.batch_size, test_x, test_y)
+        test_results = self.test(model, self.params['batch_size'], test_x, test_y)
 
         logger.info('Evaluation loss: ' + str(round(test_results[0], 4)))
         logger.info('Evaluation acc: ' + str(round(test_results[1], 4)))
@@ -228,7 +254,7 @@ class Train(Subcommand):
         with open(f'{train_dir}/model.json', 'w') as json_file:
             json_file.write(model_json)
 
-        self.finalize_run(logger, train_dir)
+        self.finalize_run(logger, train_dir, self.params)
         status.text('Finished!')
     
     @staticmethod
@@ -364,3 +390,22 @@ class Train(Subcommand):
         rules = alt.Chart(source).mark_rule(color='gray').encode(x='Epoch:Q').transform_filter(nearest)
         alt_chart = alt.layer(line, selectors, points, rules, text)
         return alt_chart
+
+    @staticmethod
+    def default_params():
+        return {'batch_size': 256,
+                'branches': [],
+                'branches_layers': {'seq': [], 'fold': [], 'cons': []},
+                'common_layers': [],
+                'early_stop': True,
+                'epochs': 100,
+                'input_folder': '',
+                'loss': 'categorical_crossentropy',
+                'lr': 0.005,
+                'lr_optim': None,
+                'metric': 'accuracy',
+                'no_branches_layers': 1,
+                'no_common_layers': 1,
+                'optimizer': 'sgd',
+                'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
+                'tb': True}
