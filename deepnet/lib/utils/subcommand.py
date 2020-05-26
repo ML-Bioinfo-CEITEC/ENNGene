@@ -54,7 +54,7 @@ class Subcommand:
             raise UserInputError(f"Failed to create output folder at given path: {self.params['output_folder']}.")
 
         if branches:
-            default_branches = [list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(b)] for b in self.defaults['branches']]
+            default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
             self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
                                                st.multiselect('Branches',
                                                               list(self.BRANCHES.keys()),
@@ -103,6 +103,15 @@ class Subcommand:
     def ensure_dir(dir_path):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+
+    @staticmethod
+    def get_dict_index(value, dictionary):
+        return list(dictionary.values()).index(value)
+
+    @staticmethod
+    def get_dict_key(value, dictionary):
+        index = Subcommand.get_dict_index(value, dictionary)
+        return list(dictionary.keys())[index]
 
     @staticmethod
     def finalize_run(logger, out_dir, params):

@@ -121,7 +121,7 @@ class MakeDatasets(Subcommand):
         self.params['split'] = split_options[st.radio(
             # 'Choose a way to split Datasets into train, test, validation and blackbox categories:',
             'Choose a way to split Datasets into train, test and validation categories:',
-            list(split_options.keys()), index=list(split_options.values()).index(self.defaults['split']))]
+            list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
             if self.params['use_mapped']:
                 if not self.params['full_dataset_file']:

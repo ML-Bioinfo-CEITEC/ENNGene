@@ -53,7 +53,7 @@ class Train(Subcommand):
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
         self.params['early_stop'] = st.checkbox('Apply early stopping', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
-            'Optimizer', list(self.OPTIMIZERS.keys()), index=list(self.OPTIMIZERS.values()).index(self.defaults['optimizer']))]
+            'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         self.params['lr'] = st.number_input(
             'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
         if self.params['optimizer'] == 'sgd':
@@ -64,15 +64,15 @@ class Train(Subcommand):
                           'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
-                                                          index=list(lr_options.values()).index(self.defaults['lr_optim']))]
+                                                          index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
         else:
             self.params['lr_optim'] = None
         self.params['metric'] = self.METRICS[st.selectbox('Metric',
                                                           list(self.METRICS.keys()),
-                                                          index=list(self.METRICS.values()).index(self.defaults['metric']))]
+                                                          self.get_dict_index(self.defaults['metric'], self.METRICS))]
         self.params['loss'] = self.LOSSES[st.selectbox('Loss function',
                                                        list(self.LOSSES.keys()),
-                                                       list(self.LOSSES.values()).index(self.defaults['loss']))]
+                                                       self.get_dict_index(self.defaults['loss'], self.LOSSES))]
 
         # TODO change the logic when stateful design is enabled
         # self.branch_layers = {}
@@ -94,7 +94,7 @@ class Train(Subcommand):
         st.markdown('## Network Architecture')
         self.params['branches_layers'] = self.defaults['branches_layers']
         for i, branch in enumerate(self.params['branches']):
-            st.markdown(f'### {i+1}. {list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch')
+            st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
             self.params['no_branches_layers'] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers']):
