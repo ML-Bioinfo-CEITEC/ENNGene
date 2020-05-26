@@ -246,28 +246,70 @@ class MakeDatasets(Subcommand):
             file_path = os.path.join(dir_path, dataset.category)
             dataset.save_to_file(file_path, do_zip=True)
 
-        self.finalize_run(logger, datasets_dir, self.params)
+        self.finalize_run(logger, datasets_dir, self.params, self.csv_header(), self.csv_row(datasets_dir, self.params))
         status.text('Finished!')
 
     @staticmethod
     def default_params():
-        return {
-            'alphabet': 'DNA',
-            'branches': [],
-            'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
-            'cons_dir': '',
-            'fasta': '',
-            'full_dataset_file': '',
-            'input_files': [],
-            'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
-            'reducelist': [],
-            'reduceratio': {},
-            'reduceseed': 112,
-            'split': 'rand',
-            'split_ratio': '8:2:2',
-            'split_seed': 89,
-            'strand': True,
-            'use_mapped': False,
-            'win': 100,
-            'winseed': 42
-        }
+        return {'alphabet': 'DNA',
+                'branches': [],
+                'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
+                'cons_dir': '',
+                'fasta': '',
+                'full_dataset_file': '',
+                'input_files': [],
+                'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
+                'reducelist': [],
+                'reduceratio': {},
+                'reduceseed': 112,
+                'split': 'rand',
+                'split_ratio': '8:2:2',
+                'split_seed': 89,
+                'strand': True,
+                'use_mapped': False,
+                'valid_chromosomes': [],
+                'win': 100,
+                'winseed': 42
+                }
+
+    @staticmethod
+    def csv_header():
+        return 'Folder\t' \
+               'Branches\t' \
+               'Alphabet\t' \
+               'Window\t' \
+               'Window seed\t' \
+               'Strand\t' \
+               'Split\t' \
+               'Split ratio\t' \
+               'Split seed\t' \
+               'Reduced classes\t' \
+               'Reduce ratio\t' \
+               'Reduce seed\t' \
+               'Chromosomes\t' \
+               'Use mapped\t' \
+               'Input files\t' \
+               'Full_dataset_file\t' \
+               'Fasta ref\t' \
+               'Conservation ref\n'
+
+    @staticmethod
+    def csv_row(folder, params):
+        return f"{os.path.basename(folder)}\t" \
+               f"{[MakeDatasets.get_dict_key(b, MakeDatasets.BRANCHES) for b in params['branches']]}\t" \
+               f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
+               f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
+               f"{params['win']}\t" \
+               f"{params['winseed']}\t" \
+               f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
+               f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
+               f"{'Yes' if params['use_mapped'] else 'No'}\t" \
+               f"{params['input_files']}\t" \
+               f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
+               f"{params['fasta'] if params['fasta'] else '-'}\t" \
+               f"{params['cons_dir'] if params['cons_dir'] else '-'}\n"

@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+from pathlib import Path
 import shutil
 import streamlit as st
 import yaml
@@ -114,9 +115,18 @@ class Subcommand:
         return list(dictionary.keys())[index]
 
     @staticmethod
-    def finalize_run(logger, out_dir, params):
+    def finalize_run(logger, out_dir, params, csv_header, csv_row):
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
             yaml.dump(params, file)
+
+        parent_dir = Path(out_dir).parent
+        table_file = os.path.join(parent_dir, 'parameters.tsv')
+        write_header = not os.path.isfile(table_file)
+        with open(table_file, 'a') as file:
+            file.write(csv_header) if write_header else None
+            file.write(csv_row)
+            pass
+
         file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
         if file_handler:
             logfile_path = file_handler[0].baseFilename
