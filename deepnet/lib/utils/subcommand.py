@@ -20,7 +20,10 @@ class Subcommand:
 
     def add_general_options(self, branches=True):
         self.params_loaded = False
+        self.defaults = {}
+        self.defaults.update(self.default_params())
         self.load_params = st.checkbox('Load parameters from previous run', value=False)
+
         if self.load_params:
             param_file = st.text_input('Path to parameters.yaml file')
             if param_file:
@@ -33,16 +36,13 @@ class Subcommand:
                             logger.exception(f'{err.__class__.__name__}: {err}')
                             raise UserInputError("An error occurred while processing given yaml file.")
                         if user_params['task'] == self.__class__.__name__:
-                            self.defaults = user_params
+                            self.defaults.update(user_params)
                             self.params_loaded = True
                         else:
                             raise UserInputError('Given file contains parameters from a different task then currently selected.')
                 else:
                     raise UserInputError('Given yaml file does not exist.')
-            else:
-                self.defaults = self.default_params()
-        else:
-            self.defaults = self.default_params()
+        self.params.update(self.defaults)
 
         self.params['output_folder'] = st.text_input(
             'Output path were result files will be exported (cwd used as default)',

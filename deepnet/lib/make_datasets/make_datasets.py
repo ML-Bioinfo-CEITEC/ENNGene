@@ -28,7 +28,6 @@ class MakeDatasets(Subcommand):
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
-        self.params['valid_chromosomes'] = []
         self.klasses = []
 
         st.markdown('# Data Preprocessing')
@@ -48,8 +47,6 @@ class MakeDatasets(Subcommand):
                 self.params['alphabet'] = st.selectbox('Select alphabet:',
                                                        alphabets, index=alphabets.index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
-            else:
-                self.params['alphabet'] = None; self.params['strand'] = False
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
                 self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})

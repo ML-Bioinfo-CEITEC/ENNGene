@@ -65,8 +65,6 @@ class Train(Subcommand):
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
-        else:
-            self.params['lr_optim'] = None
         self.params['metric'] = self.METRICS[st.selectbox('Metric',
                                                           list(self.METRICS.keys()),
                                                           self.get_dict_index(self.defaults['metric'], self.METRICS))]
