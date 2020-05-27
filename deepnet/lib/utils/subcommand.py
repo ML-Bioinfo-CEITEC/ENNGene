@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+from pathlib import Path
 import shutil
 import streamlit as st
 import yaml
@@ -20,7 +21,10 @@ class Subcommand:
 
     def add_general_options(self, branches=True):
         self.params_loaded = False
+        self.defaults = {}
+        self.defaults.update(self.default_params())
         self.load_params = st.checkbox('Load parameters from previous run', value=False)
+
         if self.load_params:
             param_file = st.text_input('Path to parameters.yaml file')
             if param_file:
@@ -33,16 +37,13 @@ class Subcommand:
                             logger.exception(f'{err.__class__.__name__}: {err}')
                             raise UserInputError("An error occurred while processing given yaml file.")
                         if user_params['task'] == self.__class__.__name__:
-                            self.defaults = user_params
+                            self.defaults.update(user_params)
                             self.params_loaded = True
                         else:
                             raise UserInputError('Given file contains parameters from a different task then currently selected.')
                 else:
                     raise UserInputError('Given yaml file does not exist.')
-            else:
-                self.defaults = self.default_params()
-        else:
-            self.defaults = self.default_params()
+        self.params.update(self.defaults)
 
         self.params['output_folder'] = st.text_input(
             'Output path were result files will be exported (cwd used as default)',
@@ -54,7 +55,7 @@ class Subcommand:
             raise UserInputError(f"Failed to create output folder at given path: {self.params['output_folder']}.")
 
         if branches:
-            default_branches = [list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(b)] for b in self.defaults['branches']]
+            default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
             self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
                                                st.multiselect('Branches',
                                                               list(self.BRANCHES.keys()),
@@ -105,9 +106,27 @@ class Subcommand:
             os.makedirs(dir_path)
 
     @staticmethod
-    def finalize_run(logger, out_dir, params):
+    def get_dict_index(value, dictionary):
+        return list(dictionary.values()).index(value)
+
+    @staticmethod
+    def get_dict_key(value, dictionary):
+        index = Subcommand.get_dict_index(value, dictionary)
+        return list(dictionary.keys())[index]
+
+    @staticmethod
+    def finalize_run(logger, out_dir, params, csv_header, csv_row):
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
             yaml.dump(params, file)
+
+        parent_dir = Path(out_dir).parent
+        table_file = os.path.join(parent_dir, 'parameters.tsv')
+        write_header = not os.path.isfile(table_file)
+        with open(table_file, 'a') as file:
+            file.write(csv_header) if write_header else None
+            file.write(csv_row)
+            pass
+
         file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
         if file_handler:
             logfile_path = file_handler[0].baseFilename

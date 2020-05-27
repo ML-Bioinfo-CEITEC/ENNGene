@@ -30,6 +30,10 @@ class Train(Subcommand):
                   'Adam': 'adam'}
     METRICS = {'Accuracy': 'accuracy'}
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
+    LR_OPTIMS = {'Fixed lr': 'fixed',
+                 'LR scheduler': 'lr_scheduler',
+                 'LR finder': 'lr_finder',
+                 'One cycle policy': 'one_cycle'}
 
     def __init__(self):
         self.params = {'task': 'Train'}
@@ -53,26 +57,24 @@ class Train(Subcommand):
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
         self.params['early_stop'] = st.checkbox('Apply early stopping', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
-            'Optimizer', list(self.OPTIMIZERS.keys()), index=list(self.OPTIMIZERS.values()).index(self.defaults['optimizer']))]
+            'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         self.params['lr'] = st.number_input(
             'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
         if self.params['optimizer'] == 'sgd':
             # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
-            lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': None,
+            lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': 'fixed',
                           'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
                           'Use learning rate finder (beta)': 'lr_finder',
                           'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
-                                                          index=list(lr_options.values()).index(self.defaults['lr_optim']))]
-        else:
-            self.params['lr_optim'] = None
+                                                          index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
         self.params['metric'] = self.METRICS[st.selectbox('Metric',
                                                           list(self.METRICS.keys()),
-                                                          index=list(self.METRICS.values()).index(self.defaults['metric']))]
+                                                          self.get_dict_index(self.defaults['metric'], self.METRICS))]
         self.params['loss'] = self.LOSSES[st.selectbox('Loss function',
                                                        list(self.LOSSES.keys()),
-                                                       list(self.LOSSES.values()).index(self.defaults['loss']))]
+                                                       self.get_dict_index(self.defaults['loss'], self.LOSSES))]
 
         # TODO change the logic when stateful design is enabled
         # self.branch_layers = {}
@@ -94,7 +96,7 @@ class Train(Subcommand):
         st.markdown('## Network Architecture')
         self.params['branches_layers'] = self.defaults['branches_layers']
         for i, branch in enumerate(self.params['branches']):
-            st.markdown(f'### {i+1}. {list(self.BRANCHES.keys())[list(self.BRANCHES.values()).index(branch)]} branch')
+            st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
             self.params['no_branches_layers'] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers']):
@@ -199,11 +201,11 @@ class Train(Subcommand):
         status.text('Initializing network...')
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
-        cateogires = ['train', 'validation', 'test']  # TODO add blackbox when in use
-        self.dataset_files = [file for file in candidate_files if any(category in file for category in cateogires)]
+        categories = ['train', 'validation', 'test']  # TODO add blackbox when in use
+        dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
 
-        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(self.dataset_files[0]).labels())))
-        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(self.dataset_files, self.params['branches'], labels)
+        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))
+        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], labels)
         branch_shapes = self.get_shapes(train_x, self.params['branches'])
 
         train_dir = os.path.join(self.params['output_folder'], 'training',
@@ -232,10 +234,20 @@ class Train(Subcommand):
         history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
         if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
-        logger.info('Best achieved ' + self.params['metric'] + ' - ' + str(round(max(history[self.params['metric']]), 4)))
-        logger.info('Best achieved ' + f"val_{self.params['metric']}" + ' - ' + str(round(max(history[f"val_{self.params['metric']}"]), 4)))
-        st.text('Best achieved ' + self.params['metric'] + ' - ' + str(round(max(history[self.params['metric']]), 4)))
-        st.text('Best achieved ' + f"val_{self.params['metric']}" + ' - ' + str(round(max(history[f"val_{self.params['metric']}"]), 4)))
+        best_acc = str(round(max(history[self.params['metric']]), 4))
+        best_loss = str(round(max(history['loss']), 4))
+        best_val_acc = str(round(max(history[f"val_{self.params['metric']}"]), 4))
+        best_val_loss = str(round(max(history[f"val_loss"]), 4))
+
+        logger.info('Best achieved training ' + self.params['metric'] + ': ' + best_acc)
+        logger.info('Best achieved training loss: ' + best_loss)
+        logger.info('Best achieved ' + f"validation {self.params['metric']}" + ': ' + best_val_acc)
+        logger.info('Best achieved validation loss: ' + best_val_loss)
+
+        st.text(f"Best achieved training {self.params['metric']}: {best_acc}\n"
+                f"Best achieved training loss: {best_loss}\n\n"
+                f"Best achieved validation {self.params['metric']}: " + best_val_acc + '\n'
+                'Best achieved validation loss: ' + best_val_loss + '\n\n')
 
         # Plot metrics
         self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), train_dir)
@@ -245,16 +257,18 @@ class Train(Subcommand):
         status.text('Testing the network...')
         test_results = self.test(model, self.params['batch_size'], test_x, test_y)
 
-        logger.info('Evaluation loss: ' + str(round(test_results[0], 4)))
-        logger.info('Evaluation acc: ' + str(round(test_results[1], 4)))
-        st.text('Evaluation loss: ' + str(round(test_results[0], 4)))
-        st.text('Evaluation acc: ' + str(round(test_results[1], 4)))
+        eval_loss = str(round(test_results[0], 4))
+        eval_acc = str(round(test_results[1], 4))
+        logger.info('Evaluation loss: ' + eval_loss)
+        logger.info('Evaluation acc: ' + eval_acc)
+        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc}')
 
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:
             json_file.write(model_json)
 
-        self.finalize_run(logger, train_dir, self.params)
+        row = self.csv_row(train_dir, self.params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc)
+        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row)
         status.text('Finished!')
     
     @staticmethod
@@ -285,7 +299,7 @@ class Train(Subcommand):
                                          mode='auto')
             callbacks.append(earlystopper)
 
-        if lr_optim:
+        if lr_optim != 'fixed':
             if lr_optim == 'lr_finder':
                 callbacks.append(LRFinder(num_samples=sample,
                                           batch_size=sample//30,
@@ -402,10 +416,58 @@ class Train(Subcommand):
                 'input_folder': '',
                 'loss': 'categorical_crossentropy',
                 'lr': 0.005,
-                'lr_optim': None,
+                'lr_optim': 'fixed',
                 'metric': 'accuracy',
                 'no_branches_layers': 1,
                 'no_common_layers': 1,
                 'optimizer': 'sgd',
                 'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
                 'tb': True}
+
+    @staticmethod
+    def csv_header(metric):
+        return 'Folder\t' \
+               'Evaluation loss\t' \
+               f'Evaluation {metric}\t' \
+               'Best training loss\t' \
+               f'Best training {metric}\t' \
+               'Best validation loss\t' \
+               f'Best validation {metric}\t' \
+               'Branches\t' \
+               'Batch size\t' \
+               'Optimizer\t' \
+               'Metric\t' \
+               'Loss\t' \
+               'Learning rate\t' \
+               'LR optimizer\t' \
+               'Epochs\t' \
+               'Early stopping\t' \
+               'No. branches layers\t' \
+               'Branches layers\t' \
+               'No. common layers\t' \
+               'Common layers\t' \
+               'Input folder\n'
+
+    @staticmethod
+    def csv_row(folder, params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc):
+        return f"{os.path.basename(folder)}\t" \
+               f"{eval_loss}\t" \
+               f"{eval_acc}\t" \
+               f"{best_loss}\t" \
+               f"{best_acc}\t" \
+               f"{best_val_loss}\t" \
+               f"{best_val_acc}\t" \
+               f"{[Train.get_dict_key(b, Train.BRANCHES) for b in params['branches']]}\t" \
+               f"{params['batch_size']}\t" \
+               f"{Train.get_dict_key(params['optimizer'], Train.OPTIMIZERS)}\t" \
+               f"{Train.get_dict_key(params['metric'], Train.METRICS)}\t" \
+               f"{Train.get_dict_key(params['loss'], Train.LOSSES)}\t" \
+               f"{params['lr']}\t" \
+               f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
+               f"{params['epochs']}\t" \
+               f"{'Yes' if params['early_stop'] else 'No'}\t" \
+               f"{params['no_branches_layers']}\t" \
+               f"{params['branches_layers']}\t" \
+               f"{params['no_common_layers']}\t" \
+               f"{params['common_layers']}\t" \
+               f"{params['input_folder']}\n"
