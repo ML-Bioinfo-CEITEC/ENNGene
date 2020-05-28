@@ -139,20 +139,25 @@ class Preprocess(Subcommand):
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            if self.params['valid_chromosomes']:
-                if not self.params['use_mapped']:
-                    st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
-                    and continue selecting even while it's present.")
-                self.params['chromosomes'] = self.defaults['chromosomes']
-                self.params['chromosomes'].update({'train': set(st.multiselect(
-                    'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
-                self.params['chromosomes'].update({'validation': set(
-                    st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
-                self.params['chromosomes'].update({'test': set(
-                    st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
-                # self.params['chromosomes'].update({'blackbox': set(
-                #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
-                self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
+            print(self.params['valid_chromosomes'])
+            if self.params['fasta']:
+                if self.params['valid_chromosomes']:
+                    if not self.params['use_mapped']:
+                        st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
+                        and continue selecting even while it's present.")
+                    self.params['chromosomes'] = self.defaults['chromosomes']
+                    self.params['chromosomes'].update({'train': set(st.multiselect(
+                        'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
+                    self.params['chromosomes'].update({'validation': set(
+                       st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
+                    self.params['chromosomes'].update({'test': set(
+                        st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
+                    # self.params['chromosomes'].update({'blackbox': set(
+                    #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                    self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
+                else:
+                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
+
         elif self.params['split'] == 'rand':
             self.params['split_ratio'] = st.text_input(
                 # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
@@ -206,7 +211,9 @@ class Preprocess(Subcommand):
             # Read-in fasta file to dictionary
             if 'seq' in self.params['branches'] and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
-                fasta_dict, _ = seq.parse_fasta_reference(self.references['seq'])
+                fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
+                if not valid_chromosomes:
+                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
