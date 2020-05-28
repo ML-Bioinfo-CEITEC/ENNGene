@@ -62,15 +62,10 @@ class Subcommand:
                                                               default=default_branches)))
             self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
-        # FIXME does not work with streamlit
-        # max_cpu = os.cpu_count() or 1
-        # self.ncpu = st.slider('Number of CPUs to be used. 0 to use all available CPUs.',
-        #                       min_value=0, max_value=max_cpu, value=0)
-        # if self.ncpu == 0:
-        #     self.ncpu = max_cpu
-        self.ncpu = 1
-
-        # self.verbose = self.args.verbose
+        if 'fold' in self.params['branches']:
+            max_cpu = os.cpu_count() or 1
+            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
+                                  min_value=1, max_value=max_cpu, value=max_cpu)
 
     def validate_and_run(self, validation_hash):
         st.markdown('---')
