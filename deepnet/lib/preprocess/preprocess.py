@@ -14,12 +14,12 @@ logger = logging.getLogger('root')
 
 
 # noinspection DuplicatedCode
-class MakeDatasets(Subcommand):
+class Preprocess(Subcommand):
     ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
                  'RNA': ['A', 'C', 'G', 'U', 'N']}
 
     def __init__(self):
-        self.params = {'task': 'MakeDatasets'}
+        self.params = {'task': 'Preprocess'}
         self.validation_hash = {'is_bed': [],
                                 'is_fasta': [],
                                 'is_wig_dir': [],
@@ -296,7 +296,7 @@ class MakeDatasets(Subcommand):
     @staticmethod
     def csv_row(folder, params):
         return f"{os.path.basename(folder)}\t" \
-               f"{[MakeDatasets.get_dict_key(b, MakeDatasets.BRANCHES) for b in params['branches']]}\t" \
+               f"{[Preprocess.get_dict_key(b, Preprocess.BRANCHES) for b in params['branches']]}\t" \
                f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \

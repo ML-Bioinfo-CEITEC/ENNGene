@@ -35,7 +35,7 @@ except Exception as err:
 def deepNet():
     st.sidebar.title('Deepnet App')
 
-    available_subcommands = {'Preprocess Data': 'make_datasets',
+    available_subcommands = {'Preprocess Data': 'preprocess',
                              'Train a Model': 'train'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(
