@@ -277,16 +277,16 @@ class MakeDatasets(Subcommand):
         return 'Folder\t' \
                'Branches\t' \
                'Alphabet\t' \
+               'Strand\t' \
                'Window\t' \
                'Window seed\t' \
-               'Strand\t' \
                'Split\t' \
                'Split ratio\t' \
                'Split seed\t' \
+               'Chromosomes\t' \
                'Reduced classes\t' \
                'Reduce ratio\t' \
                'Reduce seed\t' \
-               'Chromosomes\t' \
                'Use mapped\t' \
                'Input files\t' \
                'Full_dataset_file\t' \
@@ -304,10 +304,10 @@ class MakeDatasets(Subcommand):
                f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
                f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
                f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
                f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
                f"{'Yes' if params['use_mapped'] else 'No'}\t" \
                f"{params['input_files']}\t" \
                f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
