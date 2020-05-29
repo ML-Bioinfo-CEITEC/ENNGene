@@ -7,15 +7,12 @@ Deepnet App (*name to be defined*) aims to facilitate application of deep neural
 
 #### Conda environment
 If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
-- Download latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
+- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
 - Unzip the directory `tar -xf deepnet.tar.gz`
 - Go to the project directory `cd deepnet`
 - Recreate environment from yml file `conda env create -f environment.yml`
 - Activate the environment`conda activate deepnet-app`
 - Run the app `cd deepnet` and `streamlit run deepnet.py`
-
-### Documentation
-(*full documentation to be done*)
 
 #### Intro
 The deepnet app is created using [Streamlit framework](https://www.streamlit.io/), which is still in early stages of development.
@@ -26,6 +23,13 @@ More functions will be added gradually (e.g. hyperparameter tuning or applying a
 
 To select a task browse the select box in the side panel. 
 For now, all input files (or folders) must be defined by an absolute path.
+
+After running a task, there's several files exported to the defined output folder.
+There's a log file with logged user input, warnings, etc. 
+In the parameters.yaml file there are all the parameters set by a user. 
+The yaml file can be imported in a future run to reproduce the set up.
+For each task there is one common tsv table with one row per run.
+You can then easily manage and compare results with different parameters setup.  
 
 #### Data Preprocessing
 In the first module, RNA or DNA sequence data are prepared to be fed into a neural network. 
@@ -40,19 +44,24 @@ All the samples fed to the neural network must be of the same length, which can 
 Long sequences get shortened, while short sequences are filled in based on the reference by randomly placing window of selected size on the original sequence. 
 Use **seed** parameter for reproducibility.
 
-There can be an arbitrary number of **input coordinate files** in bed format.
+There can be an arbitrary number of **input coordinate files** in bed format, but you need at least two for the classification.
 Each input file is handled as a separate class during model training (note that currently softmax activation function is used for all the models).
 Selected class/es can be reduced to **target size** (again, use **seed** for reproducibility).
+If you use this option in combination with dataset split by chromosomes, please make sure all classes in all the categories (train, test, etc.) 
+contain at least some data, as some chromosomes might be lost when randomly reducing dataset size.
 
-Supplied data must be split into training, validation and testing datasets (blackbox dataset is not used for now). 
+Supplied data must be split into training, validation and testing datasets.
 This can be done either by choosing particular chromosomes per each category, or randomly, based on defined **ratio** (again, use **seed** for reproducibility).
 If you choose to separate categories by chromosomes, fasta file with reference genome must be provided (the same one required for raw sequence and secondary structure branches).
 List of available chromosomes is then inferred from the provided genome file (scaffolds are ignored) - that may take up to few minutes.
 (Note: When selecting the chromosomes per category Streamlit will issue a warning 'Running read_and_cache(...).'. 
 You may disregard that and continue selecting, filling in other attributes, or hit the run button to start processing the files.)
 
-After all the parameters are set and selected, press the **run** button. The preprocessing might take several minutes to hours, depending on amounts of data and branches selected.
-Files with processed datasets are exported to the **output folder** defined at the beginning. 
+After all the parameters are set and selected, press the **run** button. The preprocessing might take several minutes to hours, 
+depending on the amount of data, selected options, and hardware available.
+If there's a mandatory field missing information or some input is incorrect, you will get a warning, and the app will not run.
+
+Files with processed datasets are exported to the **output folder** defined at the beginning.  
 
 #### Train a Model
 Files provided within **input folder** are expected to be those exported by the Preprocess Data section of the deepnet app.
@@ -67,13 +76,13 @@ When SGD is the optimizer of choice, you can use learning rate scheduler, instea
 When the lr finder is selected, a mock training is run for one epoch, and the resulting plot can be found in lr_finder.png file in the output folder.) 
 
 Finally, the last section determines the network architecture. You must define architecture for each selected branch, and for the common part of the network after branches' concatenation.
-First set a **number of layers** per each part. For each layer you must select its **type** (convolutional, dense, or LSTM).
+First set a **number of layers** per each part. For each layer you must select its **type** (e.g. convolutional, dense, or LSTM).
 If the checkbox is selected, you may set **advanced options** specific per layer type (e.g. dropout rate, or number of filters in a convolutional layer).
 
 When all is set, press the **run** button to start training the model.
 The training time depends on many variables (datasets size, network architecture, number of epochs, etc.).
 You can monitor the progress on the chart indicating metric and loss function values.
-Resulting model and all other files are exported to the selected **output folder**. 
+Resulting model and all other files (e.g. tensorboard) are exported to the selected **output folder**. 
 
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.

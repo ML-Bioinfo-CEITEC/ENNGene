@@ -14,12 +14,12 @@ logger = logging.getLogger('root')
 
 
 # noinspection DuplicatedCode
-class MakeDatasets(Subcommand):
+class Preprocess(Subcommand):
     ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
                  'RNA': ['A', 'C', 'G', 'U', 'N']}
 
     def __init__(self):
-        self.params = {'task': 'MakeDatasets'}
+        self.params = {'task': 'Preprocess'}
         self.validation_hash = {'is_bed': [],
                                 'is_fasta': [],
                                 'is_wig_dir': [],
@@ -139,20 +139,25 @@ class MakeDatasets(Subcommand):
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            if self.params['valid_chromosomes']:
-                if not self.params['use_mapped']:
-                    st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
-                    and continue selecting even while it's present.")
-                self.params['chromosomes'] = self.defaults['chromosomes']
-                self.params['chromosomes'].update({'train': set(st.multiselect(
-                    'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
-                self.params['chromosomes'].update({'validation': set(
-                    st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
-                self.params['chromosomes'].update({'test': set(
-                    st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
-                # self.params['chromosomes'].update({'blackbox': set(
-                #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
-                self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
+            print(self.params['valid_chromosomes'])
+            if self.params['fasta']:
+                if self.params['valid_chromosomes']:
+                    if not self.params['use_mapped']:
+                        st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
+                        and continue selecting even while it's present.")
+                    self.params['chromosomes'] = self.defaults['chromosomes']
+                    self.params['chromosomes'].update({'train': set(st.multiselect(
+                        'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
+                    self.params['chromosomes'].update({'validation': set(
+                       st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
+                    self.params['chromosomes'].update({'test': set(
+                        st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
+                    # self.params['chromosomes'].update({'blackbox': set(
+                    #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                    self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
+                else:
+                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
+
         elif self.params['split'] == 'rand':
             self.params['split_ratio'] = st.text_input(
                 # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
@@ -206,7 +211,9 @@ class MakeDatasets(Subcommand):
             # Read-in fasta file to dictionary
             if 'seq' in self.params['branches'] and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
-                fasta_dict, _ = seq.parse_fasta_reference(self.references['seq'])
+                fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
+                if not valid_chromosomes:
+                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
@@ -277,16 +284,16 @@ class MakeDatasets(Subcommand):
         return 'Folder\t' \
                'Branches\t' \
                'Alphabet\t' \
+               'Strand\t' \
                'Window\t' \
                'Window seed\t' \
-               'Strand\t' \
                'Split\t' \
                'Split ratio\t' \
                'Split seed\t' \
+               'Chromosomes\t' \
                'Reduced classes\t' \
                'Reduce ratio\t' \
                'Reduce seed\t' \
-               'Chromosomes\t' \
                'Use mapped\t' \
                'Input files\t' \
                'Full_dataset_file\t' \
@@ -296,7 +303,7 @@ class MakeDatasets(Subcommand):
     @staticmethod
     def csv_row(folder, params):
         return f"{os.path.basename(folder)}\t" \
-               f"{[MakeDatasets.get_dict_key(b, MakeDatasets.BRANCHES) for b in params['branches']]}\t" \
+               f"{[Preprocess.get_dict_key(b, Preprocess.BRANCHES) for b in params['branches']]}\t" \
                f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \
@@ -304,10 +311,10 @@ class MakeDatasets(Subcommand):
                f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
                f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
                f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
                f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
                f"{'Yes' if params['use_mapped'] else 'No'}\t" \
                f"{params['input_files']}\t" \
                f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
