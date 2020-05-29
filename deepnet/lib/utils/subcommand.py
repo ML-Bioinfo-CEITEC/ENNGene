@@ -66,6 +66,8 @@ class Subcommand:
             max_cpu = os.cpu_count() or 1
             self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
                                   min_value=1, max_value=max_cpu, value=max_cpu)
+        else:
+            self.ncpu = 1
 
     def validate_and_run(self, validation_hash):
         st.markdown('---')
