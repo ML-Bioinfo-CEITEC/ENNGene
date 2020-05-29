@@ -97,9 +97,9 @@ class Train(Subcommand):
         self.params['branches_layers'] = self.defaults['branches_layers']
         for i, branch in enumerate(self.params['branches']):
             st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
-            self.params['no_branches_layers'] = st.number_input(
-                'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'], key=f'{branch}_no')
-            for i in range(self.params['no_branches_layers']):
+            self.params['no_branches_layers'][branch] = st.number_input(
+                'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
+            for i in range(self.params['no_branches_layers'][branch]):
                 if self.params_loaded:
                     default_args = self.defaults['branches_layers'][branch][i]['args']
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
@@ -418,7 +418,7 @@ class Train(Subcommand):
                 'lr': 0.005,
                 'lr_optim': 'fixed',
                 'metric': 'accuracy',
-                'no_branches_layers': 1,
+                'no_branches_layers': {'seq': 1, 'fold': 1, 'cons': 1},
                 'no_common_layers': 1,
                 'optimizer': 'sgd',
                 'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
@@ -466,7 +466,7 @@ class Train(Subcommand):
                f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \
                f"{'Yes' if params['early_stop'] else 'No'}\t" \
-               f"{params['no_branches_layers']}\t" \
+               f"{[branch for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
                f"{params['common_layers']}\t" \
