@@ -14,7 +14,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 
 from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
-from .layers import LAYERS
+from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
 from ..utils import file_utils as f
@@ -108,8 +108,8 @@ class Train(Subcommand):
                     layer = {'name': 'CNN', 'args': {}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
-                default_i = list(LAYERS.keys()).index(layer['name'])
-                layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'layer{branch}{i}')))
+                default_i = list(BRANCH_LAYERS.keys()).index(layer['name'])
+                layer.update(dict(name=st.selectbox('Layer type', list(BRANCH_LAYERS.keys()), index=default_i, key=f'layer{branch}{i}')))
                 layer = self.layer_options(layer, i, checkbox, default_args, branch)
                 st.markdown('---')
                 if len(self.params['branches_layers'][branch]) > i:
@@ -129,9 +129,9 @@ class Train(Subcommand):
             else:
                 layer = {'name': 'Dense', 'args': {}}
                 checkbox = False
-            default_i = list(LAYERS.keys()).index(layer['name'])
+            default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox('Layer type', list(COMMON_LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i, checkbox, default_args)
             st.markdown('---')
             if len(self.params['common_layers']) > i:

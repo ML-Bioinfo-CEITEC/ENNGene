@@ -68,7 +68,10 @@ class MyGRU:
 
 LAYERS = {'CNN': MyConv1D,
           'Locally Connected 1D': MyLocallyConnected1D,
-          'RNN': MyRNN,
-          'GRU': MyGRU,
-          'LSTM': MyLSTM,
           'Dense': MyDense}
+BRANCH_LAYERS = {'CNN': MyConv1D,
+                 'Locally Connected 1D': MyLocallyConnected1D}
+COMMON_LAYERS = {'Dense': MyDense}
+# 'RNN': MyRNN,
+# 'GRU': MyGRU,
+# 'LSTM': MyLSTM,
