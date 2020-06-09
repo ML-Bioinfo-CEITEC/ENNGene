@@ -235,9 +235,9 @@ class Train(Subcommand):
         if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
         best_acc = str(round(max(history[self.params['metric']]), 4))
-        best_loss = str(round(max(history['loss']), 4))
+        best_loss = str(round(min(history['loss']), 4))
         best_val_acc = str(round(max(history[f"val_{self.params['metric']}"]), 4))
-        best_val_loss = str(round(max(history[f"val_loss"]), 4))
+        best_val_loss = str(round(min(history[f"val_loss"]), 4))
 
         logger.info('Best achieved training ' + self.params['metric'] + ': ' + best_acc)
         logger.info('Best achieved training loss: ' + best_loss)
