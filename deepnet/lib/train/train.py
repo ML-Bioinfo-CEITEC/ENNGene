@@ -466,7 +466,7 @@ class Train(Subcommand):
                f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \
                f"{'Yes' if params['early_stop'] else 'No'}\t" \
-               f"{[branch for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
+               f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
                f"{params['common_layers']}\t" \
