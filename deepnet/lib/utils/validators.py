@@ -61,18 +61,18 @@ def is_wig_dir(folder):
 
     invalid = False
     if os.path.isdir(folder):
-        files = f.list_files_in_dir(folder)
+        files = f.list_files_in_dir(folder, 'wig')
         one_wig = next((file for file in files if 'wig' in file), None)
         if one_wig:
             zipped = True if ('gz' in one_wig or 'zip' in one_wig) else False
             try:
-                with open(one_wig) as wig_file:
-                    line1 = f.read_decoded_line(wig_file, zipped)
-                    if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
-                        invalid = True
-                        warning = f"Provided wig file {one_wig} starts with unknown header."
-                    line2 = f.read_decoded_line(wig_file, zipped)
-                    int(line2)
+                wig_file = f.unzip_if_zipped(one_wig)
+                line1 = f.read_decoded_line(wig_file, zipped)
+                if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
+                    invalid = True
+                    warning = f"Provided wig file {one_wig} starts with unknown header."
+                line2 = f.read_decoded_line(wig_file, zipped)
+                float(line2)
             except Exception:
                 invalid = True
                 warning = f"Tried to look at a provided wig file: {one_wig} and failed to properly read it. Please check the format."
