@@ -38,7 +38,8 @@ class Train(Subcommand):
     def __init__(self):
         self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
-                                'is_dataset_dir': []}
+                                'is_dataset_dir': [],
+                                'correct_branches': []}
 
         st.markdown('# Train a Model')
 
@@ -48,6 +49,7 @@ class Train(Subcommand):
         self.params['input_folder'] = st.text_input(
             'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
+        self.validation_hash['correct_branches'].append({'branches': self.params['branches'], 'input_folder': self.params['input_folder']})
 
         self.params['tb'] = st.checkbox('Output TensorBoard log files', value=self.defaults['tb'])
 
@@ -100,7 +102,7 @@ class Train(Subcommand):
             self.params['no_branches_layers'][branch] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers'][branch]):
-                if self.params_loaded:
+                if self.params_loaded and i < len(self.defaults['branches_layers'][branch]):
                     default_args = self.defaults['branches_layers'][branch][i]['args']
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
