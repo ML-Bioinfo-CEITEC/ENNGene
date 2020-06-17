@@ -101,7 +101,8 @@ class Preprocess(Subcommand):
 
         st.markdown('## Dataset Size Reduction')
         st.markdown('Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
-                    'splitting the dataset by chromosomes, some categories might end up empty.')
+                    'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
+                    'to be used in combination with random split.')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
                                                    self.klasses, self.defaults['reducelist'])
         if self.params['reducelist']:
@@ -110,7 +111,7 @@ class Preprocess(Subcommand):
             self.params['reduceratio'] = self.defaults['reduceratio']
             for klass in self.params['reducelist']:
                 self.params['reduceratio'].update({klass: float(st.number_input("Target {} dataset size".format(klass),
-                                                                      min_value=0.01, max_value=1.0, value=0.5))})
+                                                                      min_value=0.00001, max_value=1.0, value=0.01, format='%.5f'))})
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',

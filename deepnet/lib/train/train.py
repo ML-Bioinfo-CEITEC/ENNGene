@@ -57,7 +57,7 @@ class Train(Subcommand):
         # TODO make sure batch size is smaller than dataset size
         self.params['batch_size'] = st.number_input('Batch size', min_value=1, value=self.defaults['batch_size'])
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
-        self.params['early_stop'] = st.checkbox('Apply early stopping', value=self.defaults['early_stop'])
+        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 50, delta 0.1)', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
             'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         self.params['lr'] = st.number_input(
