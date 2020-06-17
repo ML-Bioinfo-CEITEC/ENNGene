@@ -129,7 +129,15 @@ class Dataset:
     def reduce(self, ratio, seed):
         np.random.seed(seed)
         np.random.shuffle(self.df.values)
-        last = int(self.df.shape[0] * ratio)
+        if ratio <= 1:
+            # handle as a ratio
+            last = int(self.df.shape[0] * ratio)
+        elif ratio < len(self.df.values):
+            # handle as a final size
+            last = int(ratio)
+        elif ratio >= len(self.df.values):
+            # keep the full dataset
+            last = len(self.df.values)-1
         self.df = self.df[:last]
         return self
 

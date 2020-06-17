@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import streamlit as st
+import subprocess
 
 from ..utils.dataset import Dataset
 from ..utils.exceptions import UserInputError
@@ -29,6 +30,7 @@ class Preprocess(Subcommand):
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
         self.klasses = []
+        self.klass_sizes = {}
 
         st.markdown('# Data Preprocessing')
 
@@ -84,10 +86,13 @@ class Preprocess(Subcommand):
                 if any(ext in file_name for ext in self.allowed_extensions):
                     for ext in self.allowed_extensions:
                         if ext in file_name:
-                            self.klasses.append(file_name.replace(ext, ''))
+                            klass = file_name.replace(ext, '')
+                            self.klasses.append(klass)
+                            # subprocess.run(['wc', '-l', file], check=True)
+                            self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
                 else:
                     warning.markdown(
-                        '**WARNING: Only files of following format are allowed: {}.**'.format(', '.join(self.allowed_extensions)))
+                        '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
         else:
             # When using already mapped file
             self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])
@@ -100,9 +105,8 @@ class Preprocess(Subcommand):
                     raise UserInputError('Invalid dataset file!')
 
         st.markdown('## Dataset Size Reduction')
-        st.markdown('Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
-                    'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
-                    'to be used in combination with random split.')
+        st.markdown('Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%),'
+                    'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
                                                    self.klasses, self.defaults['reducelist'])
         if self.params['reducelist']:
@@ -110,8 +114,12 @@ class Preprocess(Subcommand):
                                                             value=self.defaults['reduceseed']))
             self.params['reduceratio'] = self.defaults['reduceratio']
             for klass in self.params['reducelist']:
-                self.params['reduceratio'].update({klass: float(st.number_input("Target {} dataset size".format(klass),
-                                                                      min_value=0.00001, max_value=1.0, value=0.01, format='%.5f'))})
+                self.params['reduceratio'].update({klass: float(st.number_input(
+                    f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
+                    min_value=0.00001, value=0.01, format='%.5f'))})
+        st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+                    'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
+                    'to be used in combination with random split.')
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
