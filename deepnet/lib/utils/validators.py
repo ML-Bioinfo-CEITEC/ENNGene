@@ -143,7 +143,7 @@ def is_dataset_dir(folder):
         files = f.list_files_in_dir(folder, 'zip')
         dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
         for file in files:
-            category = next((category for category in dataset_files.keys() if category in file), None)
+            category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
             if category: dataset_files[category].append(file)
         for category, files in dataset_files.items():
             if category == 'blackbox': continue  # the blackbox dataset is optional
