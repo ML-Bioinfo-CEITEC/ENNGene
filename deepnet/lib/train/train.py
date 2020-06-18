@@ -149,7 +149,7 @@ class Train(Subcommand):
             layer['args'].update({'batchnorm': st.checkbox(
                 'Batch normalization', value=defaults['batchnorm'], key=f'batch{branch}{i}')})
             layer['args'].update({'dropout': st.slider(
-                'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}')})
+                'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}', format='%.2f')})
             if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
                 layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=
                 defaults['filters'], key=f'filters{branch}{i}')})
