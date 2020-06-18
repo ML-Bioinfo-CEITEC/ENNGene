@@ -263,7 +263,7 @@ class Train(Subcommand):
         eval_acc = str(round(test_results[1], 4))
         logger.info('Evaluation loss: ' + eval_loss)
         logger.info('Evaluation acc: ' + eval_acc)
-        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc}')
+        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc} \n')
 
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:

@@ -114,6 +114,8 @@ class Subcommand:
 
     @staticmethod
     def finalize_run(logger, out_dir, params, csv_header, csv_row):
+        st.text(f'You can find your results at {out_dir}')
+
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
             yaml.dump(params, file)
 
