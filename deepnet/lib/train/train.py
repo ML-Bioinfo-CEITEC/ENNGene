@@ -107,7 +107,7 @@ class Train(Subcommand):
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
-                    layer = {'name': 'CNN', 'args': {}}
+                    layer = {'name': 'CNN', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
                 default_i = list(BRANCH_LAYERS.keys()).index(layer['name'])
@@ -129,7 +129,7 @@ class Train(Subcommand):
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
                 checkbox = True
             else:
-                layer = {'name': 'Dense', 'args': {}}
+                layer = {'name': 'Dense', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
