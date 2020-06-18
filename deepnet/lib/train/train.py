@@ -203,7 +203,7 @@ class Train(Subcommand):
         status.text('Initializing network...')
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
-        categories = ['train', 'validation', 'test']  # TODO add blackbox when in use
+        categories = ['train', 'validation', 'test', 'blackbox']
         dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
 
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))

@@ -125,8 +125,7 @@ class Preprocess(Subcommand):
         split_options = {'Random': 'rand',
                          'By chromosomes': 'by_chr'}
         self.params['split'] = split_options[st.radio(
-            # 'Choose a way to split Datasets into train, test, validation and blackbox categories:',
-            'Choose a way to split Datasets into train, test and validation categories:',
+            'Choose a way to split Datasets into train, test, validation and blackbox categories:',
             list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
             if self.params['use_mapped']:
@@ -161,19 +160,18 @@ class Preprocess(Subcommand):
                        st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
                     self.params['chromosomes'].update({'test': set(
                         st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
-                    # self.params['chromosomes'].update({'blackbox': set(
-                    #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                    self.params['chromosomes'].update({'blackbox': set(
+                      st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
                     self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
                 else:
                     raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
 
         elif self.params['split'] == 'rand':
             self.params['split_ratio'] = st.text_input(
-                # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
-                'List a target ratio between the categories (required format: train:validation:test)',
+                'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 value=self.defaults['split_ratio'])
             self.validation_hash['is_ratio'].append(self.params['split_ratio'])
-            # st.markdown('Note: blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
+            st.markdown('###### Note: If you do not want to use the blackbox dataset (for later evaluation), you can just set it\'s size to 0.')
             self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a Dataset',
                                                             value=self.defaults['split_seed']))
 
@@ -279,7 +277,7 @@ class Preprocess(Subcommand):
                 'reduceratio': {},
                 'reduceseed': 112,
                 'split': 'rand',
-                'split_ratio': '8:2:2',
+                'split_ratio': '7:1:1:1',
                 'split_seed': 89,
                 'strand': True,
                 'use_mapped': False,

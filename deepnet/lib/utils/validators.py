@@ -122,9 +122,9 @@ def is_wig_dir(folder):
 
 def is_ratio(string):
     invalid = False
-    if (':' in string) and len(string.split(':')) == 3:  # adjust when blackbox is used
+    if (':' in string) and len(string.split(':')) == 4:
         try:
-            ints = [int(part) for part in string.split(':')]
+            numbers = [float(part) for part in string.split(':')]
         except Exception:
             invalid = True
             warning = 'All parts of the split ratio must be numbers.'
@@ -141,11 +141,12 @@ def is_dataset_dir(folder):
     if os.path.isdir(folder):
         # TODO later check also the metadata file
         files = f.list_files_in_dir(folder, 'zip')
-        dataset_files = {'train': [], 'validation': [], 'test': []}  # TODO later add also blackbox
+        dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
         for file in files:
             category = next((category for category in dataset_files.keys() if category in file), None)
             if category: dataset_files[category].append(file)
         for category, files in dataset_files.items():
+            if category == 'blackbox': continue  # the blackbox dataset is optional
             if len(files) != 1:
                 invalid = True
                 warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
@@ -182,7 +183,6 @@ def is_full_dataset(file_path=None, branches=None):
 def not_empty_chromosomes(chromosomes_list):
     invalid = False
     for category, chromosomes in chromosomes_list:
-        if category == 'blackbox': continue  # remove when blackbox category usage is implemented
         if not chromosomes:
             invalid = True
             warning = 'You must select at least one chromosome per each category.'
