@@ -152,7 +152,9 @@ class Preprocess(Subcommand):
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
                         st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
-                        and continue selecting even while it's present.")
+                        and continue selecting even while it's present, as long as you work within one selectbox "
+                                    "(e.g. you can select multiple chromosomes within training dataset, but than "
+                                    "you have to wait until the warning disappears before you start working with the validation set).")
                     self.params['chromosomes'] = self.defaults['chromosomes']
                     self.params['chromosomes'].update({'train': set(st.multiselect(
                         'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
