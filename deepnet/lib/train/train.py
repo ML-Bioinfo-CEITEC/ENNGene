@@ -236,6 +236,11 @@ class Train(Subcommand):
         history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
         if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
+        if self.params['early_stop']:
+            early_epochs = [callback for callback in callbacks if type(callback) == EarlyStopping][0]
+            if early_epochs and early_epochs.stopped_epoch != 0:
+                self.params['epochs'] = early_epochs.stopped_epoch
+
         best_acc = str(round(max(history[self.params['metric']]), 4))
         best_loss = str(round(min(history['loss']), 4))
         best_val_acc = str(round(max(history[f"val_{self.params['metric']}"]), 4))
@@ -443,7 +448,6 @@ class Train(Subcommand):
                'Learning rate\t' \
                'LR optimizer\t' \
                'Epochs\t' \
-               'Early stopping\t' \
                'No. branches layers\t' \
                'Branches layers\t' \
                'No. common layers\t' \
@@ -467,7 +471,6 @@ class Train(Subcommand):
                f"{params['lr']}\t" \
                f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \
-               f"{'Yes' if params['early_stop'] else 'No'}\t" \
                f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
