@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import streamlit as st
+import subprocess
 
 from ..utils.dataset import Dataset
 from ..utils.exceptions import UserInputError
@@ -29,6 +30,7 @@ class Preprocess(Subcommand):
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
         self.klasses = []
+        self.klass_sizes = {}
 
         st.markdown('# Data Preprocessing')
 
@@ -84,10 +86,13 @@ class Preprocess(Subcommand):
                 if any(ext in file_name for ext in self.allowed_extensions):
                     for ext in self.allowed_extensions:
                         if ext in file_name:
-                            self.klasses.append(file_name.replace(ext, ''))
+                            klass = file_name.replace(ext, '')
+                            self.klasses.append(klass)
+                            # subprocess.run(['wc', '-l', file], check=True)
+                            self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
                 else:
                     warning.markdown(
-                        '**WARNING: Only files of following format are allowed: {}.**'.format(', '.join(self.allowed_extensions)))
+                        '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
         else:
             # When using already mapped file
             self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])
@@ -100,8 +105,8 @@ class Preprocess(Subcommand):
                     raise UserInputError('Invalid dataset file!')
 
         st.markdown('## Dataset Size Reduction')
-        st.markdown('Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
-                    'splitting the dataset by chromosomes, some categories might end up empty.')
+        st.markdown('Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%),'
+                    'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
                                                    self.klasses, self.defaults['reducelist'])
         if self.params['reducelist']:
@@ -109,15 +114,18 @@ class Preprocess(Subcommand):
                                                             value=self.defaults['reduceseed']))
             self.params['reduceratio'] = self.defaults['reduceratio']
             for klass in self.params['reducelist']:
-                self.params['reduceratio'].update({klass: float(st.number_input("Target {} dataset size".format(klass),
-                                                                      min_value=0.01, max_value=1.0, value=0.5))})
+                self.params['reduceratio'].update({klass: float(st.number_input(
+                    f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
+                    min_value=0.00001, value=0.01, format='%.5f'))})
+        st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+                    'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
+                    'to be used in combination with random split.')
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
                          'By chromosomes': 'by_chr'}
         self.params['split'] = split_options[st.radio(
-            # 'Choose a way to split Datasets into train, test, validation and blackbox categories:',
-            'Choose a way to split Datasets into train, test and validation categories:',
+            'Choose a way to split Datasets into train, test, validation and blackbox categories:',
             list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
             if self.params['use_mapped']:
@@ -144,7 +152,9 @@ class Preprocess(Subcommand):
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
                         st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
-                        and continue selecting even while it's present.")
+                        and continue selecting even while it's present, as long as you work within one selectbox "
+                                    "(e.g. you can select multiple chromosomes within training dataset, but than "
+                                    "you have to wait until the warning disappears before you start working with the validation set).")
                     self.params['chromosomes'] = self.defaults['chromosomes']
                     self.params['chromosomes'].update({'train': set(st.multiselect(
                         'Training Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['train'])))})
@@ -152,19 +162,18 @@ class Preprocess(Subcommand):
                        st.multiselect('Validation Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['validation'])))})
                     self.params['chromosomes'].update({'test': set(
                         st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
-                    # self.params['chromosomes'].update({'blackbox': set(
-                    #   st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                    self.params['chromosomes'].update({'blackbox': set(
+                      st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
                     self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
                 else:
                     raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
 
         elif self.params['split'] == 'rand':
             self.params['split_ratio'] = st.text_input(
-                # 'List a target ratio between the categories (required format: train:validation:test:blackbox)',
-                'List a target ratio between the categories (required format: train:validation:test)',
+                'List a target ratio between the categories (required format: train:validation:test:blackbox)',
                 value=self.defaults['split_ratio'])
             self.validation_hash['is_ratio'].append(self.params['split_ratio'])
-            # st.markdown('Note: blackbox dataset usage is currently not yet implemented, thus recommended value is 0.')
+            st.markdown('###### Note: If you do not want to use the blackbox dataset (for later evaluation), you can just set it\'s size to 0.')
             self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a Dataset',
                                                             value=self.defaults['split_seed']))
 
@@ -270,7 +279,7 @@ class Preprocess(Subcommand):
                 'reduceratio': {},
                 'reduceseed': 112,
                 'split': 'rand',
-                'split_ratio': '8:2:2',
+                'split_ratio': '7:1:1:1',
                 'split_seed': 89,
                 'strand': True,
                 'use_mapped': False,

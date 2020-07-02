@@ -14,7 +14,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
 
 from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
-from .layers import LAYERS
+from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
 from ..utils import file_utils as f
@@ -38,7 +38,8 @@ class Train(Subcommand):
     def __init__(self):
         self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
-                                'is_dataset_dir': []}
+                                'is_dataset_dir': [],
+                                'correct_branches': []}
 
         st.markdown('# Train a Model')
 
@@ -48,6 +49,7 @@ class Train(Subcommand):
         self.params['input_folder'] = st.text_input(
             'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
+        self.validation_hash['correct_branches'].append({'branches': self.params['branches'], 'input_folder': self.params['input_folder']})
 
         self.params['tb'] = st.checkbox('Output TensorBoard log files', value=self.defaults['tb'])
 
@@ -55,7 +57,7 @@ class Train(Subcommand):
         # TODO make sure batch size is smaller than dataset size
         self.params['batch_size'] = st.number_input('Batch size', min_value=1, value=self.defaults['batch_size'])
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
-        self.params['early_stop'] = st.checkbox('Apply early stopping', value=self.defaults['early_stop'])
+        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 50, delta 0.1)', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
             'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         self.params['lr'] = st.number_input(
@@ -100,16 +102,16 @@ class Train(Subcommand):
             self.params['no_branches_layers'][branch] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers'][branch]):
-                if self.params_loaded:
+                if self.params_loaded and i < len(self.defaults['branches_layers'][branch]):
                     default_args = self.defaults['branches_layers'][branch][i]['args']
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
-                    layer = {'name': 'CNN', 'args': {}}
+                    layer = {'name': 'CNN', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
-                default_i = list(LAYERS.keys()).index(layer['name'])
-                layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'layer{branch}{i}')))
+                default_i = list(BRANCH_LAYERS.keys()).index(layer['name'])
+                layer.update(dict(name=st.selectbox('Layer type', list(BRANCH_LAYERS.keys()), index=default_i, key=f'layer{branch}{i}')))
                 layer = self.layer_options(layer, i, checkbox, default_args, branch)
                 st.markdown('---')
                 if len(self.params['branches_layers'][branch]) > i:
@@ -127,11 +129,11 @@ class Train(Subcommand):
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
                 checkbox = True
             else:
-                layer = {'name': 'Dense', 'args': {}}
+                layer = {'name': 'Dense', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
-            default_i = list(LAYERS.keys()).index(layer['name'])
+            default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', list(LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox('Layer type', list(COMMON_LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i, checkbox, default_args)
             st.markdown('---')
             if len(self.params['common_layers']) > i:
@@ -147,7 +149,7 @@ class Train(Subcommand):
             layer['args'].update({'batchnorm': st.checkbox(
                 'Batch normalization', value=defaults['batchnorm'], key=f'batch{branch}{i}')})
             layer['args'].update({'dropout': st.slider(
-                'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}')})
+                'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}', format='%.2f')})
             if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
                 layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=
                 defaults['filters'], key=f'filters{branch}{i}')})
@@ -201,7 +203,7 @@ class Train(Subcommand):
         status.text('Initializing network...')
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
-        categories = ['train', 'validation', 'test']  # TODO add blackbox when in use
+        categories = ['train', 'validation', 'test', 'blackbox']
         dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
 
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))
@@ -234,10 +236,15 @@ class Train(Subcommand):
         history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
         if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
+        if self.params['early_stop']:
+            early_epochs = [callback for callback in callbacks if type(callback) == EarlyStopping][0]
+            if early_epochs and early_epochs.stopped_epoch != 0:
+                self.params['epochs'] = early_epochs.stopped_epoch
+
         best_acc = str(round(max(history[self.params['metric']]), 4))
-        best_loss = str(round(max(history['loss']), 4))
+        best_loss = str(round(min(history['loss']), 4))
         best_val_acc = str(round(max(history[f"val_{self.params['metric']}"]), 4))
-        best_val_loss = str(round(max(history[f"val_loss"]), 4))
+        best_val_loss = str(round(min(history[f"val_loss"]), 4))
 
         logger.info('Best achieved training ' + self.params['metric'] + ': ' + best_acc)
         logger.info('Best achieved training loss: ' + best_loss)
@@ -261,7 +268,7 @@ class Train(Subcommand):
         eval_acc = str(round(test_results[1], 4))
         logger.info('Evaluation loss: ' + eval_loss)
         logger.info('Evaluation acc: ' + eval_acc)
-        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc}')
+        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc} \n')
 
         model_json = model.to_json()
         with open(f'{train_dir}/model.json', 'w') as json_file:
@@ -441,7 +448,6 @@ class Train(Subcommand):
                'Learning rate\t' \
                'LR optimizer\t' \
                'Epochs\t' \
-               'Early stopping\t' \
                'No. branches layers\t' \
                'Branches layers\t' \
                'No. common layers\t' \
@@ -465,8 +471,7 @@ class Train(Subcommand):
                f"{params['lr']}\t" \
                f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \
-               f"{'Yes' if params['early_stop'] else 'No'}\t" \
-               f"{[branch for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
+               f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
                f"{params['common_layers']}\t" \

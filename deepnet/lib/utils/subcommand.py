@@ -62,7 +62,8 @@ class Subcommand:
                                                               default=default_branches)))
             self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
-        if 'fold' in self.params['branches']:
+        if 'fold' in self.params['branches'] and self.__class__.__name__ == 'Preprocess':
+            # currently used only as an option for RNAfold
             max_cpu = os.cpu_count() or 1
             self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
                                   min_value=1, max_value=max_cpu, value=max_cpu)
@@ -113,6 +114,8 @@ class Subcommand:
 
     @staticmethod
     def finalize_run(logger, out_dir, params, csv_header, csv_row):
+        st.text(f'You can find your results at {out_dir}')
+
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
             yaml.dump(params, file)
 

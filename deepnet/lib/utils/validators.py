@@ -3,10 +3,44 @@ import os
 from .dataset import Dataset
 from . import file_utils as f
 
+BRANCHES_REV = {'seq': 'Raw sequence',
+                'cons': 'Conservation score',
+                'fold': 'Secondary structure'}
+
 
 def not_empty_branches(branches):
     warning = 'You must select at least one branch.'
     return warning if len(branches) == 0 else None
+
+
+def correct_branches(branches, input_folder):
+    # Check that selected branches are present in given input files
+    invalid = False
+    defined_branches = ['seq', 'fold', 'cons']
+    files = f.list_files_in_dir(input_folder, 'zip')
+    base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
+    for file in files:
+        if any(ext in file for ext in ['train', 'validation', 'test']):
+            dataset = Dataset.load_from_file(file)
+            branch_cols = []
+            columns = dataset.df.columns
+            for col in columns:
+                if col not in base_columns and col in defined_branches:
+                    branch_cols.append(col)
+            invalid_branches = []
+            for branch in branches:
+                if branch not in branch_cols:
+                    invalid_branches.append(branch)
+            if not len(invalid_branches) == 0:
+                invalid = True
+                if len(invalid_branches) == len(branches):
+                    warning = 'None of the selected branches are present in given preprocessed input files.'
+                else:
+                    warning = f'Branch/es {[BRANCHES_REV[branch] for branch in invalid_branches]} ' \
+                              f'are not present in given preprocessed input files.\n' \
+                              f'Please unselect the missing branches or provide correct preprocessed files first.'
+
+    return warning if invalid else None
 
 
 def min_two_files(input_files):
@@ -61,18 +95,18 @@ def is_wig_dir(folder):
 
     invalid = False
     if os.path.isdir(folder):
-        files = f.list_files_in_dir(folder)
+        files = f.list_files_in_dir(folder, 'wig')
         one_wig = next((file for file in files if 'wig' in file), None)
         if one_wig:
             zipped = True if ('gz' in one_wig or 'zip' in one_wig) else False
             try:
-                with open(one_wig) as wig_file:
-                    line1 = f.read_decoded_line(wig_file, zipped)
-                    if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
-                        invalid = True
-                        warning = f"Provided wig file {one_wig} starts with unknown header."
-                    line2 = f.read_decoded_line(wig_file, zipped)
-                    int(line2)
+                wig_file = f.unzip_if_zipped(one_wig)
+                line1 = f.read_decoded_line(wig_file, zipped)
+                if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
+                    invalid = True
+                    warning = f"Provided wig file {one_wig} starts with unknown header."
+                line2 = f.read_decoded_line(wig_file, zipped)
+                float(line2)
             except Exception:
                 invalid = True
                 warning = f"Tried to look at a provided wig file: {one_wig} and failed to properly read it. Please check the format."
@@ -88,9 +122,9 @@ def is_wig_dir(folder):
 
 def is_ratio(string):
     invalid = False
-    if (':' in string) and len(string.split(':')) == 3:  # adjust when blackbox is used
+    if (':' in string) and len(string.split(':')) == 4:
         try:
-            ints = [int(part) for part in string.split(':')]
+            numbers = [float(part) for part in string.split(':')]
         except Exception:
             invalid = True
             warning = 'All parts of the split ratio must be numbers.'
@@ -107,11 +141,12 @@ def is_dataset_dir(folder):
     if os.path.isdir(folder):
         # TODO later check also the metadata file
         files = f.list_files_in_dir(folder, 'zip')
-        dataset_files = {'train': [], 'validation': [], 'test': []}  # TODO later add also blackbox
+        dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
         for file in files:
-            category = next((category for category in dataset_files.keys() if category in file), None)
+            category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
             if category: dataset_files[category].append(file)
         for category, files in dataset_files.items():
+            if category == 'blackbox': continue  # the blackbox dataset is optional
             if len(files) != 1:
                 invalid = True
                 warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
@@ -148,7 +183,6 @@ def is_full_dataset(file_path=None, branches=None):
 def not_empty_chromosomes(chromosomes_list):
     invalid = False
     for category, chromosomes in chromosomes_list:
-        if category == 'blackbox': continue  # remove when blackbox category usage is implemented
         if not chromosomes:
             invalid = True
             warning = 'You must select at least one chromosome per each category.'

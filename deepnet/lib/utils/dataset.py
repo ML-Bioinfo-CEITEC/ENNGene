@@ -61,11 +61,11 @@ class Dataset:
 
         validation_size = int(dataset_size * ratio_list[1] / total)
         test_size = (int(dataset_size * ratio_list[2] / total))
-        # blackbox_size = (int(dataset_size * ratio_list[3] / total))
+        blackbox_size = (int(dataset_size * ratio_list[3] / total))
         dfs = {'validation': dataset.df[:validation_size]}
         dfs.update({'test': dataset.df[validation_size:(validation_size + test_size)]})
-        # dfs.update({'blackbox': dataset.df[(validation_size + test_size):(validation_size + test_size + blackbox_size)]})
-        dfs.update({'train': dataset.df[(validation_size + test_size):]})  # + blackbox_size):]})
+        dfs.update({'blackbox': dataset.df[(validation_size + test_size):(validation_size + test_size + blackbox_size)]})
+        dfs.update({'train': dataset.df[(validation_size + test_size + blackbox_size):]})
 
         for category, df in dfs.items():
             split_datasets.add(
@@ -129,7 +129,15 @@ class Dataset:
     def reduce(self, ratio, seed):
         np.random.seed(seed)
         np.random.shuffle(self.df.values)
-        last = int(self.df.shape[0] * ratio)
+        if ratio <= 1:
+            # handle as a ratio
+            last = int(self.df.shape[0] * ratio)
+        elif ratio < len(self.df.values):
+            # handle as a final size
+            last = int(ratio)
+        elif ratio >= len(self.df.values):
+            # keep the full dataset
+            last = len(self.df.values)-1
         self.df = self.df[:last]
         return self
 
