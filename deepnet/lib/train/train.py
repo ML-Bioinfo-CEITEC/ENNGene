@@ -226,7 +226,7 @@ class Train(Subcommand):
 
         progress_bar = st.progress(0)
         progress_status = st.empty()
-        chart = st.altair_chart(self.initialize_altair_chart())
+        chart = st.altair_chart(self.initialize_altair_chart(), use_container_width=True)
 
         callbacks = self.create_callbacks(
             train_dir, self.params['lr_optim'], self.params['tb'], self.params['epochs'], progress_bar, progress_status, chart, self.params['early_stop'],
