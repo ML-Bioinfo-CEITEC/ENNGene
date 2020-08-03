@@ -32,7 +32,7 @@ class Train(Subcommand):
     LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
     LR_OPTIMS = {'Fixed lr': 'fixed',
                  'LR scheduler': 'lr_scheduler',
-                 'LR finder': 'lr_finder',
+                 # 'LR finder': 'lr_finder',
                  'One cycle policy': 'one_cycle'}
 
     def __init__(self):
@@ -60,17 +60,17 @@ class Train(Subcommand):
         self.params['early_stop'] = st.checkbox('Apply early stopping (patience 50, delta 0.1)', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
             'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
-        self.params['lr'] = st.number_input(
-            'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
         if self.params['optimizer'] == 'sgd':
             # TODO move lr finder to hyperparam tuning, runs one epoch on small sample, does not need valid and test data
-            lr_options = {'Use fixed learning rate (applies above defined value throughout whole training)': 'fixed',
-                          'Use learning rate scheduler (gradually decreasing lr from 0.1)': 'lr_scheduler',
-                          'Use learning rate finder (beta)': 'lr_finder',
-                          'Apply one cycle policy on learning rate (beta; uses above defined value as max)': 'one_cycle'}
+            lr_options = {'Use fixed learning rate (applies learning rate value throughout whole training)': 'fixed',
+                          'Use learning rate scheduler (gradually decreasing from the learning rate value)': 'lr_scheduler',
+                          # 'Use learning rate finder (beta)': 'lr_finder',
+                          'Apply one cycle policy on learning rate (uses the learning rate value as max)': 'one_cycle'}
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
+        self.params['lr'] = st.number_input(
+            'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
         self.params['metric'] = self.METRICS[st.selectbox('Metric',
                                                           list(self.METRICS.keys()),
                                                           self.get_dict_index(self.defaults['metric'], self.METRICS))]
@@ -232,9 +232,9 @@ class Train(Subcommand):
             train_dir, self.params['lr_optim'], self.params['tb'], self.params['epochs'], progress_bar, progress_status, chart, self.params['early_stop'],
             self.params['lr'], branch_shapes[self.params['branches'][0]][0])
 
-        if self.params['lr_optim'] == 'lr_finder': self.params['epochs'] = 1
         history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
-        if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
+        # if self.params['lr_optim'] == 'lr_finder': self.params['epochs'] = 1
+        # if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
 
         if self.params['early_stop']:
             early_epochs = [callback for callback in callbacks if type(callback) == EarlyStopping][0]
@@ -257,6 +257,7 @@ class Train(Subcommand):
                 'Best achieved validation loss: ' + best_val_loss + '\n\n')
 
         # Plot metrics
+        # if self.params['lr_optim'] != 'lr_finder':
         self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), train_dir)
         self.plot_graph(history, 'loss', f"Loss: {self.params['loss'].capitalize()}", train_dir)
         tf.keras.utils.plot_model(model, to_file=f'{train_dir}/model.png', show_shapes=True, dpi=300)
@@ -279,7 +280,7 @@ class Train(Subcommand):
         status.text('Finished!')
     
     @staticmethod
-    def step_decay_schedule(initial_lr=1e-3, drop=0.5, epochs_drop=10.0):
+    def step_decay_schedule(initial_lr, drop=0.5, epochs_drop=10.0):
         def schedule(epoch):
             return initial_lr * math.pow(drop, math.floor(epoch + 1) / epochs_drop)
         return LearningRateScheduler(schedule)
@@ -294,9 +295,7 @@ class Train(Subcommand):
                                append=True,
                                separator='\t')
 
-        progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
-
-        callbacks = [mcp, csv_logger, progress]
+        callbacks = [mcp, csv_logger]
 
         if early_stop:
             earlystopper = EarlyStopping(monitor='val_loss',
@@ -307,14 +306,14 @@ class Train(Subcommand):
             callbacks.append(earlystopper)
 
         if lr_optim != 'fixed':
-            if lr_optim == 'lr_finder':
-                callbacks.append(LRFinder(num_samples=sample,
-                                          batch_size=sample//30,
-                                          minimum_lr=1e-5,
-                                          maximum_lr=1e0,
-                                          lr_scale='exp',
-                                          save_dir=out_dir))
-            elif lr_optim == 'one_cycle':
+            # if lr_optim == 'lr_finder':
+            #     callbacks.append(LRFinder(num_samples=sample,
+            #                               batch_size=sample//30,
+            #                               minimum_lr=1e-5,
+            #                               maximum_lr=1e0,
+            #                               lr_scale='exp',
+            #                               save_dir=out_dir))
+            if lr_optim == 'one_cycle':
                 callbacks.append(OneCycleLR(max_lr=lr,
                                             end_percentage=0.1,
                                             scale_percentage=None,
@@ -322,7 +321,7 @@ class Train(Subcommand):
                                             minimum_momentum=0.85,
                                             verbose=True))
             elif lr_optim == 'lr_scheduler':
-                callbacks.append(Train.step_decay_schedule())
+                callbacks.append(Train.step_decay_schedule(initial_lr=lr))
 
         if tb:
             callbacks.append(TensorBoard(log_dir=out_dir, histogram_freq=1, profile_batch=3))
