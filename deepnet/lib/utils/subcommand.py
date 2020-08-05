@@ -31,7 +31,7 @@ class Subcommand:
                 if os.path.isfile(param_file):
                     with open(param_file, 'r') as file:
                         try:
-                            user_params = yaml.load(file)
+                            user_params = yaml.safe_load(file)
                             user_params['task']
                         except Exception as err:
                             logger.exception(f'{err.__class__.__name__}: {err}')
@@ -62,7 +62,7 @@ class Subcommand:
                                                               default=default_branches)))
             self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
-        if 'fold' in self.params['branches'] and self.__class__.__name__ == 'Preprocess':
+        if self.params['task'] == 'Preprocess' and 'fold' in self.params['branches']:
             # currently used only as an option for RNAfold
             max_cpu = os.cpu_count() or 1
             self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',

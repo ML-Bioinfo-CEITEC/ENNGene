@@ -192,6 +192,7 @@ class Dataset:
                 for i in range(row['seq_start'], row['seq_end']):
                     sequence.append(ref_dictionary[row['chrom_name']][i])
                 if strand and row['strand_sign'] == '-':
+                    # TODO could be RNA or somethng else, check & fix
                     sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
                 if encoding:
                     sequence = [seq.translate(item, encoding) for item in sequence]
