@@ -16,8 +16,6 @@ logger = logging.getLogger('root')
 
 # noinspection DuplicatedCode
 class Preprocess(Subcommand):
-    ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
-                 'RNA': ['A', 'C', 'G', 'U', 'N']}
 
     def __init__(self):
         self.params = {'task': 'Preprocess'}
@@ -42,11 +40,9 @@ class Preprocess(Subcommand):
         if not self.params['use_mapped']:
             self.references = {}
             if 'seq' in self.params['branches']:
-                # TODO allow option custom, to be specified by text input
-                # TODO add amino acid alphabet - in that case disable cons and fold i guess
-                alphabets = ['DNA', 'RNA']
                 self.params['alphabet'] = st.selectbox('Select alphabet:',
-                                                       alphabets, index=alphabets.index(self.defaults['alphabet']))
+                                                       list(seq.ALPHABETS.keys()),
+                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
@@ -196,7 +192,7 @@ class Preprocess(Subcommand):
         else:
             if self.params['alphabet']:
                 status.text('Encoding alphabet...')
-                encoding = seq.onehot_encode_alphabet(self.ALPHABETS[self.params['alphabet']])
+                encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[self.params['alphabet']])
             else:
                 encoding = None
 

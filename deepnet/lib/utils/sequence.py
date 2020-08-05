@@ -5,6 +5,11 @@ import _io
 from . import file_utils as f
 from .exceptions import UserInputError
 
+# TODO allow option custom, to be specified by text input
+# TODO add amino acid alphabet - in that case disable cons and fold i guess
+ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
+             'RNA': ['A', 'C', 'G', 'U', 'N']}
+
 DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 
 
