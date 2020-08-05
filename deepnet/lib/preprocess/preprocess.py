@@ -25,7 +25,6 @@ class Preprocess(Subcommand):
                                 'is_fasta': [],
                                 'is_wig_dir': [],
                                 'not_empty_branches': [],
-                                'min_two_files': [],
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
@@ -76,7 +75,6 @@ class Preprocess(Subcommand):
                 self.params['input_files'].append(st.text_input(
                     f'File no. {i+1} (.bed)',
                     value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else '')))
-            self.validation_hash['min_two_files'].append(list(filter(str.strip, self.params['input_files'])))
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
             for file in self.params['input_files']:
