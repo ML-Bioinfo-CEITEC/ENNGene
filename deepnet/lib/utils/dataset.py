@@ -149,18 +149,18 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, encoding, strand, outfile_path, ncpu):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu):
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq':
                 logger.info(f'Mapping sequences to fasta reference for sequence branch...')
-                self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, encoding, strand)
+                self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
             elif branch == 'cons':
                 logger.info(f'Mapping sequences to wig reference for conservation branch...')
                 self.df = Dataset.map_to_wig(branch, self.df, reference)
             elif branch == 'fold':
                 logger.info(f'Mapping and folding sequences for structure branch...')
-                df = Dataset.map_to_fasta_dict(self.df, branch, reference, False, strand)
+                df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
                 self.df = Dataset.fold_branch(df, branch, ncpu, dna=True)
 
         self.save_to_file(outfile_path, do_zip=True)
@@ -181,7 +181,7 @@ class Dataset:
             os.remove(outfile_path)
 
     @staticmethod
-    def map_to_fasta_dict(df, branch, ref_dictionary, encoding, strand):
+    def map_to_fasta_dict(df, branch, ref_dictionary, alphabet, strand):
         # Returns only successfully mapped samples
         old_shape = df.shape[0]
         df[branch] = None
@@ -192,12 +192,12 @@ class Dataset:
                 for i in range(row['seq_start'], row['seq_end']):
                     sequence.append(ref_dictionary[row['chrom_name']][i])
                 if strand and row['strand_sign'] == '-':
-                    # TODO could be RNA or somethng else, check & fix
-                    sequence = seq.complement(sequence, seq.DNA_COMPLEMENTARY)
-                if encoding:
+                    sequence = seq.complement(sequence, seq.COMPLEMENTARY(alphabet))
+                if branch == 'seq':
+                    encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
                     sequence = [seq.translate(item, encoding) for item in sequence]
                     row[branch] = Dataset.sequence_to_string(sequence)
-                else:
+                elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
             else:

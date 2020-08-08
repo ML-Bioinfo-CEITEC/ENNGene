@@ -10,7 +10,8 @@ from .exceptions import UserInputError
 ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
              'RNA': ['A', 'C', 'G', 'U', 'N']}
 
-DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+COMPLEMENTARY = {'DNA': {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'},
+                 'RNA': {'A': 'U', 'C': 'G', 'G': 'C', 'U': 'A', 'N': 'N'}}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
