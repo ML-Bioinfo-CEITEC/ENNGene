@@ -177,8 +177,21 @@ class Dataset:
         self.df = self.df.sort_values(by=['chrom_name', 'seq_start'])
         return self
 
-    def save_to_file(self, outfile_path, do_zip=False):
-        self.df.to_csv(outfile_path, sep='\t', index=False)
+    def save_to_file(self, outfile_path, do_zip=False, ignore_cols=None):
+        # temporary solution, as pandas can not save lists nor ndarrays into values
+        def to_string(row):
+            for branch in self.branches:
+                if not ignore_cols or branch not in ignore_cols:  # TODO check if its not too slow with multiple branches and big datasets in Preprocess
+                    row[branch] = Dataset.sequence_to_string(row[branch])
+            return row
+
+        branch_cols = [col for col in self.df.columns if col in self.branches]
+        # do not map whole dataset if it's not necessary
+        if len(branch_cols) != 0:
+            df = self.df.apply(to_string, axis=1)
+
+        to_export = [col for col in df.columns if col not in ignore_cols] if ignore_cols else df.columns
+        df.to_csv(outfile_path, sep='\t', columns=to_export, index=False)
 
         if do_zip:
             logger.info(f'Compressing dataset file...')
