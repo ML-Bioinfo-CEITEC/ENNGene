@@ -33,7 +33,7 @@ class Dataset:
     def load_from_file(cls, file_path):
         name = os.path.basename(file_path).replace('.zip', '')
         df = pd.read_csv(file_path, sep='\t', header=0)
-        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']]
+        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input']]
         category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
 
         return cls(branches=branches, category=category, df=df)
@@ -95,15 +95,22 @@ class Dataset:
 
         return merged_datasets
 
-    def __init__(self, klass=None, branches=None, category=None, bed_file=None, win=None, winseed=None,
-                 df=None):
+    def __init__(self, klass=None, branches=None, category=None, win=None, winseed=None,
+                 bed_file=None, fasta_file=None, text_input=None, df=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
-        self.category = category  # train, validation, test or blackbox for separated datasets
+        self.category = category  # predict, or train, validation, test or blackbox for separated datasets
         self.df = df if df is not None else pd.DataFrame()
 
-        if bed_file and win:
-            self.df = self.read_in_bed(bed_file, win, winseed)
+        if bed_file:
+            input_type = 'bed'
+            self.df = self.read_in_bed(bed_file)
+        elif fasta_file:
+            input_type = 'fasta'
+            self.df = self.read_in_fasta(fasta_file)
+        elif text_input:
+            input_type = 'fasta'
+            self.df = self.read_in_text(text_input)
 
     def read_in_bed(self, bed_file, window_size, window_seed):
         df = pd.read_csv(bed_file, sep='\t', header=None)
@@ -116,14 +123,14 @@ class Dataset:
             df.columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
         else:
             raise UserInputError('Invalid format of a .bed file.')
-        df['klass'] = self.klass
+        if self.klass:
+            df['klass'] = self.klass
 
         # TODO is it possible to do that in one line using just boolean masking? (could not manage that...)
         def check_valid(row):
             return row if seq.is_valid_chr(row['chrom_name']) else None
 
         df = df.apply(check_valid, axis=1, result_type='broadcast').dropna()
-        df = Dataset.apply_window(df, window_size, window_seed)
         return df
 
     def reduce(self, ratio, seed):
@@ -152,7 +159,7 @@ class Dataset:
     def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu):
         for branch in self.branches:
             reference = references[branch]
-            if branch == 'seq':
+            if branch == 'seq' or branch == 'predict':
                 logger.info(f'Mapping sequences to fasta reference for sequence branch...')
                 self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
             elif branch == 'cons':
@@ -180,6 +187,47 @@ class Dataset:
             zipped.close()
             os.remove(outfile_path)
 
+    def encode_predict(self, alphabet):
+        def map(row):
+            sequence = row['predict']
+            encoded = Dataset.encode_sequence(sequence, alphabet)
+            row['predict'] = np.array(encoded)
+            return row
+
+        self.df = self.df.apply(map, axis=1)
+        return self
+
+    @staticmethod
+    def read_in_fasta(fasta_file):
+        df = pd.DataFrame()
+
+        with open(fasta_file, 'r') as file:
+            header = None
+            sequence = ""
+            for line in file:
+                if '>' in line:
+                    # Save finished previous key value pair (unless it's the first iteration)
+                    if header:
+                        new_row = pd.DataFrame([[header, sequence]])
+                        df = df.append(new_row)
+                    header = line.strip().strip('>')
+                    sequence = ""
+                else:
+                    if header:
+                        sequence += line.strip()
+                    else:
+                        raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
+
+        df.columns = ['header', 'predict']
+        return df
+
+    @staticmethod
+    def read_in_text(text):
+        df = pd.DataFrame()
+        seq_series = pd.Series(text.strip().split('\n'))
+        df['predict'] = seq_series
+        return df
+
     @staticmethod
     def map_to_fasta_dict(df, branch, ref_dictionary, alphabet, strand):
         # Returns only successfully mapped samples
@@ -192,14 +240,14 @@ class Dataset:
                 for i in range(row['seq_start'], row['seq_end']):
                     sequence.append(ref_dictionary[row['chrom_name']][i])
                 if strand and row['strand_sign'] == '-':
-                    sequence = seq.complement(sequence, seq.COMPLEMENTARY(alphabet))
+                    sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
                 if branch == 'seq':
-                    encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
-                    sequence = [seq.translate(item, encoding) for item in sequence]
-                    row[branch] = Dataset.sequence_to_string(sequence)
+                    row[branch] = Dataset.encode_sequence(sequence, alphabet)
                 elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
+                elif branch == 'predict':
+                    row[branch] = sequence
             else:
                 row[branch] = None
             return row
@@ -210,6 +258,12 @@ class Dataset:
         portion = round((df.shape[0] / old_shape * 100), 2)
         logger.info(f'Successfully mapped {portion}% of samples.')
         return df
+
+    @staticmethod
+    def encode_sequence(sequence, alphabet):
+        encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
+        new_sequence = [seq.translate(item, encoding) for item in sequence]
+        return new_sequence
 
     @staticmethod
     def sequence_to_string(seq_list):
@@ -430,15 +484,15 @@ class Dataset:
             content.append(line2)
             return row
 
-        df.apply(to_fasta, axis=1, result_type='broadcast')
+        df.apply(to_fasta, axis=1)
         f.write(path_to_fasta, ''.join(content).strip())
         return path_to_fasta
 
     @staticmethod
-    def apply_window(df, window_size, window_seed=64):
+    def apply_window(df, window_size, window_seed=64, type='bed'):
         np.random.seed(window_seed)
 
-        def window(row):
+        def bed_window(row):
             length = row['seq_end'] - row['seq_start']
             if length > window_size:
                 above = length - window_size
@@ -458,5 +512,26 @@ class Dataset:
             row['seq_end'] = new_end
             return row
 
-        df = df.apply(window, axis=1)
+        def fasta_window(row):
+            sequence = row['predict']
+            length = len(sequence)
+            if length > window_size:
+                above = length - window_size
+                rand = np.random.randint(0, above)
+                new_sequence = sequence[rand:(rand+window_size)]
+            elif length < window_size:
+                missing = window_size - length
+                rand = np.random.randint(0, missing)
+                new_sequence = ('N' * rand) + sequence + ('N' * (missing-rand))
+            else:
+                new_sequence = sequence
+
+            row['predict'] = new_sequence
+            return row
+
+        if type == 'bed':
+            df = df.apply(bed_window, axis=1)
+        elif type == 'fasta':
+            df = df.apply(fasta_window, axis=1)
+
         return df

@@ -36,7 +36,8 @@ def deepNet():
     st.sidebar.title('Deepnet App')
 
     available_subcommands = {'Preprocess Data': 'preprocess',
-                             'Train a Model': 'train'}
+                             'Train a Model': 'train',
+                             'Make Predictions': 'predict'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(
         'Select a task to be run:',

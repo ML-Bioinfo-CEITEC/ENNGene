@@ -1,3 +1,4 @@
+import h5py
 import os
 
 from .dataset import Dataset
@@ -210,5 +211,41 @@ def not_empty_chromosomes(chromosomes_list):
         if not chromosomes:
             invalid = True
             warning = 'You must select at least one chromosome per each category.'
+
+    return warning if invalid else None
+
+
+def is_model_file(file_path):
+    invalid = False
+    if len(file_path) == 0:
+        invalid = True
+        warning = 'You must provide the hdf5 file with a trained model.'
+    else:
+        if os.path.isfile(file_path):
+            if not h5py.is_hdf5(file_path):
+                invalid = True
+                warning = 'Given file does not seem to be a valid model (requires hdf5 format).'
+        else:
+            invalid = True
+            warning = 'Given file with model does not exist.'
+
+    return warning if invalid else None
+
+
+def is_multiline_text(text, alphabet):
+    invalid = False
+    sequences = text.strip().split('\n')
+    if len(text) == 0 or len(sequences) == 0:
+        invalid = True
+        warning = 'You must provide at least one sequence to be classified.'
+
+    invalid_characters = []
+    for sequence in sequences:
+        for letter in sequence:
+            if letter not in alphabet:
+                invalid_characters.append(letter)
+    if len(invalid_characters) > 0:
+        invalid = True
+        warning = f'Given sequences contain invalid characters: {invalid_characters}.'
 
     return warning if invalid else None
