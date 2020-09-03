@@ -112,7 +112,10 @@ class Dataset:
             input_type = 'fasta'
             self.df = self.read_in_text(text_input)
 
-    def read_in_bed(self, bed_file, window_size, window_seed):
+        if win:
+            self.df = Dataset.apply_window(self.df, win, winseed, input_type)
+
+    def read_in_bed(self, bed_file):
         df = pd.read_csv(bed_file, sep='\t', header=None)
 
         if len(df.columns) == 3:
@@ -130,7 +133,7 @@ class Dataset:
         def check_valid(row):
             return row if seq.is_valid_chr(row['chrom_name']) else None
 
-        df = df.apply(check_valid, axis=1, result_type='broadcast').dropna()
+        df = df.apply(check_valid, axis=1).dropna()
         return df
 
     def reduce(self, ratio, seed):
@@ -156,17 +159,17 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None):
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq' or branch == 'predict':
-                logger.info(f'Mapping sequences to fasta reference for sequence branch...')
+                logger.info(f'Mapping intervals to the fasta reference...')
                 self.df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
             elif branch == 'cons':
-                logger.info(f'Mapping sequences to wig reference for conservation branch...')
+                logger.info(f'Mapping sequences to the wig reference...')
                 self.df = Dataset.map_to_wig(branch, self.df, reference)
             elif branch == 'fold':
-                logger.info(f'Mapping and folding sequences for structure branch...')
+                logger.info(f'Mapping and folding the sequences...')
                 df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
                 self.df = Dataset.fold_branch(df, branch, ncpu, dna=True)
 
@@ -380,7 +383,7 @@ class Dataset:
 
             if score and len(score) == (row['seq_end'] - row['seq_start']):
                 # Score may be fully or partially missing if the coordinates are not part of the reference
-                df.loc[i, branch] = Dataset.sequence_to_string(score)
+                df.loc[i, branch] = score
 
         df.dropna(subset=[branch], inplace=True)
         return df
@@ -441,7 +444,7 @@ class Dataset:
         return [score + new_score, current_header, parsed_line]
 
     @staticmethod
-    def fold_branch(df, branch, ncpu, dna=True):
+    def fold_branch(df, branch, ncpu=1, dna=True):
         # TODO check output, it's suspiciously quick for large numbers of samples
         tmp_dir = tempfile.gettempdir()
         original_length = df.shape[0]
@@ -476,7 +479,7 @@ class Dataset:
                     part1 = line.split(' ')[0].strip()
                     for char in part1:
                         value.append(seq.translate(char, fold_encoding))
-                    new_df.loc[index, branch] = Dataset.sequence_to_string(value)
+                    new_df.loc[index, branch] = value
         else:
             raise ProcessError(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
             # We probably have no way to determine which were not folded if this happens

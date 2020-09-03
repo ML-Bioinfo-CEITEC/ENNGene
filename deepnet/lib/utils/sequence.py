@@ -137,5 +137,5 @@ def translate(char, encoding):
     if char.lower() in encoding.keys():
         return encoding[char.lower()]
     else:
-        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. " \
-                            "Provided encoding must contain all possible characters (case-insensitive).")
+        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. "
+                         "Provided encoding must contain all possible characters (case-insensitive).")
