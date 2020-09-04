@@ -44,7 +44,7 @@ class Train(Subcommand):
         st.markdown('# Train a Model')
 
         st.markdown('## General Options')
-        self.add_general_options()
+        self.general_options()
 
         self.params['input_folder'] = st.text_input(
             'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])

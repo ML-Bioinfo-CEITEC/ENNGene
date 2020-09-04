@@ -19,7 +19,7 @@ class Subcommand:
                 'Conservation score': 'cons',
                 'Secondary structure': 'fold'}
 
-    def add_general_options(self, branches=True):
+    def general_options(self, branches=True):
         self.params_loaded = False
         self.defaults = {}
         self.defaults.update(self.default_params())

@@ -33,7 +33,7 @@ class Preprocess(Subcommand):
 
         # TODO add show/hide separate section after stateful operations are allowed
         st.markdown('## General Options')
-        self.add_general_options()
+        self.general_options()
 
         self.params['use_mapped'] = st.checkbox('Use already mapped file from a previous run', self.defaults['use_mapped'])
 
