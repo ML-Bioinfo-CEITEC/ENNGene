@@ -70,6 +70,86 @@ class Subcommand:
         else:
             self.ncpu = 1
 
+    def model_options(self, blackbox=False, warning=None):
+        missing_model = False
+        missing_params = False
+        model_types = {'Use a model trained by the deepnet app': 'from_app',
+                       'Use a custom trained model': 'custom'}
+
+        st.markdown(warning)
+        self.params['model_source'] = model_types[st.radio(
+            'Select a source of the trained model:',
+            list(model_types.keys()), index=self.get_dict_index(self.defaults['model_source'], model_types))]
+        if self.params['model_source'] == 'from_app':
+            self.model_folder = st.text_input('Path to the folder containing the trained model (hdf5 file)',
+                                              value=self.defaults['model_file'])
+            if self.model_folder and os.path.isdir(self.model_folder):
+                model_files = [f for f in os.listdir(self.model_folder) if f.endswith('.hdf5') and
+                               os.path.isfile(os.path.join(self.model_folder, f))]
+                if len(model_files) == 0:
+                    missing_model = True
+                    st.markdown('#### Sorry, there is no hdf5 file in given folder.')
+                elif len(model_files) == 1:
+                    self.params['model_file'] = os.path.join(self.model_folder, model_files[0])
+                    st.markdown(f"###### Model file: {self.params['model_file']}")
+                elif len(model_files) > 1:
+                    missing_model = True
+                    st.markdown(
+                        '#### Sorry, there is too many hdf5 files in the given folder. Please specify the model file below.')
+
+                if not blackbox:
+                    param_files = [f for f in os.listdir(self.model_folder) if f == 'parameters.yaml' and
+                                   os.path.isfile(os.path.join(self.model_folder, f))]
+                    if len(param_files) == 0:
+                        missing_params = True
+                        st.markdown('#### Sorry, could not find parameters.yaml file in the given folder. '
+                                    'Check the folder or specify the parameters below.')
+                    elif len(param_files) == 1:
+                        training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': []}
+                        param_file = os.path.join(self.model_folder, param_files[0])
+                        # TODO read from yaml: window, winseed reuse, class labels, number of classes
+                        # TODO ! CANT get those from trainig params, must save preprocess params together with the training,
+                        #  and then again all of those to the prediction
+                        # TODO zajistit konzistentni poradi klass names
+                        if not training_params['win'] or not training_params['winseed'] \
+                                or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
+                                or len(training_params['klasses']) != training_params['no_klasses']:
+                            missing_params = True
+                            st.markdown('#### Sorry, could not read the parameters from given folder. '
+                                        'Check the folder or specify the parameters below.')
+                        else:
+                            st.markdown('##### Parameters read from given folder:'
+                                        f"- window: {training_params['win']}"
+                                        f"- window seed: {training_params['winseed']}"
+                                        f"- no. of classes: {training_params['no_klasses']}"
+                                        f"- class labels: {training_params['klasses']}")
+                    if len(param_files) > 1:
+                        missing_params = True
+                        st.markdown('#### Sorry, there is too many parameters.yaml files in the given folder. '
+                                    'Check the folder or specify the parameters below.')
+
+        if self.params['model_source'] == 'custom' or missing_params or missing_model:
+            if not missing_params:
+                self.params['model_file'] = st.text_input('Path to the trained model (hdf5 file)',
+                                                          value=self.defaults['model_file'])
+            if not blackbox and not missing_model:
+                self.params['win'] = int(
+                    st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
+                self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                             value=self.defaults['winseed']))
+                self.params['no_klasses'] = int(st.number_input('Number of classes used for training', min_value=2,
+                                                                value=self.defaults['no_klasses']))
+                # mozna zachovat v nejakym meta souboru ktera trida je co a podle toho
+                for i in range(self.params['no_klasses']):
+                    if len(self.params['klasses']) >= i + 1:
+                        value = self.params['klasses'][i]
+                    else:
+                        value = str(i)
+                        self.params['klasses'].append(value)
+                    self.params['klasses'][i] = st.text_input(f'Class {i} label:', value=value)
+
+        self.validation_hash['is_model_file'].append(self.params['model_file'])
+
     def validate_and_run(self, validation_hash):
         st.markdown('---')
         if st.button('Run'):
