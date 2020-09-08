@@ -5,7 +5,13 @@ import _io
 from . import file_utils as f
 from .exceptions import UserInputError
 
-DNA_COMPLEMENTARY = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+# TODO allow option custom, to be specified by text input
+# TODO add amino acid alphabet - in that case disable cons and fold i guess
+ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
+             'RNA': ['A', 'C', 'G', 'U', 'N']}
+
+COMPLEMENTARY = {'DNA': {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'},
+                 'RNA': {'A': 'U', 'C': 'G', 'G': 'C', 'U': 'A', 'N': 'N'}}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
@@ -131,5 +137,5 @@ def translate(char, encoding):
     if char.lower() in encoding.keys():
         return encoding[char.lower()]
     else:
-        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. " \
-                            "Provided encoding must contain all possible characters (case-insensitive).")
+        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. "
+                         "Provided encoding must contain all possible characters (case-insensitive).")

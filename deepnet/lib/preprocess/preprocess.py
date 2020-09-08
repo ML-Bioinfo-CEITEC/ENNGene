@@ -16,8 +16,6 @@ logger = logging.getLogger('root')
 
 # noinspection DuplicatedCode
 class Preprocess(Subcommand):
-    ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
-                 'RNA': ['A', 'C', 'G', 'U', 'N']}
 
     def __init__(self):
         self.params = {'task': 'Preprocess'}
@@ -25,7 +23,6 @@ class Preprocess(Subcommand):
                                 'is_fasta': [],
                                 'is_wig_dir': [],
                                 'not_empty_branches': [],
-                                'min_two_files': [],
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': []}
@@ -36,18 +33,16 @@ class Preprocess(Subcommand):
 
         # TODO add show/hide separate section after stateful operations are allowed
         st.markdown('## General Options')
-        self.add_general_options()
+        self.general_options()
 
         self.params['use_mapped'] = st.checkbox('Use already mapped file from a previous run', self.defaults['use_mapped'])
 
         if not self.params['use_mapped']:
             self.references = {}
             if 'seq' in self.params['branches']:
-                # TODO allow option custom, to be specified by text input
-                # TODO add amino acid alphabet - in that case disable cons and fold i guess
-                alphabets = ['DNA', 'RNA']
                 self.params['alphabet'] = st.selectbox('Select alphabet:',
-                                                       alphabets, index=alphabets.index(self.defaults['alphabet']))
+                                                       list(seq.ALPHABETS.keys()),
+                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
@@ -76,7 +71,6 @@ class Preprocess(Subcommand):
                 self.params['input_files'].append(st.text_input(
                     f'File no. {i+1} (.bed)',
                     value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else '')))
-            self.validation_hash['min_two_files'].append(list(filter(str.strip, self.params['input_files'])))
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
             for file in self.params['input_files']:
@@ -195,12 +189,6 @@ class Preprocess(Subcommand):
             # Keep only selected branches
             cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
             merged_dataset.df = merged_dataset.df[cols]
-        else:
-            if self.params['alphabet']:
-                status.text('Encoding alphabet...')
-                encoding = seq.onehot_encode_alphabet(self.ALPHABETS[self.params['alphabet']])
-            else:
-                encoding = None
 
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
@@ -229,7 +217,7 @@ class Preprocess(Subcommand):
             status.text(
                 f"Mapping intervals from all classes to {len(self.params['branches'])} branch(es) and exporting...")
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, encoding, self.params['strand'], full_data_file_path, self.ncpu)
+                self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()

@@ -2,8 +2,6 @@
 Deepnet App (*name to be defined*) aims to facilitate application of deep neural networks on genomics data without the need of programming.
 
 ### Installation
-#### PyPI
-(*Installation from PyPI currently not available due to missing dependencies.*)
 
 #### Conda environment
 If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
@@ -63,7 +61,7 @@ If there's a mandatory field missing information or some input is incorrect, you
 
 Files with processed datasets are exported to the **output folder** defined at the beginning.  
 
-#### Train a Model
+#### Training a Model
 Files provided within **input folder** are expected to be those exported by the Preprocess Data section of the deepnet app.
 Selected **branches** must be the same as in the preprocessing step, **output folder** might also be the same.
 You can select the checkbox to produce **Tensorboard files** (for more info see the [official site](https://www.tensorflow.org/tensorboard)).
@@ -84,6 +82,21 @@ The training time depends on many variables (datasets size, network architecture
 You can monitor the progress on the chart indicating metric and loss function values.
 Resulting model and all other files (e.g. tensorboard) are exported to the selected **output folder**. 
 
+#### Making Predictions
+A trained model can be used to classify unseen data. You can either use a model trained with the deepnet application, or
+any custom trained model. However, when using a model trained otherwise than using the app, you'll need to provide the
+information needed to prepare the sequences to be classified (**window size**, **random seed**, **strandedness**, 
+**number of classes** and **class labels**). When using a model trained with the deepnet application, these parameters 
+should be read from the yaml file logged when training the model (TO BE DONE).
+
+You can provide the **input sequences** as a BED file (together with a FASTA file with a reference genome), a FASTA file,
+or just paste in the sequences as text (one sequence per row).
+
+Results are exported to the selected **output folder** to the results.tsv file. Information about the input sequences
+are preserved (e.g. fasta header or coordinates form a bed file), while there are two more columns with the results appended.
+One column shows raw percentage predicted by the model, the other predicted class (based on the threshold). 
+
+<!--
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.
 
@@ -112,3 +125,4 @@ See dedicated [Trello board](https://trello.com/b/me9e2k1e/rbp-binding) for a li
 
 #### Tests 
 (*Not yet available*)
+-->
