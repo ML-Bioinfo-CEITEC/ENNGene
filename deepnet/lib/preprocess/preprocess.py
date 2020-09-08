@@ -180,7 +180,7 @@ class Preprocess(Subcommand):
         self.ensure_dir(datasets_dir)
         full_data_dir_path = os.path.join(datasets_dir, 'full_datasets')
         self.ensure_dir(full_data_dir_path)
-        full_data_file_path = os.path.join(full_data_dir_path, 'merged_all')
+        full_data_file_path = os.path.join(full_data_dir_path, 'merged_all.tsv')
 
         if self.params['use_mapped']:
             status.text('Reading in already mapped file with all the samples...')
@@ -247,7 +247,7 @@ class Preprocess(Subcommand):
         for dataset in final_datasets:
             dir_path = os.path.join(datasets_dir, 'final_datasets')
             self.ensure_dir(dir_path)
-            file_path = os.path.join(dir_path, dataset.category)
+            file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
             dataset.save_to_file(file_path, do_zip=True)
 
         self.finalize_run(logger, datasets_dir, self.params, self.csv_header(), self.csv_row(datasets_dir, self.params))
