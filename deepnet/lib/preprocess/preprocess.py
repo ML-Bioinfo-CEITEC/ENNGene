@@ -189,7 +189,7 @@ class Preprocess(Subcommand):
             # Keep only selected branches
             cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
             merged_dataset.df = merged_dataset.df[cols]
-
+        else:
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
             status.text('Reading in given interval files and applying window...')
