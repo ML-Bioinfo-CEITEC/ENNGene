@@ -207,7 +207,7 @@ class Train(Subcommand):
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         categories = ['train', 'validation', 'test', 'blackbox']
-        dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
+        dataset_files = [file for file in candidate_files if any(category in os.path.basename(file) for category in categories)]
 
         labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], labels)

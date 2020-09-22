@@ -31,7 +31,7 @@ class Dataset:
 
     @classmethod
     def load_from_file(cls, file_path):
-        name = os.path.basename(file_path).replace('.zip', '')
+        name = os.path.basename(file_path).replace('.tsv.zip', '')
         df = pd.read_csv(file_path, sep='\t', header=0)
         branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input']]
         category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
