@@ -59,9 +59,6 @@ class Preprocess(Subcommand):
                                                          value=self.defaults['winseed']))
 
             st.markdown('## Input Coordinate Files')
-            # TODO change to plus button when stateful operations enabled
-            # TODO is there streamlit function to browse local files - should be soon
-            # TODO accept also web address if possible
 
             warning = st.empty()
             self.params['input_files'] = self.defaults['input_files']
