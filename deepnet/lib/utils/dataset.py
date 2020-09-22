@@ -181,20 +181,8 @@ class Dataset:
         return self
 
     def save_to_file(self, outfile_path, do_zip=False, ignore_cols=None):
-        # temporary solution, as pandas can not save lists nor ndarrays into values
-        def to_string(row):
-            for branch in self.branches:
-                if not ignore_cols or branch not in ignore_cols:  # TODO check if its not too slow with multiple branches and big datasets in Preprocess
-                    row[branch] = Dataset.sequence_to_string(row[branch])
-            return row
-
-        branch_cols = [col for col in self.df.columns if col in self.branches]
-        # do not map whole dataset if it's not necessary
-        if len(branch_cols) != 0:
-            df = self.df.apply(to_string, axis=1)
-
-        to_export = [col for col in df.columns if col not in ignore_cols] if ignore_cols else df.columns
-        df.to_csv(outfile_path, sep='\t', columns=to_export, index=False)
+        to_export = [col for col in self.df.columns if col not in ignore_cols] if ignore_cols else self.df.columns
+        self.df.to_csv(outfile_path, sep='\t', columns=to_export, index=False)
 
         if do_zip:
             logger.info(f'Compressing dataset file...')
@@ -258,12 +246,12 @@ class Dataset:
                 if strand and row['strand_sign'] == '-':
                     sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
                 if branch == 'seq':
-                    row[branch] = Dataset.encode_sequence(sequence, alphabet)
+                    row[branch] = Dataset.sequence_to_string(Dataset.encode_sequence(sequence, alphabet))
                 elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
                 elif branch == 'predict':
-                    row[branch] = sequence
+                    row[branch] = Dataset.sequence_to_string(sequence)
             else:
                 row[branch] = None
             return row
@@ -383,7 +371,7 @@ class Dataset:
 
             if score and len(score) == (row['seq_end'] - row['seq_start']):
                 # Score may be fully or partially missing if the coordinates are not part of the reference
-                df.loc[i, branch] = score
+                df.loc[i, branch] = Dataset.sequence_to_string(score)
 
         df.dropna(subset=[branch], inplace=True)
         return df
@@ -479,7 +467,7 @@ class Dataset:
                     part1 = line.split(' ')[0].strip()
                     for char in part1:
                         value.append(seq.translate(char, fold_encoding))
-                    new_df.loc[index, branch] = value
+                    new_df.loc[index, branch] = Dataset.sequence_to_string(value)
         else:
             raise ProcessError(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
             # We probably have no way to determine which were not folded if this happens
