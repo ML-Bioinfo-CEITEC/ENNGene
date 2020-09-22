@@ -159,21 +159,27 @@ def is_dataset_dir(folder):
         warning = 'You must provide a folder with the preprocessed files.'
     else:
         if os.path.isdir(folder):
-            # TODO later check also the metadata file
-            files = f.list_files_in_dir(folder, 'zip')
-            dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
-            for file in files:
-                category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
-                if category: dataset_files[category].append(file)
-            for category, files in dataset_files.items():
-                if category == 'blackbox': continue  # the blackbox dataset is optional
-                if len(files) != 1:
-                    invalid = True
-                    warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
-                else:
-                    if files[0] != f'{category}.zip':
+            param_files = [file for file in os.listdir(folder) if (file == 'parameters.yaml') and
+                           (os.path.isfile(os.path.join(folder, file)))]
+            if len(param_files) == 1:
+                files = f.list_files_in_dir(folder, 'zip')
+                dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
+                for file in files:
+                    category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
+                    if category: dataset_files[category].append(file)
+                for category, files in dataset_files.items():
+                    if category == 'blackbox': continue  # the blackbox dataset is optional
+                    if len(files) != 1:
                         invalid = True
-                        warning = ''
+                        warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
+                    else:
+                        if files[0] != f'{category}.zip':
+                            invalid = True
+                            warning = ''
+            else:
+                invalid = True
+                warning = 'Sorry, there is no parameters.yaml file in the given folder. Make sure to provide the whole ' \
+                          'datasets folder (not just the one with final datasets).'
         else:
             invalid = True
             warning = 'Given folder with preprocessed files does not exist.'

@@ -193,8 +193,10 @@ class Preprocess(Subcommand):
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
             status.text('Reading in given interval files and applying window...')
+            self.params['klasses'] = []
             for file in self.params['input_files']:
                 klass = os.path.basename(file)
+                self.params['klasses'].append(klass)
                 for ext in self.allowed_extensions:
                     if ext in klass:
                         klass = klass.replace(ext, '')
@@ -293,6 +295,7 @@ class Preprocess(Subcommand):
                'Reduce seed\t' \
                'Use mapped\t' \
                'Input files\t' \
+               'Klasses\t' \
                'Full_dataset_file\t' \
                'Fasta ref\t' \
                'Conservation ref\n'
@@ -314,6 +317,7 @@ class Preprocess(Subcommand):
                f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{'Yes' if params['use_mapped'] else 'No'}\t" \
                f"{params['input_files']}\t" \
+               f"{params['klasses']}\t" \
                f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
                f"{params['fasta'] if params['fasta'] else '-'}\t" \
                f"{params['cons_dir'] if params['cons_dir'] else '-'}\n"

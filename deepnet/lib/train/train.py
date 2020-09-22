@@ -47,7 +47,7 @@ class Train(Subcommand):
         self.general_options()
 
         self.params['input_folder'] = st.text_input(
-            'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])
+            'Path to the datasets folder', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
         self.validation_hash['correct_branches'].append({'branches': self.params['branches'], 'input_folder': self.params['input_folder']})
 
@@ -202,6 +202,9 @@ class Train(Subcommand):
         status = st.empty()
         status.text('Initializing network...')
 
+        prev_param_file = [file for file in os.listdir(self.params['input_folder']) if (file == 'parameters.yaml') and
+                      (os.path.isfile(os.path.join(self.params['input_folder'], file)))][0]
+
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         categories = ['train', 'validation', 'test', 'blackbox']
         dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
@@ -276,7 +279,7 @@ class Train(Subcommand):
             json_file.write(model_json)
 
         row = self.csv_row(train_dir, self.params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc)
-        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row)
+        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row, prev_param_file)
         status.text('Finished!')
     
     @staticmethod

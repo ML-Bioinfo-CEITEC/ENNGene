@@ -111,7 +111,8 @@ class Predict(Subcommand):
         result_file = os.path.join(predict_dir, 'results.tsv')
         dataset.save_to_file(ignore_cols=['predict'], outfile_path=result_file)
 
-        self.finalize_run(logger, predict_dir, self.params, self.csv_header(), self.csv_row(predict_dir, self.params, self.model_folder))
+        self.finalize_run(logger, predict_dir, self.params, self.csv_header(),
+                          self.csv_row(predict_dir, self.params, self.model_folder), self.previous_param_file)
         status.text('Finished!')
 
     @staticmethod

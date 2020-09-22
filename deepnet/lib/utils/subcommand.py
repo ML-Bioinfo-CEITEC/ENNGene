@@ -32,12 +32,11 @@ class Subcommand:
                     with open(param_file, 'r') as file:
                         try:
                             user_params = yaml.safe_load(file)
-                            user_params['task']
                         except Exception as err:
                             logger.exception(f'{err.__class__.__name__}: {err}')
                             raise UserInputError("An error occurred while processing given yaml file.")
-                        if user_params['task'] == self.__class__.__name__:
-                            self.defaults.update(user_params)
+                        if self.__class__.__name__ in user_params.keys():
+                            self.defaults.update(user_params[self.__class__.__name__])
                             self.params_loaded = True
                         else:
                             raise UserInputError('Given file contains parameters from a different task then currently selected.')
@@ -98,18 +97,25 @@ class Subcommand:
                         '#### Sorry, there is too many hdf5 files in the given folder. Please specify the model file below.')
 
                 if not blackbox:
-                    param_files = [f for f in os.listdir(self.model_folder) if f == 'parameters.yaml' and
-                                   os.path.isfile(os.path.join(self.model_folder, f))]
-                    if len(param_files) == 0:
+                    previous_param_files = [f for f in os.listdir(self.model_folder) if (f == 'parameters.yaml') and
+                                   (os.path.isfile(os.path.join(self.model_folder, f)))]
+                    if len(previous_param_files) == 0:
                         missing_params = True
                         st.markdown('#### Sorry, could not find parameters.yaml file in the given folder. '
                                     'Check the folder or specify the parameters below.')
-                    elif len(param_files) == 1:
+                    elif len(previous_param_files) == 1:
                         training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': []}
-                        param_file = os.path.join(self.model_folder, param_files[0])
-                        # TODO read from yaml: window, winseed reuse, class labels, number of classes
-                        # TODO ! CANT get those from trainig params, must save preprocess params together with the training,
-                        #  and then again all of those to the prediction
+                        self.previous_param_file = os.path.join(self.model_folder, previous_param_files[0])
+                        user_params = yaml.safe_load(self.previous_param_file)
+                        try:
+                            training_params['win'] = user_params['Preprocess']['win']
+                            training_params['winseed'] = user_params['Preprocess']['winseed']
+                            training_params['no_klasses'] = len(user_params['Preprocess']['klasses'])
+                            training_params['klasses'] = user_params['Preprocess']['klasses']
+                        except:
+                            missing_params = True
+                            st.markdown('#### Sorry, could not read the parameters from given folder. '
+                                        'Check the folder or specify the parameters below.')
                         # TODO zajistit konzistentni poradi klass names
                         if not training_params['win'] or not training_params['winseed'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
@@ -123,7 +129,7 @@ class Subcommand:
                                         f"- window seed: {training_params['winseed']}"
                                         f"- no. of classes: {training_params['no_klasses']}"
                                         f"- class labels: {training_params['klasses']}")
-                    if len(param_files) > 1:
+                    if len(previous_param_files) > 1:
                         missing_params = True
                         st.markdown('#### Sorry, there is too many parameters.yaml files in the given folder. '
                                     'Check the folder or specify the parameters below.')
@@ -193,19 +199,26 @@ class Subcommand:
         return list(dictionary.keys())[index]
 
     @staticmethod
-    def finalize_run(logger, out_dir, params, csv_header, csv_row):
+    def finalize_run(logger, out_dir, user_params, csv_header, csv_row, previous_param_file=None):
         st.text(f'You can find your results at {out_dir}')
+        params = user_params.copy()
+        task = params.pop('task')
+        params = {task: user_params}
+        if previous_param_file:
+            previous_params = yaml.safe_load(previous_param_file)
+            params.update(previous_params)
 
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
             yaml.dump(params, file)
 
         parent_dir = Path(out_dir).parent
         table_file = os.path.join(parent_dir, 'parameters.tsv')
-        write_header = not os.path.isfile(table_file)
-        with open(table_file, 'a') as file:
-            file.write(csv_header) if write_header else None
-            file.write(csv_row)
-            pass
+        if table_file:
+            write_header = not os.path.isfile(table_file)
+            with open(table_file, 'a') as file:
+                file.write(csv_header) if write_header else None
+                file.write(csv_row)
+                pass
 
         file_handler = [handler for handler in logger.handlers if type(handler) == logging.FileHandler]
         if file_handler:
