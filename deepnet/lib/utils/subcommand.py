@@ -23,25 +23,31 @@ class Subcommand:
         self.params_loaded = False
         self.defaults = {}
         self.defaults.update(self.default_params())
-        self.load_params = st.checkbox('Load parameters from previous run', value=False)
+        self.load_params = st.checkbox('Load parameters from a previous run', value=False)
 
         if self.load_params:
-            param_file = st.text_input('Path to parameters.yaml file')
-            if param_file:
-                if os.path.isfile(param_file):
-                    with open(param_file, 'r') as file:
-                        try:
-                            user_params = yaml.safe_load(file)
-                        except Exception as err:
-                            logger.exception(f'{err.__class__.__name__}: {err}')
-                            raise UserInputError("An error occurred while processing given yaml file.")
-                        if self.__class__.__name__ in user_params.keys():
-                            self.defaults.update(user_params[self.__class__.__name__])
-                            self.params_loaded = True
-                        else:
-                            raise UserInputError('Given file contains parameters from a different task then currently selected.')
+            folder = st.text_input('Path to the output folder from the previous run (must contain the parameters.yaml file)')
+            if folder:
+                if os.path.isdir(folder):
+                    param_file = os.path.join(folder,
+                                              ([file for file in os.listdir(folder) if (file == 'parameters.yaml') and
+                                                (os.path.isfile(os.path.join(folder, file)))][0]))
+                    if param_file:
+                        with open(param_file, 'r') as file:
+                            try:
+                                user_params = yaml.safe_load(file)
+                            except Exception as err:
+                                logger.exception(f'{err.__class__.__name__}: {err}')
+                                raise UserInputError('An error occurred while processing given yaml file.')
+                            if self.__class__.__name__ in user_params.keys():
+                                self.defaults.update(user_params[self.__class__.__name__])
+                                self.params_loaded = True
+                            else:
+                                raise UserInputError('Found yaml file does not contain parameters for the currently selected task.')
+                    else:
+                        raise UserInputError('No yaml file was found in the given folder.')
                 else:
-                    raise UserInputError('Given yaml file does not exist.')
+                    raise UserInputError('Given folder does not exist.')
         self.params.update(self.defaults)
 
         self.params['output_folder'] = st.text_input(
