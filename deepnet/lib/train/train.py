@@ -202,8 +202,9 @@ class Train(Subcommand):
         status = st.empty()
         status.text('Initializing network...')
 
-        prev_param_file = [file for file in os.listdir(self.params['input_folder']) if (file == 'parameters.yaml') and
-                      (os.path.isfile(os.path.join(self.params['input_folder'], file)))][0]
+        prev_param_file = os.path.join(self.params['input_folder'],
+                                       ([file for file in os.listdir(self.params['input_folder']) if (file == 'parameters.yaml') and
+                                         (os.path.isfile(os.path.join(self.params['input_folder'], file)))][0]))
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         categories = ['train', 'validation', 'test', 'blackbox']

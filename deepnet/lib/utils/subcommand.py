@@ -106,7 +106,8 @@ class Subcommand:
                     elif len(previous_param_files) == 1:
                         training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': []}
                         self.previous_param_file = os.path.join(self.model_folder, previous_param_files[0])
-                        user_params = yaml.safe_load(self.previous_param_file)
+                        with open(self.previous_param_file, 'r') as file:
+                            user_params = yaml.safe_load(file)
                         try:
                             training_params['win'] = user_params['Preprocess']['win']
                             training_params['winseed'] = user_params['Preprocess']['winseed']
@@ -205,7 +206,8 @@ class Subcommand:
         task = params.pop('task')
         params = {task: user_params}
         if previous_param_file:
-            previous_params = yaml.safe_load(previous_param_file)
+            with open(previous_param_file, 'r') as file:
+                previous_params = yaml.safe_load(file)
             params.update(previous_params)
 
         with open(os.path.join(out_dir, 'parameters.yaml'), 'w') as file:
