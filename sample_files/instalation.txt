@@ -6,6 +6,7 @@ conda activate deepnet
 
 # Install Tensorflow 2.0 for deep learning
 pip install tensorflow-gpu
+pip install pyyaml
 
 # Install other packages
 conda install -c conda-forge matplotlib
@@ -14,4 +15,4 @@ conda install -c anaconda pydot
 # conda install -c anaconda graphviz
 conda install -c anaconda pandas
 
-pip install streamlit==0.52.2
+pip install streamlit==0.64
