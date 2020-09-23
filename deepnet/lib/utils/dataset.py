@@ -245,13 +245,11 @@ class Dataset:
                     sequence.append(ref_dictionary[row['chrom_name']][i])
                 if strand and row['strand_sign'] == '-':
                     sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
-                if branch == 'seq':
+                if branch == 'seq' or branch == 'predict':
                     row[branch] = Dataset.sequence_to_string(Dataset.encode_sequence(sequence, alphabet))
                 elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
-                elif branch == 'predict':
-                    row[branch] = Dataset.sequence_to_string(sequence)
             else:
                 row[branch] = None
             return row

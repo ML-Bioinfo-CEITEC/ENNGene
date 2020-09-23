@@ -81,22 +81,19 @@ class Predict(Subcommand):
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=['predict'], category='predict',
                               win=self.params['win'], winseed=self.params['winseed'])
-            dataset.df['input'] = dataset.df['predict']
             status.text('Parsing reference fasta file...')
             fasta_dict, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
             status.text('Mapping intervals to the fasta reference...')
             dataset.map_to_branches(
                 {'predict': fasta_dict}, self.params['alphabet'], self.params['strand'], prepared_file_path)
-        elif self.params['seq_type'] == 'fasta':
+            predict_list = dataset.df['predict'].to_list()
+            predict_x = np.array([Dataset.sequence_from_string(seq_str) for seq_str in predict_list])
+        elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
             dataset = Dataset(fasta_file=self.params['seq_source'], branches=['predict'], category='predict',
                               win=self.params['win'], winseed=self.params['winseed'])
             dataset.df['input'] = dataset.df['predict']
-        elif self.params['seq_type'] == 'text':
-            dataset = Dataset(text_input=self.params['seq_source'], branches=['predict'], category='predict',
-                              win=self.params['win'], winseed=self.params['winseed'])
-            dataset.df['input'] = dataset.df['predict']
-        dataset.encode_predict(self.params['alphabet'])
-        predict_x = np.array(dataset.df['predict'].to_list())  # TODO check effectiveness of the to_list on larger dataset
+            dataset.encode_predict(self.params['alphabet'])
+            predict_x = np.array(dataset.df['predict'].to_list())  # TODO check effectiveness of the to_list on larger dataset
 
         status.text('Calculating predictions...')
         model = keras.models.load_model(self.params['model_file'])
