@@ -131,11 +131,11 @@ class Subcommand:
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
                         else:
-                            st.markdown('##### Parameters read from given folder:'
-                                        f"- window: {training_params['win']}"
-                                        f"- window seed: {training_params['winseed']}"
-                                        f"- no. of classes: {training_params['no_klasses']}"
-                                        f"- class labels: {training_params['klasses']}")
+                            st.markdown('###### Parameters read from given folder:\n'
+                                        f"* Window size: {training_params['win']}\n"
+                                        f"* Window seed: {training_params['winseed']}\n"
+                                        f"* No. of classes: {training_params['no_klasses']}\n"
+                                        f"* Class labels: {training_params['klasses']}")
                     if len(previous_param_files) > 1:
                         missing_params = True
                         st.markdown('#### Sorry, there is too many parameters.yaml files in the given folder. '
