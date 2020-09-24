@@ -136,6 +136,7 @@ class Subcommand:
                                         f"* Window seed: {training_params['winseed']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
                                         f"* Class labels: {training_params['klasses']}")
+                            self.params.update(training_params)
                     if len(previous_param_files) > 1:
                         missing_params = True
                         st.markdown('#### Sorry, there is too many parameters.yaml files in the given folder. '
