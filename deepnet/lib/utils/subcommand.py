@@ -81,7 +81,7 @@ class Subcommand:
         model_types = {'Use a model trained by the deepnet app': 'from_app',
                        'Use a custom trained model': 'custom'}
 
-        st.markdown(warning)
+        st.markdown(warning) if warning else None
         self.params['model_source'] = model_types[st.radio(
             'Select a source of the trained model:',
             list(model_types.keys()), index=self.get_dict_index(self.defaults['model_source'], model_types))]
