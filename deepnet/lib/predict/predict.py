@@ -89,8 +89,12 @@ class Predict(Subcommand):
             predict_list = dataset.df['predict'].to_list()
             predict_x = np.array([Dataset.sequence_from_string(seq_str) for seq_str in predict_list])
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
-            dataset = Dataset(fasta_file=self.params['seq_source'], branches=['predict'], category='predict',
-                              win=self.params['win'], winseed=self.params['winseed'])
+            if self.params['seq_type'] == 'fasta':
+                dataset = Dataset(fasta_file=self.params['seq_source'], branches=['predict'], category='predict',
+                                  win=self.params['win'], winseed=self.params['winseed'])
+            elif self.params['seq_type'] == 'text':
+                dataset = Dataset(text_input=self.params['seq_source'], branches=['predict'], category='predict',
+                                  win=self.params['win'], winseed=self.params['winseed'])
             dataset.df['input'] = dataset.df['predict']
             dataset.encode_predict(self.params['alphabet'])
             predict_x = np.array(dataset.df['predict'].to_list())  # TODO check effectiveness of the to_list on larger dataset
