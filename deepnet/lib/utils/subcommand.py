@@ -86,16 +86,16 @@ class Subcommand:
             'Select a source of the trained model:',
             list(model_types.keys()), index=self.get_dict_index(self.defaults['model_source'], model_types))]
         if self.params['model_source'] == 'from_app':
-            self.model_folder = st.text_input('Path to the folder containing the trained model (hdf5 file)',
-                                              value=self.defaults['model_file'])
-            if self.model_folder and os.path.isdir(self.model_folder):
-                model_files = [f for f in os.listdir(self.model_folder) if f.endswith('.hdf5') and
-                               os.path.isfile(os.path.join(self.model_folder, f))]
+            self.params['model_folder'] = st.text_input('Path to the folder containing the trained model (hdf5 file)',
+                                              value=self.defaults['model_folder'])
+            if self.params['model_folder'] and os.path.isdir(self.params['model_folder']):
+                model_files = [f for f in os.listdir(self.params['model_folder']) if f.endswith('.hdf5') and
+                               os.path.isfile(os.path.join(self.params['model_folder'], f))]
                 if len(model_files) == 0:
                     missing_model = True
                     st.markdown('#### Sorry, there is no hdf5 file in given folder.')
                 elif len(model_files) == 1:
-                    self.params['model_file'] = os.path.join(self.model_folder, model_files[0])
+                    self.params['model_file'] = os.path.join(self.params['model_folder'], model_files[0])
                     st.markdown(f"###### Model file: {self.params['model_file']}")
                 elif len(model_files) > 1:
                     missing_model = True
@@ -103,15 +103,15 @@ class Subcommand:
                         '#### Sorry, there is too many hdf5 files in the given folder. Please specify the model file below.')
 
                 if not blackbox:
-                    previous_param_files = [f for f in os.listdir(self.model_folder) if (f == 'parameters.yaml') and
-                                   (os.path.isfile(os.path.join(self.model_folder, f)))]
+                    previous_param_files = [f for f in os.listdir(self.params['model_folder']) if (f == 'parameters.yaml') and
+                                   (os.path.isfile(os.path.join(self.params['model_folder'], f)))]
                     if len(previous_param_files) == 0:
                         missing_params = True
                         st.markdown('#### Sorry, could not find parameters.yaml file in the given folder. '
                                     'Check the folder or specify the parameters below.')
                     elif len(previous_param_files) == 1:
                         training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': []}
-                        self.previous_param_file = os.path.join(self.model_folder, previous_param_files[0])
+                        self.previous_param_file = os.path.join(self.params['model_folder'], previous_param_files[0])
                         with open(self.previous_param_file, 'r') as file:
                             user_params = yaml.safe_load(file)
                         try:

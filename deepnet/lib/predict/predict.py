@@ -136,10 +136,11 @@ class Predict(Subcommand):
     def default_params():
         return {
             'model_source': 'from_app',
+            'model_folder': '',
+            'model_file': '',
             'win': 100,
             'no_klasses': 2,
             'klasses': [],
-            'model_file': '',
             'seq_type': 'bed',
             'seq_source': '',
             'alphabet': 'DNA',
