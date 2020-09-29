@@ -160,6 +160,7 @@ class Dataset:
             return np.array(labels)
 
     def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None):
+        dna = alphabet == 'DNA'
         for branch in self.branches:
             reference = references[branch]
             if branch == 'seq' or branch == 'predict':
@@ -171,7 +172,7 @@ class Dataset:
             elif branch == 'fold':
                 logger.info(f'Mapping and folding the sequences...')
                 df = Dataset.map_to_fasta_dict(self.df, branch, reference, alphabet, strand)
-                self.df = Dataset.fold_branch(df, branch, ncpu, dna=True)
+                self.df = Dataset.fold_branch(df, branch, ncpu, dna=dna)
 
         self.save_to_file(outfile_path, do_zip=True)
         return self
