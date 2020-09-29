@@ -63,6 +63,13 @@ class Predict(Subcommand):
                     'One or more sequences to be classified (each sequence on a new line)', value=self.defaults['seq_source'])
                 self.validation_hash['is_multiline_text'].append({'text': self.params['seq_source'],
                                                                   'alphabet': seq.ALPHABETS[self.params['alphabet']]})
+        if 'fold' in self.params['branches']:
+            # currently used only as an option for RNAfold
+            max_cpu = os.cpu_count() or 1
+            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
+                                  min_value=1, max_value=max_cpu, value=max_cpu)
+        else:
+            self.ncpu = 1
 
         st.markdown('## Model')
         self.model_options()

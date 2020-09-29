@@ -67,14 +67,6 @@ class Subcommand:
                                                               default=default_branches)))
             self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
-        if (self.params['task'] == 'Preprocess') and ('fold' in self.params['branches']):
-            # currently used only as an option for RNAfold
-            max_cpu = os.cpu_count() or 1
-            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
-                                  min_value=1, max_value=max_cpu, value=max_cpu)
-        else:
-            self.ncpu = 1
-
     def model_options(self, blackbox=False, warning=None):
         missing_model = False
         missing_params = False
