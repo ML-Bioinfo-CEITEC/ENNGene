@@ -146,7 +146,6 @@ class Preprocess(Subcommand):
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            print(self.params['valid_chromosomes'])
             if self.params['fasta']:
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
@@ -213,7 +212,7 @@ class Preprocess(Subcommand):
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
             # Read-in fasta file to dictionary
-            if 'seq' in self.params['branches'] and type(self.references['seq']) != dict:
+            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
                 fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
                 if not valid_chromosomes:
