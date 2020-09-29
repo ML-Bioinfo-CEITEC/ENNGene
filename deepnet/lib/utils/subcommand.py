@@ -102,7 +102,7 @@ class Subcommand:
                         st.markdown('#### Sorry, could not find parameters.yaml file in the given folder. '
                                     'Check the folder or specify the parameters below.')
                     elif len(previous_param_files) == 1:
-                        training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': []}
+                        training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': [], 'branches': []}
                         self.previous_param_file = os.path.join(self.params['model_folder'], previous_param_files[0])
                         with open(self.previous_param_file, 'r') as file:
                             user_params = yaml.safe_load(file)
@@ -111,6 +111,7 @@ class Subcommand:
                             training_params['winseed'] = user_params['Preprocess']['winseed']
                             training_params['no_klasses'] = len(user_params['Preprocess']['klasses'])
                             training_params['klasses'] = user_params['Preprocess']['klasses']
+                            training_params['branches'] = user_params['Train']['branches']
                         except:
                             missing_params = True
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
@@ -118,7 +119,8 @@ class Subcommand:
                         # TODO zajistit konzistentni poradi klass names
                         if not training_params['win'] or not training_params['winseed'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
-                                or len(training_params['klasses']) != training_params['no_klasses']:
+                                or len(training_params['klasses']) != training_params['no_klasses'] \
+                                or len(training_params['branches']) == 0:
                             missing_params = True
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
@@ -127,7 +129,8 @@ class Subcommand:
                                         f"* Window size: {training_params['win']}\n"
                                         f"* Window seed: {training_params['winseed']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
-                                        f"* Class labels: {training_params['klasses']}")
+                                        f"* Class labels: {training_params['klasses']}\n"
+                                        f"* Branches: {[self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']]}")
                             self.params.update(training_params)
                     if len(previous_param_files) > 1:
                         missing_params = True
@@ -139,6 +142,7 @@ class Subcommand:
                 self.params['model_file'] = st.text_input('Path to the trained model (hdf5 file)',
                                                           value=self.defaults['model_file'])
             if not blackbox and not missing_model:
+                st.markdown('##### **WARNING:** Selected parameters must be exactly same as those used for training the model.')
                 self.params['win'] = int(
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
                 self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
@@ -153,6 +157,9 @@ class Subcommand:
                         value = str(i)
                         self.params['klasses'].append(value)
                     self.params['klasses'][i] = st.text_input(f'Class {i} label:', value=value)
+                self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                                   st.multiselect('Branches',
+                                                                  list(self.BRANCHES.keys()))))
 
         self.validation_hash['is_model_file'].append(self.params['model_file'])
 

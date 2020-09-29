@@ -28,29 +28,46 @@ class Predict(Subcommand):
         self.validation_hash = {'is_model_file': [],
                                 'is_bed': [],
                                 'is_fasta': [],
-                                'is_multiline_text': []}
+                                'is_multiline_text': [],
+                                'is_wig_dir': []}
         self.model_folder = None
 
         st.markdown('# Make Predictions')
         st.markdown('## General Options')
         self.general_options(branches=False)
 
+        st.markdown('## Model')
+        self.model_options()
+
         st.markdown('## Sequences')
-        self.params['seq_type'] = self.SEQ_TYPES[st.radio(
-            'Select a source of the sequences for the prediction:',
-            list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
+        if 'cons' in self.params['branches']:
+            # to map to the conservation files we need the coordinates
+            self.params['seq_type'] = 'bed'
+        else:
+            self.params['seq_type'] = self.SEQ_TYPES[st.radio(
+                'Select a source of the sequences for the prediction:',
+                list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
 
         self.params['alphabet'] = st.selectbox('Select alphabet:',
                                            list(seq.ALPHABETS.keys()),
                                                index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
 
+        self.references = {}
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
                 'Path to BED file containing intervals to be classified', value=self.defaults['seq_source'])
             self.validation_hash['is_bed'].append(self.params['seq_source'])
-            self.params['fasta_ref'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta_ref'])
             self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
-            self.validation_hash['is_fasta'].append(self.params['fasta_ref'])
+
+            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                self.params['fasta_ref'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta_ref'])
+                self.references.update({'seq': self.params['fasta_ref'], 'fold': self.params['fasta_ref']})
+                self.validation_hash['is_fasta'].append(self.params['fasta_ref'])
+            if 'cons' in self.params['branches']:
+                self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
+                                                        value=self.defaults['cons_dir'])
+                self.references.update({'cons': self.params['cons_dir']})
+                self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
             st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (might affect '
                         'the prediction accuracy). Longer sequences will be cut to the length of the window.')
@@ -71,9 +88,6 @@ class Predict(Subcommand):
         else:
             self.ncpu = 1
 
-        st.markdown('## Model')
-        self.model_options()
-
         self.validate_and_run(self.validation_hash)
 
     def run(self):
@@ -85,26 +99,30 @@ class Predict(Subcommand):
         self.ensure_dir(predict_dir)
 
         prepared_file_path = os.path.join(predict_dir, 'mapped.tsv')
+        predict_x = []
         if self.params['seq_type'] == 'bed':
-            dataset = Dataset(bed_file=self.params['seq_source'], branches=['predict'], category='predict',
+            dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
                               win=self.params['win'], winseed=self.params['winseed'])
-            status.text('Parsing reference fasta file...')
-            fasta_dict, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
-            status.text('Mapping intervals to the fasta reference...')
-            dataset.map_to_branches(
-                {'predict': fasta_dict}, self.params['alphabet'], self.params['strand'], prepared_file_path)
-            predict_list = dataset.df['predict'].to_list()
-            predict_x = np.array([Dataset.sequence_from_string(seq_str) for seq_str in predict_list])
+            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                status.text('Parsing reference fasta file...')
+                fasta_dict, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
+                self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
+            status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
+
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
             if self.params['seq_type'] == 'fasta':
-                dataset = Dataset(fasta_file=self.params['seq_source'], branches=['predict'], category='predict',
+                dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
                                   win=self.params['win'], winseed=self.params['winseed'])
             elif self.params['seq_type'] == 'text':
-                dataset = Dataset(text_input=self.params['seq_source'], branches=['predict'], category='predict',
+                dataset = Dataset(text_input=self.params['seq_source'], branches=self.params['branches'], category='predict',
                                   win=self.params['win'], winseed=self.params['winseed'])
-            dataset.df['input'] = dataset.df['predict']
-            dataset.encode_predict(self.params['alphabet'])
-            predict_x = np.array(dataset.df['predict'].to_list())  # TODO check effectiveness of the to_list on larger dataset
+
+        dataset.map_to_branches(
+            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path)
+        for branch in self.params['branches']:
+            branch_list = dataset.df[branch].to_list()
+            predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
+            # TODO check effectiveness of the to_list on larger dataset
 
         status.text('Calculating predictions...')
         model = keras.models.load_model(self.params['model_file'])
@@ -117,7 +135,7 @@ class Predict(Subcommand):
 
         status.text('Exporting results...')
         result_file = os.path.join(predict_dir, 'results.tsv')
-        dataset.save_to_file(ignore_cols=['predict'], outfile_path=result_file)
+        dataset.save_to_file(ignore_cols=self.params['branches'], outfile_path=result_file)  #TODO ignore branches cols ??
 
         self.finalize_run(logger, predict_dir, self.params, self.csv_header(),
                           self.csv_row(predict_dir, self.params, self.model_folder), self.previous_param_file)
@@ -149,6 +167,7 @@ class Predict(Subcommand):
             'model_source': 'from_app',
             'model_folder': '',
             'model_file': '',
+            'branches': [],
             'win': 100,
             'no_klasses': 2,
             'klasses': [],
@@ -157,6 +176,7 @@ class Predict(Subcommand):
             'alphabet': 'DNA',
             'strand': True,
             'fasta_ref': '',
+            'cons_dir': '',
             'winseed': 42,
             'output_folder': os.path.join(os.getcwd(), 'deepnet_output')
         }
@@ -165,6 +185,7 @@ class Predict(Subcommand):
     def csv_header():
         return 'Folder\t'\
                'Model file\t' \
+               'Branches\t' \
                'Window\t' \
                'Window seed\t' \
                'No. classes\t' \
@@ -174,12 +195,14 @@ class Predict(Subcommand):
                'Alphabet\t' \
                'Strand\t' \
                'Fasta ref.\t' \
+               'Conservation ref\t' \
                'Input folder\n'
 
     @staticmethod
     def csv_row(folder, params, model_folder):
         return f"{os.path.basename(folder)}\t" \
                f"{params['model_file']}\t" \
+               f"{params['branches']}\t" \
                f"{params['win']}\t" \
                f"{params['winseed']}\t" \
                f"{params['no_klasses']}\t" \
@@ -189,4 +212,5 @@ class Predict(Subcommand):
                f"{params['alphabet']}\t" \
                f"{params['strand']}\t" \
                f"{params['fasta_ref']}\t" \
+               f"{params['cons_dir']}\t" \
                f"{model_folder}\n"
