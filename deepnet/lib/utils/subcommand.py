@@ -129,8 +129,8 @@ class Subcommand:
                                         f"* Window size: {training_params['win']}\n"
                                         f"* Window seed: {training_params['winseed']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
-                                        f"* Class labels: {training_params['klasses']}\n"
-                                        f"* Branches: {[self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']]}")
+                                        f"* Class labels: {', '.join(training_params['klasses'])}\n"
+                                        f"* Branches: {', '.join([self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']])}")
                             self.params.update(training_params)
                     if len(previous_param_files) > 1:
                         missing_params = True

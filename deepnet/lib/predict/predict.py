@@ -131,7 +131,7 @@ class Predict(Subcommand):
             verbose=1)
 
         dataset.df['predicted class'] = self.get_klass(predict_y, self.params['klasses'])
-        dataset.df[f"raw predicted probabilities {self.params['klasses']}"] = [Dataset.sequence_to_string(y) for y in predict_y]
+        dataset.df[f"raw predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
 
         status.text('Exporting results...')
         result_file = os.path.join(predict_dir, 'results.tsv')
