@@ -200,10 +200,10 @@ class Preprocess(Subcommand):
             self.params['klasses'] = []
             for file in self.params['input_files']:
                 klass = os.path.basename(file)
-                self.params['klasses'].append(klass)
                 for ext in self.allowed_extensions:
                     if ext in klass:
                         klass = klass.replace(ext, '')
+                self.params['klasses'].append(klass)
 
                 initial_datasets.add(
                     Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'], winseed=self.params['winseed']))
