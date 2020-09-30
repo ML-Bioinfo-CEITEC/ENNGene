@@ -14,36 +14,6 @@ def not_empty_branches(branches):
     return warning if len(branches) == 0 else None
 
 
-def correct_branches(branches, input_folder):
-    # Check that selected branches are present in given input files
-    invalid = False
-    defined_branches = ['seq', 'fold', 'cons']
-    files = f.list_files_in_dir(input_folder, 'zip')
-    base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
-    for file in files:
-        if any(ext in file for ext in ['train', 'validation', 'test']):
-            dataset = Dataset.load_from_file(file)
-            branch_cols = []
-            columns = dataset.df.columns
-            for col in columns:
-                if col not in base_columns and col in defined_branches:
-                    branch_cols.append(col)
-            invalid_branches = []
-            for branch in branches:
-                if branch not in branch_cols:
-                    invalid_branches.append(branch)
-            if not len(invalid_branches) == 0:
-                invalid = True
-                if len(invalid_branches) == len(branches):
-                    warning = 'None of the selected branches are present in given preprocessed input files.'
-                else:
-                    warning = f'Branch/es {[BRANCHES_REV[branch] for branch in invalid_branches]} ' \
-                              f'are not present in given preprocessed input files.\n' \
-                              f'Please unselect the missing branches or provide correct preprocessed files first.'
-
-    return warning if invalid else None
-
-
 def is_bed(file):
     invalid = False
 

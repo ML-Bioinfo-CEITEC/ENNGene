@@ -40,8 +40,7 @@ class Train(Subcommand):
     def __init__(self):
         self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
-                                'is_dataset_dir': [],
-                                'correct_branches': []}
+                                'is_dataset_dir': []}
 
         st.markdown('# Train a Model')
 
@@ -51,7 +50,30 @@ class Train(Subcommand):
         self.params['input_folder'] = st.text_input(
             'Path to the datasets folder', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
-        self.validation_hash['correct_branches'].append({'branches': self.params['branches'], 'input_folder': self.params['input_folder']})
+
+        if self.params['input_folder']:
+            note = ''
+            previous_param_files = [f for f in os.listdir(self.params['input_folder']) if (f == 'parameters.yaml') and
+                                    (os.path.isfile(os.path.join(self.params['input_folder'], f)))]
+            if len(previous_param_files) == 1:
+                self.previous_param_file = os.path.join(self.params['input_folder'], previous_param_files[0])
+                with open(self.previous_param_file, 'r') as file:
+                    user_params = yaml.safe_load(file)
+                    preprocess_branches = user_params['Preprocess']['branches']
+            else:
+                # We could allow to continue without it, but the user would have to select correct branches
+                raise UserInputError('Did not find parameters.yaml file in the given dataset folder.')
+        else:
+            preprocess_branches = []
+            note = ' (You must first provide the dataset folder (containing also the parameters.yaml file))'
+
+        available_branches = [self.get_dict_key(b, self.BRANCHES) for b in preprocess_branches]
+        default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
+        self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                           st.multiselect('Branches'+note,
+                                                          available_branches,
+                                                          default=default_branches)))
+        self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
         self.params['tb'] = st.checkbox('Output TensorBoard log files', value=self.defaults['tb'])
 
@@ -204,16 +226,12 @@ class Train(Subcommand):
         status = st.empty()
         status.text('Initializing network...')
 
-        prev_param_file = os.path.join(self.params['input_folder'],
-                                       ([file for file in os.listdir(self.params['input_folder']) if (file == 'parameters.yaml') and
-                                         (os.path.isfile(os.path.join(self.params['input_folder'], file)))][0]))
-
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         categories = ['train', 'validation', 'test', 'blackbox']
         dataset_files = [file for file in candidate_files if any(category in os.path.basename(file) for category in categories)]
 
-        if prev_param_file:
-            with open(prev_param_file, 'r') as file:
+        if self.previous_param_file:
+            with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
                 encoded_labels = seq.onehot_encode_alphabet(previous_params['Preprocess']['klasses'])
         else:
@@ -287,7 +305,7 @@ class Train(Subcommand):
             json_file.write(model_json)
 
         row = self.csv_row(train_dir, self.params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc)
-        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row, prev_param_file)
+        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row, self.previous_param_file)
         status.text('Finished!')
     
     @staticmethod

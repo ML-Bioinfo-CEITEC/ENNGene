@@ -35,6 +35,13 @@ class Preprocess(Subcommand):
         st.markdown('## General Options')
         self.general_options()
 
+        default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
+        self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                       st.multiselect('Branches',
+                                                      list(self.BRANCHES.keys()),
+                                                      default=default_branches)))
+        self.validation_hash['not_empty_branches'].append(self.params['branches'])
+
         if 'fold' in self.params['branches']:
             # currently used only as an option for RNAfold
             max_cpu = os.cpu_count() or 1

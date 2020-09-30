@@ -34,7 +34,7 @@ class Predict(Subcommand):
 
         st.markdown('# Make Predictions')
         st.markdown('## General Options')
-        self.general_options(branches=False)
+        self.general_options()
 
         st.markdown('## Model')
         self.model_options()

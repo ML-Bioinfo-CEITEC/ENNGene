@@ -19,7 +19,7 @@ class Subcommand:
                 'Conservation score': 'cons',
                 'Secondary structure': 'fold'}
 
-    def general_options(self, branches=True):
+    def general_options(self):
         self.params_loaded = False
         self.defaults = {}
         self.defaults.update(self.default_params())
@@ -58,14 +58,6 @@ class Subcommand:
             self.ensure_dir(self.params['output_folder'])
         except Exception:
             raise UserInputError(f"Failed to create output folder at given path: {self.params['output_folder']}.")
-
-        if branches:
-            default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
-            self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
-                                               st.multiselect('Branches',
-                                                              list(self.BRANCHES.keys()),
-                                                              default=default_branches)))
-            self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
     def model_options(self, blackbox=False, warning=None):
         missing_model = False
