@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import tensorflow as tf
+import yaml
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
@@ -17,6 +18,7 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
+from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
@@ -210,15 +212,20 @@ class Train(Subcommand):
         categories = ['train', 'validation', 'test', 'blackbox']
         dataset_files = [file for file in candidate_files if any(category in os.path.basename(file) for category in categories)]
 
-        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))
-        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], labels)
+        if prev_param_file:
+            with open(prev_param_file, 'r') as file:
+                previous_params = yaml.safe_load(file)
+                encoded_labels = seq.onehot_encode_alphabet(previous_params['Preprocess']['klasses'])
+        else:
+            raise UserInputError('Could not read class labels from parameters.yaml file).')
+        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], encoded_labels)
         branch_shapes = self.get_shapes(train_x, self.params['branches'])
 
         train_dir = os.path.join(self.params['output_folder'], 'training',
                                  f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         self.ensure_dir(train_dir)
 
-        model = ModelBuilder(self.params['branches'], labels, branch_shapes, self.params['branches_layers'], self.params['common_layers']).build_model()
+        model = ModelBuilder(self.params['branches'], encoded_labels, branch_shapes, self.params['branches_layers'], self.params['common_layers']).build_model()
         optimizer = self.create_optimizer(self.params['optimizer'], self.params['lr'])
         model.compile(
             optimizer=optimizer,

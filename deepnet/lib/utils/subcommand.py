@@ -116,7 +116,6 @@ class Subcommand:
                             missing_params = True
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
-                        # TODO zajistit konzistentni poradi klass names
                         if not training_params['win'] or not training_params['winseed'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
                                 or len(training_params['klasses']) != training_params['no_klasses'] \
@@ -149,7 +148,7 @@ class Subcommand:
                                                              value=self.defaults['winseed']))
                 self.params['no_klasses'] = int(st.number_input('Number of classes used for training', min_value=2,
                                                                 value=self.defaults['no_klasses']))
-                # mozna zachovat v nejakym meta souboru ktera trida je co a podle toho
+                st.markdown('##### **WARNING:** Make sure the class order is the same as when training the model.')
                 for i in range(self.params['no_klasses']):
                     if len(self.params['klasses']) >= i + 1:
                         value = self.params['klasses'][i]
