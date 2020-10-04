@@ -79,13 +79,19 @@ class Preprocess(Subcommand):
             self.params['input_files'] = self.defaults['input_files']
             no_files = st.number_input('Number of input files (= no. of classes):', min_value=2,
                                        value=max(2, len(self.defaults['input_files'])))
-            for i in range(no_files):
-                self.params['input_files'].append(st.text_input(
-                    f'File no. {i+1} (.bed)',
-                    value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else '')))
+            self.params['input_files'] = self.params['input_files'][0:no_files]
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
-            for file in self.params['input_files']:
+            self.params['klasses'] = []
+
+            for i in range(no_files):
+                file = st.text_input(f'File no. {i+1} (.bed)',
+                    value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else ''))
+                if len(self.params['input_files']) >= i+1:
+                    self.params['input_files'][i] = file
+                else:
+                    self.params['input_files'].append(file)
+
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
                 file_name = os.path.basename(file)
@@ -93,7 +99,7 @@ class Preprocess(Subcommand):
                     for ext in self.allowed_extensions:
                         if ext in file_name:
                             klass = file_name.replace(ext, '')
-                            self.klasses.append(klass)
+                            self.params['klasses'].append(klass)
                             # subprocess.run(['wc', '-l', file], check=True)
                             self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
                 else:
@@ -106,7 +112,7 @@ class Preprocess(Subcommand):
 
             if self.params['full_dataset_file']:
                 try:
-                    self.klasses, self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
+                    self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
                 except Exception:
                     raise UserInputError('Invalid dataset file!')
 
@@ -114,7 +120,7 @@ class Preprocess(Subcommand):
         st.markdown('Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%),'
                     'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
-                                                   self.klasses, self.defaults['reducelist'])
+                                                   self.params['klasses'], self.defaults['reducelist'])
         if self.params['reducelist']:
             self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
                                                             value=self.defaults['reduceseed']))
@@ -204,13 +210,11 @@ class Preprocess(Subcommand):
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
             status.text('Reading in given interval files and applying window...')
-            self.params['klasses'] = []
             for file in self.params['input_files']:
                 klass = os.path.basename(file)
                 for ext in self.allowed_extensions:
                     if ext in klass:
                         klass = klass.replace(ext, '')
-                self.params['klasses'].append(klass)
 
                 initial_datasets.add(
                     Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'], winseed=self.params['winseed']))
@@ -234,7 +238,7 @@ class Preprocess(Subcommand):
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
-        for klass in self.klasses:
+        for klass in self.params['klasses']:
             df = merged_dataset.df[merged_dataset.df['klass'] == klass]
             mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
