@@ -448,7 +448,7 @@ class Dataset:
         out_path = os.path.join(tmp_dir, 'df' + '_folded')
         out_file = open(out_path, 'w+')
         if dna:
-            subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={1}', fasta_file], stdout=out_file, check=True)
+            subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
         else:
             subprocess.run(['RNAfold', '--verbose', '--noPS', '--noconv', f'--jobs={ncpu}', fasta_file], stdout=out_file,
                            check=True)
