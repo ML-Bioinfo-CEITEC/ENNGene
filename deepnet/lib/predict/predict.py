@@ -4,6 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import streamlit as st
+import yaml
 
 # TODO export the env when releasing, check pandas == 1.1.1
 
@@ -17,9 +18,6 @@ logger = logging.getLogger('root')
 
 
 class Predict(Subcommand):
-    SEQ_TYPES = {'BED file': 'bed',
-                 'FASTA file': 'fasta',
-                 'Text input': 'text'}
     # TODO add option to use deepnet blackbox file (already mapped and not bed) - instead add separate section to test a model on the blackbox dataset
     # test module - either on already mapped blackbox dataset, or not encoded dataset, eg from different experiment to check transferbality of the results
 
@@ -30,7 +28,7 @@ class Predict(Subcommand):
                                 'is_fasta': [],
                                 'is_multiline_text': [],
                                 'is_wig_dir': []}
-        self.model_folder = None
+        self.params['model_folder'] = None
 
         st.markdown('# Make Predictions')
         st.markdown('## General Options')
@@ -94,11 +92,11 @@ class Predict(Subcommand):
         status = st.empty()
         status.text('Preparing sequences...')
 
-        predict_dir = os.path.join(self.params['output_folder'], 'prediction',
+        self.params['predict_dir'] = os.path.join(self.params['output_folder'], 'prediction',
                                  f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
-        self.ensure_dir(predict_dir)
+        self.ensure_dir(self.params['predict_dir'])
 
-        prepared_file_path = os.path.join(predict_dir, 'mapped.tsv')
+        prepared_file_path = os.path.join(self.params['predict_dir'], 'mapped.tsv')
         predict_x = []
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
@@ -134,11 +132,29 @@ class Predict(Subcommand):
         dataset.df[f"raw predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
 
         status.text('Exporting results...')
-        result_file = os.path.join(predict_dir, 'results.tsv')
+        result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
         dataset.save_to_file(ignore_cols=self.params['branches'], outfile_path=result_file)  #TODO ignore branches cols ??
 
-        self.finalize_run(logger, predict_dir, self.params, self.csv_header(),
-                          self.csv_row(predict_dir, self.params, self.model_folder), self.previous_param_file)
+        header = self.predict_header()
+        row = self.predict_row(self.params)
+
+        if self.previous_param_file:
+            with open(self.previous_param_file, 'r') as file:
+                previous_params = yaml.safe_load(file)
+            if 'Train' in previous_params.keys():
+                header += f"{self.train_header(previous_params['Train']['metric'])}"
+                row += f"{self.train_row(previous_params['Train'])}"
+                if 'Preprocess' in previous_params.keys():
+                    header += f'{self.preprocess_header()}\n'
+                    row += f"{self.preprocess_row(previous_params['Preprocess'])}\n"
+                else:
+                    header += '\n'
+                    row += '\n'
+            else:
+                header += '\n'
+                row += '\n'
+
+        self.finalize_run(logger, self.params['predict_dir'], self.params, header, row, self.previous_param_file)
         status.text('Finished!')
 
     @staticmethod
@@ -180,37 +196,3 @@ class Predict(Subcommand):
             'winseed': 42,
             'output_folder': os.path.join(os.getcwd(), 'deepnet_output')
         }
-
-    @staticmethod
-    def csv_header():
-        return 'Folder\t'\
-               'Model file\t' \
-               'Branches\t' \
-               'Window\t' \
-               'Window seed\t' \
-               'No. classes\t' \
-               'Classes\t' \
-               'Sequence source type\t' \
-               'Sequence source\t' \
-               'Alphabet\t' \
-               'Strand\t' \
-               'Fasta ref.\t' \
-               'Conservation ref\t' \
-               'Input folder\n'
-
-    @staticmethod
-    def csv_row(folder, params, model_folder):
-        return f"{os.path.basename(folder)}\t" \
-               f"{params['model_file']}\t" \
-               f"{params['branches']}\t" \
-               f"{params['win']}\t" \
-               f"{params['winseed']}\t" \
-               f"{params['no_klasses']}\t" \
-               f"{params['klasses']}\t" \
-               f"{Predict.get_dict_key(params['seq_type'], Predict.SEQ_TYPES)}\t" \
-               f"{params['seq_source']}\t" \
-               f"{params['alphabet']}\t" \
-               f"{params['strand']}\t" \
-               f"{params['fasta_ref']}\t" \
-               f"{params['cons_dir']}\t" \
-               f"{model_folder}\n"

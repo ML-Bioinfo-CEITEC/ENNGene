@@ -18,6 +18,18 @@ class Subcommand:
     BRANCHES = {'Raw sequence': 'seq',
                 'Conservation score': 'cons',
                 'Secondary structure': 'fold'}
+    SEQ_TYPES = {'BED file': 'bed',
+                 'FASTA file': 'fasta',
+                 'Text input': 'text'}
+    OPTIMIZERS = {'SGD': 'sgd',
+                  'RMSprop': 'rmsprop',
+                  'Adam': 'adam'}
+    METRICS = {'Accuracy': 'accuracy'}
+    LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
+    LR_OPTIMS = {'Fixed lr': 'fixed',
+                 'LR scheduler': 'lr_scheduler',
+                 # 'LR finder': 'lr_finder',
+                 'One cycle policy': 'one_cycle'}
 
     def general_options(self):
         self.params_loaded = False
@@ -224,3 +236,124 @@ class Subcommand:
             logfile_path = file_handler[0].baseFilename
             logfile_name = os.path.basename(logfile_path)
             shutil.move(logfile_path, os.path.join(out_dir, logfile_name))
+
+    @staticmethod
+    def preprocess_header():
+        return 'Preprocess directory\t' \
+               'Preprocess branches\t' \
+               'Alphabet\t' \
+               'Strand\t' \
+               'Window\t' \
+               'Window seed\t' \
+               'Split\t' \
+               'Split ratio\t' \
+               'Split seed\t' \
+               'Chromosomes\t' \
+               'Reduced classes\t' \
+               'Reduce ratio\t' \
+               'Reduce seed\t' \
+               'Use mapped\t' \
+               'Input files\t' \
+               'Classes\t' \
+               'Full_dataset_file\t' \
+               'Fasta ref\t' \
+               'Conservation ref\t'
+
+    def preprocess_row(self, params):
+        return f"{os.path.basename(params['datasets_dir'])}\t" \
+               f"{[self.get_dict_key(b, self.BRANCHES) for b in params['branches']]}\t" \
+               f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
+               f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
+               f"{params['win']}\t" \
+               f"{params['winseed']}\t" \
+               f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
+               f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
+               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
+               f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
+               f"{'Yes' if params['use_mapped'] else 'No'}\t" \
+               f"{params['input_files']}\t" \
+               f"{params['klasses']}\t" \
+               f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
+               f"{params['fasta'] if params['fasta'] else '-'}\t" \
+               f"{params['cons_dir'] if params['cons_dir'] else '-'}\t"
+
+    @staticmethod
+    def train_header(metric):
+        return 'Training directory\t' \
+               'Evaluation loss\t' \
+               f'Evaluation {metric}\t' \
+               'Best training loss\t' \
+               f'Best training {metric}\t' \
+               'Best validation loss\t' \
+               f'Best validation {metric}\t' \
+               'Training branches\t' \
+               'Batch size\t' \
+               'Optimizer\t' \
+               'Metric\t' \
+               'Loss\t' \
+               'Learning rate\t' \
+               'LR optimizer\t' \
+               'Epochs\t' \
+               'No. branches layers\t' \
+               'Branches layers\t' \
+               'No. common layers\t' \
+               'Common layers\t' \
+               'Input (preprocess) directory\t'
+
+    def train_row(self, params):
+        return f"{os.path.basename(params['train_dir'])}\t" \
+               f"{params['eval_loss']}\t" \
+               f"{params['eval_acc']}\t" \
+               f"{params['best_loss']}\t" \
+               f"{params['best_acc']}\t" \
+               f"{params['best_val_loss']}\t" \
+               f"{params['best_val_acc']}\t" \
+               f"{[self.get_dict_key(b, self.BRANCHES) for b in params['branches']]}\t" \
+               f"{params['batch_size']}\t" \
+               f"{self.get_dict_key(params['optimizer'], self.OPTIMIZERS)}\t" \
+               f"{self.get_dict_key(params['metric'], self.METRICS)}\t" \
+               f"{self.get_dict_key(params['loss'], self.LOSSES)}\t" \
+               f"{params['lr']}\t" \
+               f"{self.get_dict_key(params['lr_optim'], self.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
+               f"{params['epochs']}\t" \
+               f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
+               f"{params['branches_layers']}\t" \
+               f"{params['no_common_layers']}\t" \
+               f"{params['common_layers']}\t" \
+               f"{params['input_folder']}\t"
+
+    @staticmethod
+    def predict_header():
+        return 'Predict directory\t' \
+               'Model file\t' \
+               'Predict branches\t' \
+               'Window\t' \
+               'Window seed\t' \
+               'No. classes\t' \
+               'Classes\t' \
+               'Sequence source type\t' \
+               'Sequence source\t' \
+               'Alphabet\t' \
+               'Strand\t' \
+               'Fasta ref.\t' \
+               'Conservation ref\t' \
+               'Input (train) directory\t'
+
+    def predict_row(self, params):
+        return f"{os.path.basename(params['predict_dir'])}\t" \
+               f"{params['model_file']}\t" \
+               f"{params['branches']}\t" \
+               f"{params['win']}\t" \
+               f"{params['winseed']}\t" \
+               f"{params['no_klasses']}\t" \
+               f"{params['klasses']}\t" \
+               f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
+               f"{params['seq_source']}\t" \
+               f"{params['alphabet']}\t" \
+               f"{params['strand']}\t" \
+               f"{params['fasta_ref']}\t" \
+               f"{params['cons_dir']}\t" \
+               f"{params['model_folder']}\t"

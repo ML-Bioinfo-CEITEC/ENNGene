@@ -187,9 +187,9 @@ class Preprocess(Subcommand):
     def run(self):
         status = st.empty()
 
-        datasets_dir = os.path.join(self.params['output_folder'], 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
-        self.ensure_dir(datasets_dir)
-        full_data_dir_path = os.path.join(datasets_dir, 'full_datasets')
+        self.params['datasets_dir'] = os.path.join(self.params['output_folder'], 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
+        self.ensure_dir(self.params['datasets_dir'])
+        full_data_dir_path = os.path.join(self.params['datasets_dir'], 'full_datasets')
         self.ensure_dir(full_data_dir_path)
         full_data_file_path = os.path.join(full_data_dir_path, 'merged_all.tsv')
 
@@ -258,12 +258,14 @@ class Preprocess(Subcommand):
         final_datasets = Dataset.merge_by_category(split_datasets)
 
         for dataset in final_datasets:
-            dir_path = os.path.join(datasets_dir, 'final_datasets')
+            dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
             dataset.save_to_file(file_path, do_zip=True)
 
-        self.finalize_run(logger, datasets_dir, self.params, self.csv_header(), self.csv_row(datasets_dir, self.params))
+        self.finalize_run(logger, self.params['datasets_dir'], self.params,
+                          f'{self.preprocess_header()} \n',
+                          f'{self.preprocess_row(self.params)} \n')
         status.text('Finished!')
 
     @staticmethod
@@ -288,47 +290,3 @@ class Preprocess(Subcommand):
                 'win': 100,
                 'winseed': 42
                 }
-
-    @staticmethod
-    def csv_header():
-        return 'Folder\t' \
-               'Branches\t' \
-               'Alphabet\t' \
-               'Strand\t' \
-               'Window\t' \
-               'Window seed\t' \
-               'Split\t' \
-               'Split ratio\t' \
-               'Split seed\t' \
-               'Chromosomes\t' \
-               'Reduced classes\t' \
-               'Reduce ratio\t' \
-               'Reduce seed\t' \
-               'Use mapped\t' \
-               'Input files\t' \
-               'Klasses\t' \
-               'Full_dataset_file\t' \
-               'Fasta ref\t' \
-               'Conservation ref\n'
-
-    @staticmethod
-    def csv_row(folder, params):
-        return f"{os.path.basename(folder)}\t" \
-               f"{[Preprocess.get_dict_key(b, Preprocess.BRANCHES) for b in params['branches']]}\t" \
-               f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
-               f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
-               f"{params['win']}\t" \
-               f"{params['winseed']}\t" \
-               f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
-               f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
-               f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
-               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
-               f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{'Yes' if params['use_mapped'] else 'No'}\t" \
-               f"{params['input_files']}\t" \
-               f"{params['klasses']}\t" \
-               f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
-               f"{params['fasta'] if params['fasta'] else '-'}\t" \
-               f"{params['cons_dir'] if params['cons_dir'] else '-'}\n"
