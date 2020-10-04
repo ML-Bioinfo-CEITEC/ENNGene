@@ -521,8 +521,8 @@ class Dataset:
                 new_start = row['seq_start']
                 new_end = row['seq_end']
 
-            row['seq_start'] = new_start
-            row['seq_end'] = new_end
+            row['seq_start'] = int(new_start)
+            row['seq_end'] = int(new_end)
             return row
 
         def fasta_window(row):
