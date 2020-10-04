@@ -14,36 +14,6 @@ def not_empty_branches(branches):
     return warning if len(branches) == 0 else None
 
 
-def correct_branches(branches, input_folder):
-    # Check that selected branches are present in given input files
-    invalid = False
-    defined_branches = ['seq', 'fold', 'cons']
-    files = f.list_files_in_dir(input_folder, 'zip')
-    base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
-    for file in files:
-        if any(ext in file for ext in ['train', 'validation', 'test']):
-            dataset = Dataset.load_from_file(file)
-            branch_cols = []
-            columns = dataset.df.columns
-            for col in columns:
-                if col not in base_columns and col in defined_branches:
-                    branch_cols.append(col)
-            invalid_branches = []
-            for branch in branches:
-                if branch not in branch_cols:
-                    invalid_branches.append(branch)
-            if not len(invalid_branches) == 0:
-                invalid = True
-                if len(invalid_branches) == len(branches):
-                    warning = 'None of the selected branches are present in given preprocessed input files.'
-                else:
-                    warning = f'Branch/es {[BRANCHES_REV[branch] for branch in invalid_branches]} ' \
-                              f'are not present in given preprocessed input files.\n' \
-                              f'Please unselect the missing branches or provide correct preprocessed files first.'
-
-    return warning if invalid else None
-
-
 def is_bed(file):
     invalid = False
 
@@ -159,21 +129,27 @@ def is_dataset_dir(folder):
         warning = 'You must provide a folder with the preprocessed files.'
     else:
         if os.path.isdir(folder):
-            # TODO later check also the metadata file
-            files = f.list_files_in_dir(folder, 'zip')
-            dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
-            for file in files:
-                category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
-                if category: dataset_files[category].append(file)
-            for category, files in dataset_files.items():
-                if category == 'blackbox': continue  # the blackbox dataset is optional
-                if len(files) != 1:
-                    invalid = True
-                    warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
-                else:
-                    if files[0] != f'{category}.zip':
+            param_files = [file for file in os.listdir(folder) if (file == 'parameters.yaml') and
+                           (os.path.isfile(os.path.join(folder, file)))]
+            if len(param_files) == 1:
+                files = f.list_files_in_dir(folder, 'zip')
+                dataset_files = {'train': [], 'validation': [], 'test': [], 'blackbox': []}
+                for file in files:
+                    category = next((category for category in dataset_files.keys() if category in os.path.basename(file)), None)
+                    if category: dataset_files[category].append(file)
+                for category, files in dataset_files.items():
+                    if category == 'blackbox': continue  # the blackbox dataset is optional
+                    if len(files) != 1:
                         invalid = True
-                        warning = ''
+                        warning = 'Each category (train, test, validation) must be represented by exactly one preprocessed file in the given folder.'
+                    else:
+                        if files[0] != f'{category}.zip':
+                            invalid = True
+                            warning = ''
+            else:
+                invalid = True
+                warning = 'Sorry, there is no parameters.yaml file in the given folder. Make sure to provide the whole ' \
+                          'datasets folder (not just the one with final datasets).'
         else:
             invalid = True
             warning = 'Given folder with preprocessed files does not exist.'

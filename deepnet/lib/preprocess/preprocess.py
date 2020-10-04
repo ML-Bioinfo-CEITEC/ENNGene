@@ -35,6 +35,21 @@ class Preprocess(Subcommand):
         st.markdown('## General Options')
         self.general_options()
 
+        default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
+        self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                       st.multiselect('Branches',
+                                                      list(self.BRANCHES.keys()),
+                                                      default=default_branches)))
+        self.validation_hash['not_empty_branches'].append(self.params['branches'])
+
+        if 'fold' in self.params['branches']:
+            # currently used only as an option for RNAfold
+            max_cpu = os.cpu_count() or 1
+            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
+                                  min_value=1, max_value=max_cpu, value=max_cpu)
+        else:
+            self.ncpu = 1
+
         self.params['use_mapped'] = st.checkbox('Use already mapped file from a previous run', self.defaults['use_mapped'])
 
         if not self.params['use_mapped']:
@@ -59,21 +74,24 @@ class Preprocess(Subcommand):
                                                          value=self.defaults['winseed']))
 
             st.markdown('## Input Coordinate Files')
-            # TODO change to plus button when stateful operations enabled
-            # TODO is there streamlit function to browse local files - should be soon
-            # TODO accept also web address if possible
 
             warning = st.empty()
             self.params['input_files'] = self.defaults['input_files']
             no_files = st.number_input('Number of input files (= no. of classes):', min_value=2,
                                        value=max(2, len(self.defaults['input_files'])))
-            for i in range(no_files):
-                self.params['input_files'].append(st.text_input(
-                    f'File no. {i+1} (.bed)',
-                    value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else '')))
+            self.params['input_files'] = self.params['input_files'][0:no_files]
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
-            for file in self.params['input_files']:
+            self.params['klasses'] = []
+
+            for i in range(no_files):
+                file = st.text_input(f'File no. {i+1} (.bed)',
+                    value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else ''))
+                if len(self.params['input_files']) >= i+1:
+                    self.params['input_files'][i] = file
+                else:
+                    self.params['input_files'].append(file)
+
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
                 file_name = os.path.basename(file)
@@ -81,7 +99,7 @@ class Preprocess(Subcommand):
                     for ext in self.allowed_extensions:
                         if ext in file_name:
                             klass = file_name.replace(ext, '')
-                            self.klasses.append(klass)
+                            self.params['klasses'].append(klass)
                             # subprocess.run(['wc', '-l', file], check=True)
                             self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
                 else:
@@ -94,7 +112,7 @@ class Preprocess(Subcommand):
 
             if self.params['full_dataset_file']:
                 try:
-                    self.klasses, self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
+                    self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
                 except Exception:
                     raise UserInputError('Invalid dataset file!')
 
@@ -102,7 +120,7 @@ class Preprocess(Subcommand):
         st.markdown('Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%),'
                     'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
-                                                   self.klasses, self.defaults['reducelist'])
+                                                   self.params['klasses'], self.defaults['reducelist'])
         if self.params['reducelist']:
             self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
                                                             value=self.defaults['reduceseed']))
@@ -141,7 +159,6 @@ class Preprocess(Subcommand):
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
-            print(self.params['valid_chromosomes'])
             if self.params['fasta']:
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
@@ -176,11 +193,11 @@ class Preprocess(Subcommand):
     def run(self):
         status = st.empty()
 
-        datasets_dir = os.path.join(self.params['output_folder'], 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
-        self.ensure_dir(datasets_dir)
-        full_data_dir_path = os.path.join(datasets_dir, 'full_datasets')
+        self.params['datasets_dir'] = os.path.join(self.params['output_folder'], 'datasets', f'{str(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))}')
+        self.ensure_dir(self.params['datasets_dir'])
+        full_data_dir_path = os.path.join(self.params['datasets_dir'], 'full_datasets')
         self.ensure_dir(full_data_dir_path)
-        full_data_file_path = os.path.join(full_data_dir_path, 'merged_all')
+        full_data_file_path = os.path.join(full_data_dir_path, 'merged_all.tsv')
 
         if self.params['use_mapped']:
             status.text('Reading in already mapped file with all the samples...')
@@ -189,7 +206,7 @@ class Preprocess(Subcommand):
             # Keep only selected branches
             cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
             merged_dataset.df = merged_dataset.df[cols]
-
+        else:
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
             status.text('Reading in given interval files and applying window...')
@@ -206,7 +223,7 @@ class Preprocess(Subcommand):
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
             # Read-in fasta file to dictionary
-            if 'seq' in self.params['branches'] and type(self.references['seq']) != dict:
+            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
                 fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
                 if not valid_chromosomes:
@@ -221,7 +238,7 @@ class Preprocess(Subcommand):
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
-        for klass in self.klasses:
+        for klass in self.params['klasses']:
             df = merged_dataset.df[merged_dataset.df['klass'] == klass]
             mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
@@ -245,12 +262,14 @@ class Preprocess(Subcommand):
         final_datasets = Dataset.merge_by_category(split_datasets)
 
         for dataset in final_datasets:
-            dir_path = os.path.join(datasets_dir, 'final_datasets')
+            dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
-            file_path = os.path.join(dir_path, dataset.category)
+            file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
             dataset.save_to_file(file_path, do_zip=True)
 
-        self.finalize_run(logger, datasets_dir, self.params, self.csv_header(), self.csv_row(datasets_dir, self.params))
+        self.finalize_run(logger, self.params['datasets_dir'], self.params,
+                          f'{self.preprocess_header()} \n',
+                          f'{self.preprocess_row(self.params)} \n')
         status.text('Finished!')
 
     @staticmethod
@@ -275,45 +294,3 @@ class Preprocess(Subcommand):
                 'win': 100,
                 'winseed': 42
                 }
-
-    @staticmethod
-    def csv_header():
-        return 'Folder\t' \
-               'Branches\t' \
-               'Alphabet\t' \
-               'Strand\t' \
-               'Window\t' \
-               'Window seed\t' \
-               'Split\t' \
-               'Split ratio\t' \
-               'Split seed\t' \
-               'Chromosomes\t' \
-               'Reduced classes\t' \
-               'Reduce ratio\t' \
-               'Reduce seed\t' \
-               'Use mapped\t' \
-               'Input files\t' \
-               'Full_dataset_file\t' \
-               'Fasta ref\t' \
-               'Conservation ref\n'
-
-    @staticmethod
-    def csv_row(folder, params):
-        return f"{os.path.basename(folder)}\t" \
-               f"{[Preprocess.get_dict_key(b, Preprocess.BRANCHES) for b in params['branches']]}\t" \
-               f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
-               f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
-               f"{params['win']}\t" \
-               f"{params['winseed']}\t" \
-               f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
-               f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
-               f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
-               f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
-               f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{'Yes' if params['use_mapped'] else 'No'}\t" \
-               f"{params['input_files']}\t" \
-               f"{params['full_dataset_file'] if params['use_mapped'] else '-'}\t" \
-               f"{params['fasta'] if params['fasta'] else '-'}\t" \
-               f"{params['cons_dir'] if params['cons_dir'] else '-'}\n"

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import tensorflow as tf
+import yaml
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler, TensorBoard
 from tensorflow.keras.optimizers import SGD, RMSprop, Adam
@@ -17,6 +18,7 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
+from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
@@ -25,21 +27,10 @@ logger = logging.getLogger('root')
 
 
 class Train(Subcommand):
-    OPTIMIZERS = {'SGD': 'sgd',
-                  'RMSprop': 'rmsprop',
-                  'Adam': 'adam'}
-    METRICS = {'Accuracy': 'accuracy'}
-    LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
-    LR_OPTIMS = {'Fixed lr': 'fixed',
-                 'LR scheduler': 'lr_scheduler',
-                 # 'LR finder': 'lr_finder',
-                 'One cycle policy': 'one_cycle'}
-
     def __init__(self):
         self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
-                                'is_dataset_dir': [],
-                                'correct_branches': []}
+                                'is_dataset_dir': []}
 
         st.markdown('# Train a Model')
 
@@ -47,9 +38,32 @@ class Train(Subcommand):
         self.general_options()
 
         self.params['input_folder'] = st.text_input(
-            'Path to folder containing all preprocessed files (train, validation, test)', value=self.defaults['input_folder'])
+            'Path to the datasets folder', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
-        self.validation_hash['correct_branches'].append({'branches': self.params['branches'], 'input_folder': self.params['input_folder']})
+
+        if self.params['input_folder']:
+            note = ''
+            previous_param_files = [f for f in os.listdir(self.params['input_folder']) if (f == 'parameters.yaml') and
+                                    (os.path.isfile(os.path.join(self.params['input_folder'], f)))]
+            if len(previous_param_files) == 1:
+                self.previous_param_file = os.path.join(self.params['input_folder'], previous_param_files[0])
+                with open(self.previous_param_file, 'r') as file:
+                    user_params = yaml.safe_load(file)
+                    preprocess_branches = user_params['Preprocess']['branches']
+            else:
+                # We could allow to continue without it, but the user would have to select correct branches
+                raise UserInputError('Did not find parameters.yaml file in the given dataset folder.')
+        else:
+            preprocess_branches = []
+            note = ' (You must first provide the dataset folder (containing also the parameters.yaml file))'
+
+        available_branches = [self.get_dict_key(b, self.BRANCHES) for b in preprocess_branches]
+        default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
+        self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                           st.multiselect('Branches'+note,
+                                                          available_branches,
+                                                          default=default_branches)))
+        self.validation_hash['not_empty_branches'].append(self.params['branches'])
 
         self.params['tb'] = st.checkbox('Output TensorBoard log files', value=self.defaults['tb'])
 
@@ -204,17 +218,22 @@ class Train(Subcommand):
 
         candidate_files = f.list_files_in_dir(self.params['input_folder'], 'zip')
         categories = ['train', 'validation', 'test', 'blackbox']
-        dataset_files = [file for file in candidate_files if any(category in file for category in categories)]
+        dataset_files = [file for file in candidate_files if any(category in os.path.basename(file) for category in categories)]
 
-        labels = seq.onehot_encode_alphabet(list(set(Dataset.load_from_file(dataset_files[0]).labels())))
-        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], labels)
+        if self.previous_param_file:
+            with open(self.previous_param_file, 'r') as file:
+                previous_params = yaml.safe_load(file)
+                encoded_labels = seq.onehot_encode_alphabet(previous_params['Preprocess']['klasses'])
+        else:
+            raise UserInputError('Could not read class labels from parameters.yaml file).')
+        train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], encoded_labels)
         branch_shapes = self.get_shapes(train_x, self.params['branches'])
 
-        train_dir = os.path.join(self.params['output_folder'], 'training',
+        self.params['train_dir'] = os.path.join(self.params['output_folder'], 'training',
                                  f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
-        self.ensure_dir(train_dir)
+        self.ensure_dir(self.params['train_dir'])
 
-        model = ModelBuilder(self.params['branches'], labels, branch_shapes, self.params['branches_layers'], self.params['common_layers']).build_model()
+        model = ModelBuilder(self.params['branches'], encoded_labels, branch_shapes, self.params['branches_layers'], self.params['common_layers']).build_model()
         optimizer = self.create_optimizer(self.params['optimizer'], self.params['lr'])
         model.compile(
             optimizer=optimizer,
@@ -229,54 +248,61 @@ class Train(Subcommand):
         chart = st.altair_chart(self.initialize_altair_chart(), use_container_width=True)
 
         callbacks = self.create_callbacks(
-            train_dir, self.params['lr_optim'], self.params['tb'], self.params['epochs'], progress_bar, progress_status, chart, self.params['early_stop'],
+            self.params['train_dir'], self.params['lr_optim'], self.params['tb'], self.params['epochs'], progress_bar, progress_status, chart, self.params['early_stop'],
             self.params['lr'], branch_shapes[self.params['branches'][0]][0])
 
         history = self.train(model, self.params['epochs'], self.params['batch_size'], callbacks, train_x, valid_x, train_y, valid_y).history
         # if self.params['lr_optim'] == 'lr_finder': self.params['epochs'] = 1
-        # if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(train_dir)
+        # if self.params['lr_optim'] == 'lr_finder': LRFinder.plot_schedule_from_file(self.params['train_dir'])
 
         if self.params['early_stop']:
             early_epochs = [callback for callback in callbacks if type(callback) == EarlyStopping][0]
             if early_epochs and early_epochs.stopped_epoch != 0:
                 self.params['epochs'] = early_epochs.stopped_epoch
 
-        best_acc = str(round(max(history[self.params['metric']]), 4))
-        best_loss = str(round(min(history['loss']), 4))
-        best_val_acc = str(round(max(history[f"val_{self.params['metric']}"]), 4))
-        best_val_loss = str(round(min(history[f"val_loss"]), 4))
+        self.params['best_acc'] = str(round(max(history[self.params['metric']]), 4))
+        self.params['best_loss'] = str(round(min(history['loss']), 4))
+        self.params['best_val_acc'] = str(round(max(history[f"val_{self.params['metric']}"]), 4))
+        self.params['best_val_loss'] = str(round(min(history[f"val_loss"]), 4))
 
-        logger.info('Best achieved training ' + self.params['metric'] + ': ' + best_acc)
-        logger.info('Best achieved training loss: ' + best_loss)
-        logger.info('Best achieved ' + f"validation {self.params['metric']}" + ': ' + best_val_acc)
-        logger.info('Best achieved validation loss: ' + best_val_loss)
+        logger.info('Best achieved training ' + self.params['metric'] + ': ' + self.params['best_acc'])
+        logger.info('Best achieved training loss: ' + self.params['best_loss'])
+        logger.info('Best achieved ' + f"validation {self.params['metric']}" + ': ' + self.params['best_val_acc'])
+        logger.info('Best achieved validation loss: ' + self.params['best_val_loss'])
 
-        st.text(f"Best achieved training {self.params['metric']}: {best_acc}\n"
-                f"Best achieved training loss: {best_loss}\n\n"
-                f"Best achieved validation {self.params['metric']}: " + best_val_acc + '\n'
-                'Best achieved validation loss: ' + best_val_loss + '\n\n')
+        st.text(f"Best achieved training {self.params['metric']}: {self.params['best_acc']}\n"
+                f"Best achieved training loss: {self.params['best_loss']}\n\n"
+                f"Best achieved validation {self.params['metric']}: " + self.params['best_val_acc'] + '\n'
+                'Best achieved validation loss: ' + self.params['best_val_loss'] + '\n\n')
 
         # Plot metrics
         # if self.params['lr_optim'] != 'lr_finder':
-        self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), train_dir)
-        self.plot_graph(history, 'loss', f"Loss: {self.params['loss'].capitalize()}", train_dir)
-        tf.keras.utils.plot_model(model, to_file=f'{train_dir}/model.png', show_shapes=True, dpi=300)
+        self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), self.params['train_dir'])
+        self.plot_graph(history, 'loss', f"Loss: {self.params['loss'].capitalize()}", self.params['train_dir'])
+        tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
 
         status.text('Testing the network...')
         test_results = self.test(model, self.params['batch_size'], test_x, test_y)
 
-        eval_loss = str(round(test_results[0], 4))
-        eval_acc = str(round(test_results[1], 4))
-        logger.info('Evaluation loss: ' + eval_loss)
-        logger.info('Evaluation acc: ' + eval_acc)
-        st.text(f'Evaluation loss: {eval_loss} \nEvaluation acc: {eval_acc} \n')
+        self.params['eval_loss'] = str(round(test_results[0], 4))
+        self.params['eval_acc'] = str(round(test_results[1], 4))
+        logger.info('Evaluation loss: ' + self.params['eval_loss'])
+        logger.info('Evaluation acc: ' + self.params['eval_acc'])
+        st.text(f"Evaluation loss: {self.params['eval_loss']} \nEvaluation acc: {self.params['eval_acc']} \n")
 
         model_json = model.to_json()
-        with open(f'{train_dir}/model.json', 'w') as json_file:
+        with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
             json_file.write(model_json)
 
-        row = self.csv_row(train_dir, self.params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc)
-        self.finalize_run(logger, train_dir, self.params, self.csv_header(self.params['metric']), row)
+        header = self.train_header(self.params['metric'])
+        row = self.train_row(self.params)
+        if 'Preprocess' in previous_params.keys():
+            header += f'{self.preprocess_header()}\n'
+            row += f"{self.preprocess_row(previous_params['Preprocess'])}\n"
+        else:
+            header += '\n'
+            row += '\n'
+        self.finalize_run(logger, self.params['train_dir'], self.params, header, row, self.previous_param_file)
         status.text('Finished!')
     
     @staticmethod
@@ -429,49 +455,3 @@ class Train(Subcommand):
                 'optimizer': 'sgd',
                 'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
                 'tb': True}
-
-    @staticmethod
-    def csv_header(metric):
-        return 'Folder\t' \
-               'Evaluation loss\t' \
-               f'Evaluation {metric}\t' \
-               'Best training loss\t' \
-               f'Best training {metric}\t' \
-               'Best validation loss\t' \
-               f'Best validation {metric}\t' \
-               'Branches\t' \
-               'Batch size\t' \
-               'Optimizer\t' \
-               'Metric\t' \
-               'Loss\t' \
-               'Learning rate\t' \
-               'LR optimizer\t' \
-               'Epochs\t' \
-               'No. branches layers\t' \
-               'Branches layers\t' \
-               'No. common layers\t' \
-               'Common layers\t' \
-               'Input folder\n'
-
-    @staticmethod
-    def csv_row(folder, params, eval_loss, eval_acc, best_loss, best_acc, best_val_loss, best_val_acc):
-        return f"{os.path.basename(folder)}\t" \
-               f"{eval_loss}\t" \
-               f"{eval_acc}\t" \
-               f"{best_loss}\t" \
-               f"{best_acc}\t" \
-               f"{best_val_loss}\t" \
-               f"{best_val_acc}\t" \
-               f"{[Train.get_dict_key(b, Train.BRANCHES) for b in params['branches']]}\t" \
-               f"{params['batch_size']}\t" \
-               f"{Train.get_dict_key(params['optimizer'], Train.OPTIMIZERS)}\t" \
-               f"{Train.get_dict_key(params['metric'], Train.METRICS)}\t" \
-               f"{Train.get_dict_key(params['loss'], Train.LOSSES)}\t" \
-               f"{params['lr']}\t" \
-               f"{Train.get_dict_key(params['lr_optim'], Train.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
-               f"{params['epochs']}\t" \
-               f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
-               f"{params['branches_layers']}\t" \
-               f"{params['no_common_layers']}\t" \
-               f"{params['common_layers']}\t" \
-               f"{params['input_folder']}\n"
