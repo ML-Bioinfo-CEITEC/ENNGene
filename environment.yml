@@ -1,4 +1,4 @@
-name: deepnet-gui
+name: deepnet-app
 channels:
   - bioconda
   - anaconda
@@ -119,14 +119,14 @@ dependencies:
     - oauthlib==3.1.0
     - opt-einsum==3.1.0
     - packaging==20.4
-    - pandas==0.25.3
+    - pandas==1.1.1
     - pandocfilters==1.4.2
     - parso==0.7.1
     - pathtools==0.1.2
     - pexpect==4.8.0
     - pickleshare==0.7.5
     - pillow==6.2.1
-    - pip==20.2
+    - pip==20.2.2
     - prometheus-client==0.8.0
     - prompt-toolkit==3.0.5
     - protobuf==3.12.4
@@ -168,4 +168,3 @@ dependencies:
     - wrapt==1.11.2
     - zipp==0.6.0
 prefix: /home/eliska/anaconda3/envs/deepnet-gui
-

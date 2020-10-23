@@ -1,4 +1,5 @@
 import _io
+import datetime
 import logging
 import numpy as np
 import os
@@ -443,9 +444,9 @@ class Dataset:
         # TODO check output, it's suspiciously quick for large numbers of samples
         tmp_dir = tempfile.gettempdir()
         original_length = self.df.shape[0]
-        fasta_file = Dataset.dataframe_to_fasta(self.df, 'fold', key_cols, tmp_dir, 'df')
+        fasta_file = Dataset.dataframe_to_fasta(self.df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
 
-        out_path = os.path.join(tmp_dir, 'df' + '_folded')
+        out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         out_file = open(out_path, 'w+')
         if dna:
             subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
@@ -476,9 +477,9 @@ class Dataset:
                     new_df.loc[index, 'fold'] = Dataset.sequence_to_string(value)
             self.df = new_df
         else:
-            raise ProcessError(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
+            logger.warning(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
             # We probably have no way to determine which were not folded if this happens
-            sys.exit()
+            raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
 
         return self
 

@@ -25,7 +25,8 @@ class Preprocess(Subcommand):
                                 'not_empty_branches': [],
                                 'is_full_dataset': [],
                                 'is_ratio': [],
-                                'not_empty_chromosomes': []}
+                                'not_empty_chromosomes': [],
+                                'min_two_files': []}
         self.klasses = []
         self.klass_sizes = {}
 
@@ -105,6 +106,7 @@ class Preprocess(Subcommand):
                 else:
                     warning.markdown(
                         '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
+            self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
             self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])

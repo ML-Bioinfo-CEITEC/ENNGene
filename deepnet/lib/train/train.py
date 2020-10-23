@@ -321,7 +321,9 @@ class Train(Subcommand):
                                append=True,
                                separator='\t')
 
-        callbacks = [mcp, csv_logger]
+        progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
+
+        callbacks = [mcp, csv_logger, progress]
 
         if early_stop:
             earlystopper = EarlyStopping(monitor='val_loss',
