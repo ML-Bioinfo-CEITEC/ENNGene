@@ -112,8 +112,6 @@ class Dataset:
         elif text_input:
             input_type = 'fasta'
             self.df = self.read_in_text(text_input)
-        else:
-            raise UserInputError('Missing an input file. Can not continue.')
 
         if win:
             self.df = Dataset.apply_window(self.df, win, winseed, input_type)
