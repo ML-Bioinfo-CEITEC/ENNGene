@@ -112,6 +112,8 @@ class Dataset:
         elif text_input:
             input_type = 'fasta'
             self.df = self.read_in_text(text_input)
+        else:
+            raise UserInputError('Missing an input file. Can not continue.')
 
         if win:
             self.df = Dataset.apply_window(self.df, win, winseed, input_type)
@@ -477,9 +479,9 @@ class Dataset:
                     new_df.loc[index, 'fold'] = Dataset.sequence_to_string(value)
             self.df = new_df
         else:
-            raise ProcessError(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
+            logger.warning(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
             # We probably have no way to determine which were not folded if this happens
-            sys.exit()
+            raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
 
         return self
 
