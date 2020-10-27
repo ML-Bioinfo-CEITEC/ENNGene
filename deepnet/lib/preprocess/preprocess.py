@@ -95,17 +95,20 @@ class Preprocess(Subcommand):
 
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
-                file_name = os.path.basename(file)
-                if any(ext in file_name for ext in self.allowed_extensions):
-                    for ext in self.allowed_extensions:
-                        if ext in file_name:
-                            klass = file_name.replace(ext, '')
-                            self.params['klasses'].append(klass)
-                            # subprocess.run(['wc', '-l', file], check=True)
-                            self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
+                if os.path.isfile(file):
+                    file_name = os.path.basename(file)
+                    if any(ext in file_name for ext in self.allowed_extensions):
+                        for ext in self.allowed_extensions:
+                            if ext in file_name:
+                                klass = file_name.replace(ext, '')
+                                self.params['klasses'].append(klass)
+                                # subprocess.run(['wc', '-l', file], check=True)
+                                self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
+                    else:
+                        warning.markdown(
+                            '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
                 else:
-                    warning.markdown(
-                        '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
+                    st.markdown(f'##### **WARNING**: Input file no. {i+1} does not exist.')
             self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
