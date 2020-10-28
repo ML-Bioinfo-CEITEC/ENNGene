@@ -1,65 +1,105 @@
-## deepnet App 
-Deepnet App (*name to be defined*) aims to facilitate application of deep neural networks on genomics data without the need of programming.
+## ENN-Gene 
+ENN-Gene is an application that simplifies the local training of custom Convolutional Neural Network models on Genomic data 
+via an easy to use Graphical User Interface. ENN-Gene allows multiple streams of input information, including sequence, 
+evolutionary conservation, and secondary structure, and includes utilities that can perform needed preprocessing steps, 
+allowing simplified input such as genomic coordinates. 
+ENN-Gene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
+empowering researchers that may not be experts in machine learning to perform this powerful type of analysis. 
 
 ### Installation
 
-#### Conda environment
-If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
-- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
-- Unzip the directory `tar -xf deepnet.tar.gz`
-- Go to the project directory `cd deepnet`
-- Recreate environment from yml file `conda env create -f environment.yml`
-- Activate the environment`conda activate deepnet-app`
-- Run the app `cd deepnet` and `streamlit run deepnet.py`
+TODO @Ondra
 
-#### Intro
-The deepnet app is created using [Streamlit framework](https://www.streamlit.io/), which is still in early stages of development.
-The framework is currently missing several key functions that will be hopefully added in the future and subsequently incorporated into the app.
-
-So far, the application consists of two modules - data preprocessing, and training a neural net on that data. 
-More functions will be added gradually (e.g. hyperparameter tuning or applying already trained model).
-
+### Implementation
+ENN-Gene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
+It can run on either CPU or GPU, offering a considerable speed-up when training larger CNNs.
+ENN-Gene accepts BED genomic interval files corresponding to a user-determined genome or transcriptome reference.
+Classifiers can be built for two or more classes.
+Full reproducibility of the process is ensured by logging all the user’s input and exporting it as a yaml file that can be loaded in ENN-Gene for future runs.
+The application consists of three consecutive modules, each module performing a specific task.
+ 
 To select a task browse the select box in the side panel. 
-For now, all input files (or folders) must be defined by an absolute path.
 
-After running a task, there's several files exported to the defined output folder.
-There's a log file with logged user input, warnings, etc. 
-In the parameters.yaml file there are all the parameters set by a user. 
-The yaml file can be imported in a future run to reproduce the set up.
-For each task there is one common tsv table with one row per run.
-You can then easily manage and compare results with different parameters setup.  
+`Output folder` There is a subfolder created for each task in the given output folder (thus you can use the same path for all the tasks you run). 
+After running a task, several files will be exported to the task subfolder.
+ * Parameters.yaml file - contains all the parameters set by the user.
+ The yaml file can be imported in a future run to reproduce the set up.
+ * Log file - contains logged user input, warnings, errors etc. 
+ * Parameters.tsv file - a tsv table with one row per run, shared across the task.
+   You can easily manage and compare results across the specific task with different parameters' setup.
+ * Other task-specific files.
 
-#### Data Preprocessing
-In the first module, RNA or DNA sequence data are prepared to be fed into a neural network. 
+The ENN-Gene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
+Currently, all input files (or folders) must be defined by an absolute path.
+Based on the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.   
 
-You must select one or more **branches** corresponding to different ways of data manipulation.
-* Raw sequence - select this branch if you wish to use pure sequence (one-hot encoded) as input. Requires reference genome in fasta file. 
-* Conservation score - original sequence gets mapped against reference conservation files (the reference  files are required). 
-* Secondary structure - secondary structure is estimated by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package and the values are then one-hot encoded.
-(Also requires the reference genome in fasta file).
+#### 1 Preprocessing
+In the first module, data is preprocessed into a format convenient for CNN input.
 
-All the samples fed to the neural network must be of the same length, which can be defined by **window size**.
-Long sequences get shortened, while short sequences are filled in based on the reference by randomly placing window of selected size on the original sequence. 
-Use **seed** parameter for reproducibility.
+`Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run, and you want to just e.g. change the chromosomes' distribution among categories. 
 
-There can be an arbitrary number of **input coordinate files** in bed format, but you need at least two for the classification.
-Each input file is handled as a separate class during model training (note that currently softmax activation function is used for all the models).
-Selected class/es can be reduced to **target size** (again, use **seed** for reproducibility).
-If you use this option in combination with dataset split by chromosomes, please make sure all classes in all the categories (train, test, etc.) 
-contain at least some data, as some chromosomes might be lost when randomly reducing dataset size.
+`Branches` You may select one or more input types engineered from the given interval files.
+Each input type later corresponds to a branch in the neural network.
+ * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
+ * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
+ * Conservation score – counted based on the user provided reference file/s. 
 
+`Alphabet` Define the nature of the sequences (DNA or RNA).
+
+`Apply strand` Choose to apply (if available) or ignore strand information.
+
+`Number of CPUs` You might assign multiple CPUs for the computation of the secondary structure.
+
+`Window size` All the samples prepared for the neural network must be of the same length, defined by the window size.
+Longer sequences get shortened, while short sequences are completed based on the reference.
+Both is done by randomly placing a window of selected size on the original sequence.
+
+`Seed` Parameter used for the reproducibility of the semi-random window placement.
+
+##### Input Coordinate Files
+`Number of input files` There can be an arbitrary number of input files in BED format (two at minimum).
+Each input file corresponds to one class for the classification. Class name is based on the file name.
+
+`File no. 1, File no. 2, ...` Enter an absolute path for each interval file separately.
+
+##### Dataset Size Reduction
+`Classes to be reduced` Number of samples in the selected class/es can be reduced to save the computing resources when training larger networks.
+ 
+`Target dataset size` Define a target size per each dataset selected to be reduced.
+Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).
+A hint showing a number of rows in the original input file is displayed at the end. 
+
+*Note: Samples are randomly shuffled across the chromosomes before the size reduction. 
+If you split the dataset by chromosomes after reducing its size, make sure all the classes in all the categories (train, test, etc.) 
+contain at least some data, as some small chromosomes might get fully removed.*
+
+`Seed` Parameter used for the reproducibility of the semi-random dataset size reduction.
+
+##### Data Split
 Supplied data must be split into training, validation and testing datasets.
-This can be done either by choosing particular chromosomes per each category, or randomly, based on defined **ratio** (again, use **seed** for reproducibility).
-If you choose to separate categories by chromosomes, fasta file with reference genome must be provided (the same one required for raw sequence and secondary structure branches).
-List of available chromosomes is then inferred from the provided genome file (scaffolds are ignored) - that may take up to few minutes.
-(Note: When selecting the chromosomes per category Streamlit will issue a warning 'Running read_and_cache(...).'. 
-You may disregard that and continue selecting, filling in other attributes, or hit the run button to start processing the files.)
 
-After all the parameters are set and selected, press the **run** button. The preprocessing might take several minutes to hours, 
-depending on the amount of data, selected options, and hardware available.
-If there's a mandatory field missing information or some input is incorrect, you will get a warning, and the app will not run.
+*Note: The testing dataset is used for a direct evaluation of the trained model. 
+If you train multiple models on the same datasets, you might want to keep a 'blackbox' dataset for a final evaluation.*
 
-Files with processed datasets are exported to the **output folder** defined at the beginning.  
+`Random` Data are split into the categories randomly across the chromosomes, based on the given ratio.
+
+`Target ratio` Defines the ratio of the number of samples between the categories. Required format: train:validation:test:blackbox.
+
+`Seed` Parameter used for the reproducibility of the semi-random data split.
+
+`By chromosomes` Specific chromosomes might be selected for each category.
+To use this option, a fasta file with reference genome/transcriptome must be provided (the same one required for the sequence and secondary structure branches).
+List of available chromosomes is then inferred from the provided reference (scaffolds are ignored) - that may take up to few minutes.
+
+*Note: When selecting the chromosomes for the categories Streamlit will issue a warning 'Running read_and_cache(...).'. 
+You may disregard that and continue selecting the chromosomes. 
+Although, if your machine cannot handle it, and the process gets stuck, your input might get nullified. 
+In that case, you will want to wait until the warning disappears.*
+
+`Run` After all the parameters are set and selected, press the run button. 
+Depending on the amount of data, selected options, and the hardware available, the preprocessing might take several minutes to hours. 
+
+Files with preprocessed datasets are exported to the 'datasets' subfolder at the `output folder` defined at the beginning.  
 
 #### Training a Model
 Files provided within **input folder** are expected to be those exported by the Preprocess Data section of the deepnet app.
