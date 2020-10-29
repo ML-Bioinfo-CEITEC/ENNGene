@@ -361,24 +361,15 @@ class Train(Subcommand):
         if chosen == 'sgd':
             optimizer = SGD(
                 lr=learning_rate,
-                decay=1e-6,
                 momentum=0.9,
                 nesterov=True)
         elif chosen == 'rmsprop':
             optimizer = RMSprop(
-                lr=learning_rate,
-                rho=0.9,
-                epsilon=None,
-                decay=0.0
+                lr=learning_rate
             )
         elif chosen == 'adam':
             optimizer = Adam(
                 lr=learning_rate,
-                beta_1=0.9,
-                beta_2=0.999,
-                epsilon=None,  # 10−8 for ϵ
-                decay=0.0,
-                amsgrad=False
             )
 
         return optimizer
