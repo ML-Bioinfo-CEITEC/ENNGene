@@ -66,12 +66,12 @@ class MyGRU:
         return x
 
 
-LAYERS = {'CNN': MyConv1D,
-          'Locally Connected 1D': MyLocallyConnected1D,
-          'Dense': MyDense}
-BRANCH_LAYERS = {'CNN': MyConv1D,
-                 'Locally Connected 1D': MyLocallyConnected1D}
-COMMON_LAYERS = {'Dense': MyDense}
+LAYERS = {'Convolution layer': MyConv1D,
+          'Locally Connected 1D layer': MyLocallyConnected1D,
+          'Dense layer': MyDense}
+BRANCH_LAYERS = {'Convolution layer': MyConv1D,
+                 'Locally Connected 1D layer': MyLocallyConnected1D}
+COMMON_LAYERS = {'Dense layer': MyDense}
 # 'RNN': MyRNN,
 # 'GRU': MyGRU,
 # 'LSTM': MyLSTM,

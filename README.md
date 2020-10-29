@@ -101,32 +101,85 @@ Depending on the amount of data, selected options, and the hardware available, t
 
 Files with preprocessed datasets are exported to the 'datasets' subfolder at the `output folder` defined at the beginning.  
 
-#### Training a Model
-Files provided within **input folder** are expected to be those exported by the Preprocess Data section of the deepnet app.
-Selected **branches** must be the same as in the preprocessing step, **output folder** might also be the same.
-You can select the checkbox to produce **Tensorboard files** (for more info see the [official site](https://www.tensorflow.org/tensorboard)).
+#### 2 Training
+`Datasets folder` Define a path to the folder containing datasets created by the Preprocessing module. 
 
-In the second section you can pick a **batch size**, **number of epochs** to be trained, **optimizer** (SGD, Adam, or RMSprop), and **learning rate**.
-When SGD is the optimizer of choice, you can use learning rate scheduler, instead of the usual fixed learning rate. 
-**Metric** and **loss function** are predefined as accuracy and categorical crossentropy for now.
+`Branches` Select the branches you want the model to be composed of. 
+You might choose only from the branches preprocessed in the first module.
 
-(Currently, learning rate finder and one cycle policy learning rate implementations are also being tested. 
-When the lr finder is selected, a mock training is run for one epoch, and the resulting plot can be found in lr_finder.png file in the output folder.) 
+`Output TensorBoard log files` For more information see the [official site](https://www.tensorflow.org/tensorboard).
 
-Finally, the last section determines the network architecture. You must define architecture for each selected branch, and for the common part of the network after branches' concatenation.
-First set a **number of layers** per each part. For each layer you must select its **type** (e.g. convolutional, dense, or LSTM).
-If the checkbox is selected, you may set **advanced options** specific per layer type (e.g. dropout rate, or number of filters in a convolutional layer).
+##### Training Options
 
-When all is set, press the **run** button to start training the model.
-The training time depends on many variables (datasets size, network architecture, number of epochs, etc.).
+`Batch size` Number of training samples utilized in one iteration. 
+
+`No. of training epochs` An epoch is one complete pass through the training data. There can be an arbitrary number of training epochs.
+
+`Apply early stopping` A regularization technique to avoid overfitting when training for too many epochs. 
+The model will stop training if the monitored metric (accuracy) does not improve for more than 0.1 (min_delta) during 10 training epochs (patience). 
+
+`Optimizer` Select an optimizer. Available options: 
+ * Stochastic Gradient Descent ([SGD](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD)) - 
+ parameters are set as follows: momentum = 0.9, [nesterov](http://proceedings.mlr.press/v28/sutskever13.pdf) = True.
+ * [RMSprop](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/RMSprop) - parameters are set to default.
+ * [Adam](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adam) - parameters are set to default. Implements [Adam algorithm](https://arxiv.org/abs/1412.6980).
+
+`Learning rate options` Applies only for the SGD optimizer. Available options:
+ * Use fixed learning rate - applies the same learning rate value throughout the whole training.
+ * Use [learning rate scheduler](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/LearningRateScheduler) - 
+ gradually decreases learning rate from the given value.
+ * Apply [one cycle policy](https://arxiv.org/abs/1506.01186) - uses the learning rate value as a maximum.
+ The implementation for Keras is taken from [here](https://github.com/titu1994/keras-one-cycle), originally ported from the [fast.ai project](https://github.com/fastai/fastai).
+
+`Learning rate` Corresponds to the step size during the gradient descent.
+
+`Metric` Choose a metric. Available options: accuracy.
+
+`Loss function` Choose a loss function. Available options: categorical crossentropy.
+
+##### Network Architecture
+
+The last section determines the network architecture.
+You may define architecture for each of the selected branches separately, as well as for the common part of the network following the branches' concatenation.
+
+`Number of layers` First set a number of layers per each part (branch or common part of the network).
+
+`Layer type` Types available for the branches: 
+ * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
+ * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
+ 
+ Types available for the connected part of the neural network:
+ * [Dense layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense)
+
+`Show advanced options` If checked, you may set options specific per layer type. If not, the defaults will apply.
+
+*Note: Due to the nature of the Streamlit framework, it is necessary to keep the checkbox checked for the options to be applied.
+If it is unchecked, the options get reset.*
+
+Common options are:
+ * `Batch normalization` Applies [batch normalization](https://arxiv.org/abs/1502.03167) for the layer if checked.
+ * `Dropout rate` Select a [dropout](https://jmlr.org/papers/v15/srivastava14a.html) rate. 
+
+Options available for Convolution and Locally connected 1D layers:
+* `Number of filters` The number of output filters in the convolution.
+* `Kernel size` Specifies the length of the 1D convolutional window.
+
+Options available for Dense layer:
+* `Number of units` Dimensionality of the output space.
+
+*Note: The softmax activation function is used for the last layer.*
+
+`Run` When all is set, press the run button to start training the model.
+The training time depends on many variables (dataset size, network architecture, number of epochs, hardware available, etc.).
 You can monitor the progress on the chart indicating metric and loss function values.
-Resulting model and all other files (e.g. tensorboard) are exported to the selected **output folder**. 
 
-#### Making Predictions
-A trained model can be used to classify unseen data. You can either use a model trained with the deepnet application, or
+Resulting model and other files are exported to the 'training' subfolder in the selected `output folder`. 
+
+#### 3 Prediction
+A trained model can be used to classify unseen data. You can either use a model trained with the ENN-Gene application, or
 any custom trained model. However, when using a model trained otherwise than using the app, you'll need to provide the
 information needed to prepare the sequences to be classified (**window size**, **random seed**, **strandedness**, 
-**number of classes** and **class labels**). When using a model trained with the deepnet application, these parameters 
+**number of classes** and **class labels**). When using a model trained with the ENN-Gene application, these parameters 
 should be read from the yaml file logged when training the model (TO BE DONE).
 
 You can provide the **input sequences** as a BED file (together with a FASTA file with a reference genome), a FASTA file,

@@ -32,13 +32,13 @@ class Train(Subcommand):
         self.validation_hash = {'not_empty_branches': [],
                                 'is_dataset_dir': []}
 
-        st.markdown('# Train a Model')
+        st.markdown('# Training')
+        st.markdown('')
 
-        st.markdown('## General Options')
         self.general_options()
 
         self.params['input_folder'] = st.text_input(
-            'Path to the datasets folder', value=self.defaults['input_folder'])
+            'Datasets folder', value=self.defaults['input_folder'])
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
 
         if self.params['input_folder']:
@@ -71,7 +71,7 @@ class Train(Subcommand):
         # TODO make sure batch size is smaller than dataset size
         self.params['batch_size'] = st.number_input('Batch size', min_value=1, value=self.defaults['batch_size'])
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
-        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 50, delta 0.1)', value=self.defaults['early_stop'])
+        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 10, delta 0.1)', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
             'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         if self.params['optimizer'] == 'sgd':
@@ -79,7 +79,7 @@ class Train(Subcommand):
             lr_options = {'Use fixed learning rate (applies learning rate value throughout whole training)': 'fixed',
                           'Use learning rate scheduler (gradually decreasing from the learning rate value)': 'lr_scheduler',
                           # 'Use learning rate finder (beta)': 'lr_finder',
-                          'Apply one cycle policy on learning rate (uses the learning rate value as max)': 'one_cycle'}
+                          'Apply one cycle policy (uses the learning rate value as max)': 'one_cycle'}
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
@@ -121,7 +121,7 @@ class Train(Subcommand):
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
-                    layer = {'name': 'CNN', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
+                    layer = {'name': 'Convolution layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
                 default_i = list(BRANCH_LAYERS.keys()).index(layer['name'])
@@ -143,7 +143,7 @@ class Train(Subcommand):
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
                 checkbox = True
             else:
-                layer = {'name': 'Dense', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
+                layer = {'name': 'Dense layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
@@ -164,12 +164,12 @@ class Train(Subcommand):
                 'Batch normalization', value=defaults['batchnorm'], key=f'batch{branch}{i}')})
             layer['args'].update({'dropout': st.slider(
                 'Dropout rate', min_value=0.0, max_value=1.0, value=defaults['dropout'], key=f'do{branch}{i}', format='%.2f')})
-            if layer['name'] in ['CNN', 'MyLocallyConnected1D']:
+            if layer['name'] in ['Convolution layer', 'Locally Connected 1D layer']:
                 layer['args'].update({'filters': st.number_input('Number of filters:', min_value=1, value=
                 defaults['filters'], key=f'filters{branch}{i}')})
                 layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=
                 defaults['kernel'], key=f'kernel{branch}{i}')})
-            elif layer['name'] in ['Dense', 'RNN', 'GRU', 'LSTM']:
+            elif layer['name'] in ['Dense layer', 'RNN', 'GRU', 'LSTM']:
                 layer['args'].update({'units': st.number_input('Number of units:', min_value=1, value=
                 defaults['units'], key=f'units{branch}{i}')})
         return layer
@@ -327,8 +327,8 @@ class Train(Subcommand):
 
         if early_stop:
             earlystopper = EarlyStopping(monitor='val_loss',
-                                         patience=50,
-                                         min_delta=0.01,
+                                         patience=10,
+                                         min_delta=0.1,
                                          verbose=1,
                                          mode='auto')
             callbacks.append(earlystopper)
