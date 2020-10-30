@@ -38,7 +38,10 @@ Due to the nature of the Streamlit framework, it is strongly recommended to fill
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
 
+<!--
+TODO fix first
 `Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run, and you want to just e.g. change the chromosomes' distribution among categories. 
+-->
 
 `Branches` You may select one or more input types engineered from the given interval files.
 Each input type later corresponds to a branch in the neural network.

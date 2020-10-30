@@ -36,7 +36,8 @@ class Preprocess(Subcommand):
         # TODO add show/hide separate section after stateful operations are allowed
         self.general_options()
 
-        self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
+        # self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
+        self.params['use_mapped'] = False
 
         if not self.params['use_mapped']:
             default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
