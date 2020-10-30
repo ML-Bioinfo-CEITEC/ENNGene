@@ -30,8 +30,8 @@ class Predict(Subcommand):
                                 'is_wig_dir': []}
         self.params['model_folder'] = None
 
-        st.markdown('# Make Predictions')
-        st.markdown('## General Options')
+        st.markdown('# Prediction')
+        st.markdown('')
         self.general_options()
 
         st.markdown('## Model')
@@ -41,24 +41,25 @@ class Predict(Subcommand):
         if 'cons' in self.params['branches']:
             # to map to the conservation files we need the coordinates
             self.params['seq_type'] = 'bed'
+            st.markdown('###### Note: Only BED files allowed when Conservation score branch is applied (the coordinates are necessary).')
         else:
             self.params['seq_type'] = self.SEQ_TYPES[st.radio(
                 'Select a source of the sequences for the prediction:',
                 list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
 
-        self.params['alphabet'] = st.selectbox('Select alphabet:',
+        self.params['alphabet'] = st.selectbox('Alphabet:',
                                            list(seq.ALPHABETS.keys()),
                                                index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
 
         self.references = {}
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
-                'Path to BED file containing intervals to be classified', value=self.defaults['seq_source'])
+                'Path to the BED file containing intervals to be classified', value=self.defaults['seq_source'])
             self.validation_hash['is_bed'].append(self.params['seq_source'])
-            self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
+            self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
 
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
-                self.params['fasta_ref'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta_ref'])
+                self.params['fasta_ref'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta_ref'])
                 self.references.update({'seq': self.params['fasta_ref'], 'fold': self.params['fasta_ref']})
                 self.validation_hash['is_fasta'].append(self.params['fasta_ref'])
             if 'cons' in self.params['branches']:

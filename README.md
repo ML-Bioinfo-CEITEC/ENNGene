@@ -176,18 +176,53 @@ You can monitor the progress on the chart indicating metric and loss function va
 Resulting model and other files are exported to the 'training' subfolder in the selected `output folder`. 
 
 #### 3 Prediction
-A trained model can be used to classify unseen data. You can either use a model trained with the ENN-Gene application, or
-any custom trained model. However, when using a model trained otherwise than using the app, you'll need to provide the
-information needed to prepare the sequences to be classified (**window size**, **random seed**, **strandedness**, 
-**number of classes** and **class labels**). When using a model trained with the ENN-Gene application, these parameters 
-should be read from the yaml file logged when training the model (TO BE DONE).
+In the last module, a trained model can be used to classify novel, unseen data. 
+Sequences provided to be classified are preprocessed similar to the first module for the purpose of the CNN. 
 
-You can provide the **input sequences** as a BED file (together with a FASTA file with a reference genome), a FASTA file,
-or just paste in the sequences as text (one sequence per row).
+##### Model
+You can either use a model trained with the ENN-Gene application, or any custom trained model.
 
-Results are exported to the selected **output folder** to the results.tsv file. Information about the input sequences
-are preserved (e.g. fasta header or coordinates form a bed file), while there are two more columns with the results appended.
-One column shows raw percentage predicted by the model, the other predicted class (based on the threshold). 
+`Use a model trained by the ENN-Gene application` Preferred option. When selected this option, you must provide:
+ * `Training folder containing the model (hdf5 file)` Except the hdf5 file with the trained model, the folder must contain the parameters.yaml file logged when training the model. 
+ Form that the parameters necessary for sequence preprocessing are read, and displayed below the field after that. 
+
+`Use a custom trained model` When using model trained otherwise that through the application, necessary parameters must be provided separately.
+When selected this option, you must provide:
+ * `Trained model (hdf5 file)` Path to the hdf5 file with the trained model.
+ * `Window size` The size of the window must be the same as when used ofr the training the given model.
+ * `Seed` Parameter used for the reproducibility of the semi-random window placement.
+ * `Number of classes` Number must be the same as the number of classes used for training the given model.
+ * `Class labels` Provide names of the classes for better results interpretation. 
+ The order of the classes must be the same as when encoding them for training the given model.
+ * `Branches` Define branches used in the given model's architecture. Available options are: Sequence, Secondary structure, Conservation score. 
+ 
+##### Sequences
+
+You can provide the input sequences you wish to classify in following formats:
+ * BED file
+ * FASTA file
+ * Text input - Paste one sequence per line.
+
+*Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
+
+`Alphabet` Define the nature of the sequences (DNA or RNA).
+
+`BED file` When providing the sequences via an interval file, following must be specified:
+ * `Path to the BED file containing intervals to be classified`
+ * `Apply strand` Choose to apply (if available) or ignore strand information.
+ * `Path to the reference fasta file` File containing reference genome/transcriptome.
+ Required when Sequence or Secondary structure branch is selected.
+ * `Path to folder containing reference conservation files` Required when Conservation score branch is selected.'Path to folder containing reference conservation files' 
+
+*Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
+(might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
+
+`Run` After all the parameters are set and selected, press the run button. 
+Calculating the predictions maight take minutes to hours, depending on the number of sequnces, branches, hardware available etc.
+
+Results are exported to the 'prediction' subfolder in the selected `output folder`. Information about the input sequences
+are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are two more columns with the results appended.
+One column shows raw probabilities predicted by the model, the other class with the highest probability (#TODO decide upon the threshold). 
 
 <!--
 ### Development
