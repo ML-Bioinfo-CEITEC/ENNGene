@@ -15,7 +15,7 @@ logger = logging.getLogger('root')
 # noinspection PyAttributeOutsideInit
 class Subcommand:
 
-    BRANCHES = {'Raw sequence': 'seq',
+    BRANCHES = {'Sequence': 'seq',
                 'Conservation score': 'cons',
                 'Secondary structure': 'fold'}
     SEQ_TYPES = {'BED file': 'bed',
@@ -38,7 +38,7 @@ class Subcommand:
         self.load_params = st.checkbox('Load parameters from a previous run', value=False)
 
         if self.load_params:
-            folder = st.text_input('Path to the output folder from the previous run (must contain the parameters.yaml file)')
+            folder = st.text_input('Folder from the previous run of the task (must contain the parameters.yaml file)')
             if folder:
                 if os.path.isdir(folder):
                     param_file = os.path.join(folder,
@@ -63,13 +63,14 @@ class Subcommand:
         self.params.update(self.defaults)
 
         self.params['output_folder'] = st.text_input(
-            'Output path were result files will be exported (cwd used as default)',
+            'Output folder (result files will be exported here; cwd used as default)',
             value=self.defaults['output_folder']
         )
         try:
             self.ensure_dir(self.params['output_folder'])
         except Exception:
             raise UserInputError(f"Failed to create output folder at given path: {self.params['output_folder']}.")
+        st.markdown('---')
 
     def model_options(self, blackbox=False, warning=None):
         missing_model = False

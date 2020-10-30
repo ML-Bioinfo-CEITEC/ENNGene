@@ -61,7 +61,7 @@ class Preprocess(Subcommand):
                                                        index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
-                self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
+                self.params['fasta'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta'])
                 self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})
                 self.validation_hash['is_fasta'].append(self.params['fasta'])
             if 'cons' in self.params['branches']:
@@ -112,7 +112,7 @@ class Preprocess(Subcommand):
             self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
-            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])
+            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file (task_subfolder/full_datasets/merged_all.tsv.zip)', value=self.defaults['full_dataset_file'])
             self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
 
             if self.params['full_dataset_file']:
@@ -155,7 +155,7 @@ class Preprocess(Subcommand):
                         st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
                 else:
                     st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
-                    self.params['fasta'] = st.text_input('Path to reference fasta file')
+                    self.params['fasta'] = st.text_input('Path to the reference fasta file')
 
                 if self.params['fasta']:
                     try:

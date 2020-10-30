@@ -34,11 +34,12 @@ except Exception as err:
 
 
 def deepNet():
-    st.sidebar.title('Deepnet App')
+    st.sidebar.title('ENN-Gene')
+    st.sidebar.markdown('')
 
-    available_subcommands = {'Preprocess Data': 'preprocess',
-                             'Train a Model': 'train',
-                             'Make Predictions': 'predict'}
+    available_subcommands = {'Preprocessing': 'preprocess',
+                             'Training': 'train',
+                             'Prediction': 'predict'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(
         'Select a task to be run:',
@@ -48,7 +49,7 @@ def deepNet():
     st.sidebar.markdown('')
     st.sidebar.markdown('[Documentation](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/README.md)')
     st.sidebar.markdown('[FAQ](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/FAQ.md)')
-    st.sidebar.markdown('[GitLab](https://gitlab.com/RBP_Bioinformatics/deepnet)')
+    st.sidebar.markdown('[GitHub](https://gitlab.com/RBP_Bioinformatics/deepnet)')
 
     # TODO add links when possible
     st.sidebar.markdown('---')

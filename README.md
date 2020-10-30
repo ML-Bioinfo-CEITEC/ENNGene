@@ -4,11 +4,13 @@ via an easy to use Graphical User Interface. ENN-Gene allows multiple streams of
 evolutionary conservation, and secondary structure, and includes utilities that can perform needed preprocessing steps, 
 allowing simplified input such as genomic coordinates. 
 ENN-Gene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
-empowering researchers that may not be experts in machine learning to perform this powerful type of analysis. 
+empowering researchers that may not be experts in machine learning to perform this powerful type of analysis.
+
+> We are preparing a video tutorial for an even easier start with the ENN-Gene application!
 
 ### Installation
 
-TODO @Ondra
+TODO 
 
 ### Implementation
 ENN-Gene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
@@ -31,7 +33,7 @@ After running a task, several files will be exported to the task subfolder.
 
 The ENN-Gene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
 Currently, all input files (or folders) must be defined by an absolute path.
-Based on the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.   
+Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.   
 
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
@@ -48,13 +50,18 @@ Each input type later corresponds to a branch in the neural network.
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
-`Number of CPUs` You might assign multiple CPUs for the computation of the secondary structure.
-
 `Window size` All the samples prepared for the neural network must be of the same length, defined by the window size.
 Longer sequences get shortened, while short sequences are completed based on the reference.
 Both is done by randomly placing a window of selected size on the original sequence.
 
 `Seed` Parameter used for the reproducibility of the semi-random window placement.
+
+`Path to the reference fasta file` File containing reference genome/transcriptome. 
+Required when Sequence or Secondary structure branch is selected.
+
+`Path to folder containing reference conservation files` Required when Conservation score branch is selected.'Path to folder containing reference conservation files'
+
+`Number of CPUs` You might assign multiple CPUs for the computation of the secondary structure.
 
 ##### Input Coordinate Files
 `Number of input files` There can be an arbitrary number of input files in BED format (two at minimum).
@@ -102,6 +109,8 @@ Depending on the amount of data, selected options, and the hardware available, t
 Files with preprocessed datasets are exported to the 'datasets' subfolder at the `output folder` defined at the beginning.  
 
 #### 2 Training
+In the second module, neural network architecture as well as the hyperparameters are set, and the model is trained using the data preprocessed in the first module.   
+
 `Datasets folder` Define a path to the folder containing datasets created by the Preprocessing module. 
 
 `Branches` Select the branches you want the model to be composed of. 
@@ -225,6 +234,16 @@ are preserved in the result file (e.g. fasta header or coordinates from a bed fi
 One column shows raw probabilities predicted by the model, the other class with the highest probability (#TODO decide upon the threshold). 
 
 <!--
+### Installation
+#### Conda environment
+If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
+- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
+- Unzip the directory `tar -xf deepnet.tar.gz`
+- Go to the project directory `cd deepnet`
+- Recreate environment from yml file `conda env create -f environment.yml`
+- Activate the environment`conda activate deepnet-app`
+- Run the app `cd deepnet` and `streamlit run deepnet.py`
+
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.
 
