@@ -1,4 +1,5 @@
 from datetime import datetime
+from PIL import Image
 import streamlit as st  # TODO outside try-except, add check if installed
 import logging
 import os
@@ -33,11 +34,12 @@ except Exception as err:
 
 
 def deepNet():
-    st.sidebar.title('Deepnet App')
+    st.sidebar.title('ENN-Gene')
+    st.sidebar.markdown('')
 
-    available_subcommands = {'Preprocess Data': 'preprocess',
-                             'Train a Model': 'train',
-                             'Make Predictions': 'predict'}
+    available_subcommands = {'Preprocessing': 'preprocess',
+                             'Training': 'train',
+                             'Prediction': 'predict'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(
         'Select a task to be run:',
@@ -47,7 +49,17 @@ def deepNet():
     st.sidebar.markdown('')
     st.sidebar.markdown('[Documentation](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/README.md)')
     st.sidebar.markdown('[FAQ](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/FAQ.md)')
-    st.sidebar.markdown('[GitLab](https://gitlab.com/RBP_Bioinformatics/deepnet)')
+    st.sidebar.markdown('[GitHub](https://gitlab.com/RBP_Bioinformatics/deepnet)')
+
+    # TODO add links when possible
+    st.sidebar.markdown('---')
+    ceitec_logo = Image.open(os.path.join(os.getcwd(), 'imgs/CEITEC_logo_K-0.png'))
+    muni_logo = Image.open(os.path.join(os.getcwd(), 'imgs/muni-lg-eng-rgb.png'))
+    muni_logo2 = Image.open(os.path.join(os.getcwd(), 'imgs/muni-lg-rgb.png'))
+    st.sidebar.image(ceitec_logo, use_column_width=True)
+    st.sidebar.image(muni_logo, use_column_width=True)
+    # st.sidebar.image(muni_logo2, use_column_width=True)
+    st.sidebar.markdown('---')
 
     logger.debug(f'DeepNet started with the following subcommand: {subcommand}')
 

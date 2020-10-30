@@ -30,38 +30,39 @@ class Preprocess(Subcommand):
         self.klasses = []
         self.klass_sizes = {}
 
-        st.markdown('# Data Preprocessing')
+        st.markdown('# Preprocessing')
+        st.markdown('')
 
         # TODO add show/hide separate section after stateful operations are allowed
-        st.markdown('## General Options')
         self.general_options()
 
-        default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
-        self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
-                                       st.multiselect('Branches',
-                                                      list(self.BRANCHES.keys()),
-                                                      default=default_branches)))
-        self.validation_hash['not_empty_branches'].append(self.params['branches'])
-
-        if 'fold' in self.params['branches']:
-            # currently used only as an option for RNAfold
-            max_cpu = os.cpu_count() or 1
-            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
-                                  min_value=1, max_value=max_cpu, value=max_cpu)
-        else:
-            self.ncpu = 1
-
-        self.params['use_mapped'] = st.checkbox('Use already mapped file from a previous run', self.defaults['use_mapped'])
+        # self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
+        self.params['use_mapped'] = False
 
         if not self.params['use_mapped']:
+            default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
+            self.params['branches'] = list(map(lambda name: self.BRANCHES[name],
+                                               st.multiselect('Branches',
+                                                              list(self.BRANCHES.keys()),
+                                                              default=default_branches)))
+            self.validation_hash['not_empty_branches'].append(self.params['branches'])
+
+            if 'fold' in self.params['branches']:
+                # currently used only as an option for RNAfold
+                max_cpu = os.cpu_count() or 1
+                self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
+                                      min_value=1, max_value=max_cpu, value=max_cpu)
+            else:
+                self.ncpu = 1
+
             self.references = {}
             if 'seq' in self.params['branches']:
-                self.params['alphabet'] = st.selectbox('Select alphabet:',
+                self.params['alphabet'] = st.selectbox('Alphabet:',
                                                        list(seq.ALPHABETS.keys()),
                                                        index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
-                self.params['strand'] = st.checkbox('Apply strandedness', self.defaults['strand'])
+                self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
-                self.params['fasta'] = st.text_input('Path to reference fasta file', value=self.defaults['fasta'])
+                self.params['fasta'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta'])
                 self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})
                 self.validation_hash['is_fasta'].append(self.params['fasta'])
             if 'cons' in self.params['branches']:
@@ -95,21 +96,24 @@ class Preprocess(Subcommand):
 
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
-                file_name = os.path.basename(file)
-                if any(ext in file_name for ext in self.allowed_extensions):
-                    for ext in self.allowed_extensions:
-                        if ext in file_name:
-                            klass = file_name.replace(ext, '')
-                            self.params['klasses'].append(klass)
-                            # subprocess.run(['wc', '-l', file], check=True)
-                            self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
+                if os.path.isfile(file):
+                    file_name = os.path.basename(file)
+                    if any(ext in file_name for ext in self.allowed_extensions):
+                        for ext in self.allowed_extensions:
+                            if ext in file_name:
+                                klass = file_name.replace(ext, '')
+                                self.params['klasses'].append(klass)
+                                # subprocess.run(['wc', '-l', file], check=True)
+                                self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
+                    else:
+                        warning.markdown(
+                            '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
                 else:
-                    warning.markdown(
-                        '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
+                    st.markdown(f'##### **WARNING**: Input file no. {i+1} does not exist.')
             self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
-            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file', value=self.defaults['full_dataset_file'])
+            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file (task_subfolder/full_datasets/merged_all.tsv.zip)', value=self.defaults['full_dataset_file'])
             self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
 
             if self.params['full_dataset_file']:
@@ -119,27 +123,27 @@ class Preprocess(Subcommand):
                     raise UserInputError('Invalid dataset file!')
 
         st.markdown('## Dataset Size Reduction')
-        st.markdown('Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%),'
+        st.markdown('###### Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), '
                     'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
                                                    self.params['klasses'], self.defaults['reducelist'])
         if self.params['reducelist']:
-            self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
-                                                            value=self.defaults['reduceseed']))
             self.params['reduceratio'] = self.defaults['reduceratio']
             for klass in self.params['reducelist']:
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
                     min_value=0.00001, value=0.01, format='%.5f'))})
-        st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+            st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
+            self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
+                                                        value=self.defaults['reduceseed']))
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
                          'By chromosomes': 'by_chr'}
         self.params['split'] = split_options[st.radio(
-            'Choose a way to split Datasets into train, test, validation and blackbox categories:',
+            'Choose a way to split datasets into train, test, validation and blackbox categories:',
             list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
             if self.params['use_mapped']:
@@ -152,7 +156,7 @@ class Preprocess(Subcommand):
                         st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
                 else:
                     st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
-                    self.params['fasta'] = st.text_input('Path to reference fasta file')
+                    self.params['fasta'] = st.text_input('Path to the reference fasta file')
 
                 if self.params['fasta']:
                     try:
@@ -187,7 +191,7 @@ class Preprocess(Subcommand):
                 value=self.defaults['split_ratio'])
             self.validation_hash['is_ratio'].append(self.params['split_ratio'])
             st.markdown('###### Note: If you do not want to use the blackbox dataset (for later evaluation), you can just set it\'s size to 0.')
-            self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a Dataset',
+            self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a dataset',
                                                             value=self.defaults['split_seed']))
 
         self.validate_and_run(self.validation_hash)

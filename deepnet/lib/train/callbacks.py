@@ -29,6 +29,7 @@ class ProgressMonitor(tf.keras.callbacks.Callback):
 
 
 # Code is authored by https://github.com/titu1994/keras-one-cycle, originally ported from https://github.com/fastai/fastai
+# See the LICENSE at the onecycle_LICENSE file.
 class OneCycleLR(tf.keras.callbacks.Callback):
 
     def __init__(self,

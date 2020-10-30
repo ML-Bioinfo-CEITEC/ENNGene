@@ -4,7 +4,7 @@ import os
 from .dataset import Dataset
 from . import file_utils as f
 
-BRANCHES_REV = {'seq': 'Raw sequence',
+BRANCHES_REV = {'seq': 'Sequence',
                 'cons': 'Conservation score',
                 'fold': 'Secondary structure'}
 
