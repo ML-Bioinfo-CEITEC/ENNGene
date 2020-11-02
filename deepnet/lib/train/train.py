@@ -446,5 +446,5 @@ class Train(Subcommand):
                 'no_branches_layers': {'seq': 1, 'fold': 1, 'cons': 1},
                 'no_common_layers': 1,
                 'optimizer': 'sgd',
-                'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
+                'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output'),
                 'tb': True}

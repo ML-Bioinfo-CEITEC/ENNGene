@@ -63,7 +63,7 @@ class Subcommand:
         self.params.update(self.defaults)
 
         self.params['output_folder'] = st.text_input(
-            'Output folder (result files will be exported here; cwd used as default)',
+            'Output folder (result files will be exported here; home directory used as default)',
             value=self.defaults['output_folder']
         )
         try:

@@ -195,5 +195,5 @@ class Predict(Subcommand):
             'fasta_ref': '',
             'cons_dir': '',
             'winseed': 42,
-            'output_folder': os.path.join(os.getcwd(), 'deepnet_output')
+            'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output')
         }
