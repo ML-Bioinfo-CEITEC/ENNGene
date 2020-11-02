@@ -53,9 +53,9 @@ def deepNet():
 
     # TODO add links when possible
     st.sidebar.markdown('---')
-    ceitec_logo = Image.open(os.path.join(os.getcwd(), 'imgs/CEITEC_logo_K-0.png'))
-    muni_logo = Image.open(os.path.join(os.getcwd(), 'imgs/muni-lg-eng-rgb.png'))
-    muni_logo2 = Image.open(os.path.join(os.getcwd(), 'imgs/muni-lg-rgb.png'))
+    ceitec_logo = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/CEITEC_logo_K-0.png'))
+    muni_logo = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/muni-lg-eng-rgb.png'))
+    muni_logo2 = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/muni-lg-rgb.png'))
     st.sidebar.image(ceitec_logo, use_column_width=True)
     st.sidebar.image(muni_logo, use_column_width=True)
     # st.sidebar.image(muni_logo2, use_column_width=True)
