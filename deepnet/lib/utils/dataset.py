@@ -131,10 +131,11 @@ class Dataset:
             df['klass'] = self.klass
 
         # TODO is it possible to do that in one line using just boolean masking? (could not manage that...)
-        def check_valid(row):
-            return row if seq.is_valid_chr(row['chrom_name']) else None
+        # def check_valid(row):
+        #     return row if seq.is_valid_chr(row['chrom_name']) else None
 
-        df = df.apply(check_valid, axis=1).dropna()
+        # df = df.apply(check_valid, axis=1).dropna()
+        df = df.dropna()
         return df
 
     def reduce(self, ratio, seed):
