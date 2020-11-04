@@ -129,8 +129,8 @@ class Predict(Subcommand):
             predict_x,
             verbose=1)
 
-        dataset.df['predicted class'] = self.get_klass(predict_y, self.params['klasses'])
-        dataset.df[f"raw predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
+        dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
+        dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
@@ -160,22 +160,22 @@ class Predict(Subcommand):
 
     @staticmethod
     def get_klass(predicted, klasses):
-        #TODO give the user choice of the tresshold value? - based on test results (specificity?
-        # would have to be saved to the log file or similar) or user input if not available
-        #TODO how to decide a klass in general?
-            # the treshold itself is not enough - if we are interested in one klass, and the other serves just as a background,
-            # then we want one-sided treslhold, if it's klass A with at least eg 95%, otherwise neg (independent of number of klasses)
-        treshold = 0.98
-        chosen = []
-        for probs in predicted:
-            max_prob = np.amax(probs)
-            if max_prob > treshold:
-                # not considering an option there would be two exactly same highest probabilities
-                index = np.where(probs == max_prob)[0][0]
-                value = klasses[index]
-            else:
-                value = 'UNCERTAIN'
-            chosen.append(value)
+        #TODO give the user choice of the tresshold value? - would have to specify per each class, if the highest scoring class would be above its threshold, then we would call it, otherwise uncertain
+
+        # treshold = 0.98
+        # chosen = []
+        # for probs in predicted:
+        #     max_prob = np.amax(probs)
+        #     if max_prob > treshold:
+        #         not considering an option there would be two exactly same highest probabilities
+                # index = np.where(probs == max_prob)[0][0]
+                # value = klasses[index]
+            # else:
+            #     value = 'UNCERTAIN'
+            # chosen.append(value)
+
+        chosen = [klasses[np.argmax(probs)] for probs in predicted]
+
         return chosen
 
     @staticmethod
