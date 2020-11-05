@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from PIL import Image
 import streamlit as st  # TODO outside try-except, add check if installed
@@ -51,14 +52,13 @@ def deepNet():
     st.sidebar.markdown('[FAQ](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/FAQ.md)')
     st.sidebar.markdown('[GitHub](https://gitlab.com/RBP_Bioinformatics/deepnet)')
 
-    # TODO add links when possible
     st.sidebar.markdown('---')
-    ceitec_logo = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/CEITEC_logo_K-0.png'))
-    muni_logo = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/muni-lg-eng-rgb.png'))
-    muni_logo2 = Image.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/muni-lg-rgb.png'))
-    st.sidebar.image(ceitec_logo, use_column_width=True)
-    st.sidebar.image(muni_logo, use_column_width=True)
-    # st.sidebar.image(muni_logo2, use_column_width=True)
+    encoded_ceitec_logo = base64.b64encode(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/CEITEC_logo_K-0.png'), "rb").read()).decode()
+    encoded_muni_logo = base64.b64encode(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/muni-lg-eng-rgb.png'), "rb").read()).decode()
+    html_cl = f'<a href="https://www.ceitec.eu/" target="_blank"><img src="data:image/png;base64, {encoded_ceitec_logo}" width="100%" /></a>'
+    html_ml = f'<a href="https://www.muni.cz/en" target="_blank"><img src="data:image/png;base64, {encoded_muni_logo}" width="100%" /></a>'
+    st.sidebar.markdown(html_cl, unsafe_allow_html=True)
+    st.sidebar.markdown(html_ml, unsafe_allow_html=True)
     st.sidebar.markdown('---')
 
     logger.debug(f'DeepNet started with the following subcommand: {subcommand}')
