@@ -32,7 +32,7 @@ def parse_fasta_reference(fasta_file):
     for line in file:
         if '>' in line:
             # Save finished previous key value pair (unless it's the first iteration)
-            if key and is_valid_chr(key):
+            if key:  # and is_valid_chr(key):
                 # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
                 chromosomes.append(key)
                 seq_dict.update({key: value.strip()})
@@ -46,7 +46,7 @@ def parse_fasta_reference(fasta_file):
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
     # Save the last kay value pair
-    if key and is_valid_chr(key):
+    if key:  # and is_valid_chr(key):
         chromosomes.append(key)
         seq_dict.update({key: value.strip()})
     file.close()
@@ -55,8 +55,8 @@ def parse_fasta_reference(fasta_file):
     return seq_dict, chromosomes
 
 
-def is_valid_chr(chromosome):
-    return not not re.search(r'^(chr)*((\d{1,3})|(M|m|MT|mt|x|X|y|Y))$', chromosome)
+# def is_valid_chr(chromosome):
+#     return not not re.search(r'^(chr)*((\d{1,3})|(M|m|MT|mt|x|X|y|Y))$', chromosome)
 
 
 def parse_wig_header(line):

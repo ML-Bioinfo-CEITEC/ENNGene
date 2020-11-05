@@ -287,7 +287,7 @@ class Preprocess(Subcommand):
                 'fasta': '',
                 'full_dataset_file': '',
                 'input_files': [],
-                'output_folder': os.path.join(os.getcwd(), 'deepnet_output'),
+                'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output'),
                 'reducelist': [],
                 'reduceratio': {},
                 'reduceseed': 112,
