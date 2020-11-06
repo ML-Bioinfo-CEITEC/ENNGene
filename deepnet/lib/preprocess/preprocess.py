@@ -27,7 +27,8 @@ class Preprocess(Subcommand):
                                 'is_ratio': [],
                                 'not_empty_chromosomes': [],
                                 'min_two_files': []}
-        self.klasses = []
+        self.params['klasses'] = []
+        self.params['full_dataset_dir'] = ''
         self.klass_sizes = {}
 
         st.markdown('# Preprocessing')
@@ -36,8 +37,7 @@ class Preprocess(Subcommand):
         # TODO add show/hide separate section after stateful operations are allowed
         self.general_options()
 
-        # self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
-        self.params['use_mapped'] = False
+        self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
 
         if not self.params['use_mapped']:
             default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
@@ -84,7 +84,6 @@ class Preprocess(Subcommand):
             self.params['input_files'] = self.params['input_files'][0:no_files]
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
-            self.params['klasses'] = []
 
             for i in range(no_files):
                 file = st.text_input(f'File no. {i+1} (.bed)',
@@ -113,14 +112,16 @@ class Preprocess(Subcommand):
             self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
-            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file (task_subfolder/full_datasets/merged_all.tsv.zip)', value=self.defaults['full_dataset_file'])
-            self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
+            self.params['full_dataset_dir'] = st.text_input(f"Folder from the previous run of the task (must contain 'full_datasets' subfolder)", value=self.defaults['full_dataset_dir'])
+            if self.params['full_dataset_dir']:
+                self.params['full_dataset_file'] = os.path.join(self.params['full_dataset_dir'], 'full_datasets', 'merged_all.tsv.zip')
+                self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
 
-            if self.params['full_dataset_file']:
-                try:
-                    self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
-                except Exception:
-                    raise UserInputError('Invalid dataset file!')
+                if self.params['full_dataset_file']:
+                    try:
+                        self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
+                    except Exception:
+                        raise UserInputError('The file with mapped dataset does not exist or is not valid, sorry.')
 
         st.markdown('## Dataset Size Reduction')
         st.markdown('###### Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), '
@@ -285,6 +286,7 @@ class Preprocess(Subcommand):
                 'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
                 'cons_dir': '',
                 'fasta': '',
+                'full_dataset_dir': '',
                 'full_dataset_file': '',
                 'input_files': [],
                 'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output'),
