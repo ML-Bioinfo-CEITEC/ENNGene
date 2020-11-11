@@ -57,9 +57,6 @@ class Preprocess(Subcommand):
 
             self.references = {}
             if 'seq' in self.params['branches']:
-                self.params['alphabet'] = st.selectbox('Alphabet:',
-                                                       list(seq.ALPHABETS.keys()),
-                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 self.params['fasta'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta'])
@@ -161,7 +158,7 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        fasta_dict, self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
+                        fasta_dict, self.params['valid_chromosomes'], _ = seq.read_and_cache(self.params['fasta'])
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
@@ -229,12 +226,14 @@ class Preprocess(Subcommand):
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
-            # Read-in fasta file to dictionary
+            # Read-in fasta file to dictionary if it's needed and it is not yet read in
             if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
-                fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
+                fasta_dict, valid_chromosomes, alphabet = seq.parse_fasta_reference(self.references['seq'])
+                if 'seq' in self.params['branches']:
+                    self.params['alphabet'] = seq.define_alphabet(alphabet)
                 if not valid_chromosomes:
-                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
+                    raise UserInputError('Sorry, did not find any chromosomes in given fasta file.')
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
@@ -281,7 +280,7 @@ class Preprocess(Subcommand):
 
     @staticmethod
     def default_params():
-        return {'alphabet': 'DNA',
+        return {'alphabet': None,
                 'branches': [],
                 'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
                 'cons_dir': '',

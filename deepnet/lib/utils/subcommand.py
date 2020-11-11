@@ -8,6 +8,7 @@ import yaml
 
 from . import validators
 from .exceptions import UserInputError
+from . import sequence as seq
 
 logger = logging.getLogger('root')
 
@@ -114,6 +115,7 @@ class Subcommand:
                         try:
                             training_params['win'] = user_params['Preprocess']['win']
                             training_params['winseed'] = user_params['Preprocess']['winseed']
+                            training_params['alphabet'] = user_params['Preprocess']['alphabet']
                             training_params['no_klasses'] = len(user_params['Preprocess']['klasses'])
                             training_params['klasses'] = user_params['Preprocess']['klasses']
                             training_params['branches'] = user_params['Train']['branches']
@@ -122,6 +124,7 @@ class Subcommand:
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
                         if not training_params['win'] or not training_params['winseed'] \
+                                or not training_params['alphabet'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
                                 or len(training_params['klasses']) != training_params['no_klasses'] \
                                 or len(training_params['branches']) == 0:
@@ -132,6 +135,7 @@ class Subcommand:
                             st.markdown('###### Parameters read from given folder:\n'
                                         f"* Window size: {training_params['win']}\n"
                                         f"* Window seed: {training_params['winseed']}\n"
+                                        f"* Alphabet: {training_params['alphabet']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
                                         f"* Class labels: {', '.join(training_params['klasses'])}\n"
                                         f"* Branches: {', '.join([self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']])}")
@@ -151,6 +155,9 @@ class Subcommand:
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
                 self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
                                                              value=self.defaults['winseed']))
+                self.params['alphabet'] = st.selectbox('Alphabet:',
+                                                       list(seq.ALPHABETS.keys()),
+                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['no_klasses'] = int(st.number_input('Number of classes used for training', min_value=2,
                                                                 value=self.defaults['no_klasses']))
                 st.markdown('##### **WARNING:** Make sure the class order is the same as when training the model.')

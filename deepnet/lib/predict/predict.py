@@ -47,10 +47,6 @@ class Predict(Subcommand):
                 'Select a source of the sequences for the prediction:',
                 list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
 
-        self.params['alphabet'] = st.selectbox('Alphabet:',
-                                           list(seq.ALPHABETS.keys()),
-                                               index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
-
         self.references = {}
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
@@ -77,8 +73,7 @@ class Predict(Subcommand):
             elif self.params['seq_type'] == 'text':
                 self.params['seq_source'] = st.text_area(
                     'One or more sequences to be classified (each sequence on a new line)', value=self.defaults['seq_source'])
-                self.validation_hash['is_multiline_text'].append({'text': self.params['seq_source'],
-                                                                  'alphabet': seq.ALPHABETS[self.params['alphabet']]})
+                self.validation_hash['is_multiline_text'].append(self.params['seq_source'])
         if 'fold' in self.params['branches']:
             # currently used only as an option for RNAfold
             max_cpu = os.cpu_count() or 1
@@ -104,7 +99,7 @@ class Predict(Subcommand):
                               win=self.params['win'], winseed=self.params['winseed'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 status.text('Parsing reference fasta file...')
-                fasta_dict, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
+                fasta_dict, _, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
             status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
 

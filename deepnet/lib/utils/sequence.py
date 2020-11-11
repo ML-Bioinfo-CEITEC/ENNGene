@@ -7,11 +7,11 @@ from .exceptions import UserInputError
 
 # TODO allow option custom, to be specified by text input
 # TODO add amino acid alphabet - in that case disable cons and fold i guess
-ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
-             'RNA': ['A', 'C', 'G', 'U', 'N']}
+ALPHABETS = {'DNA': ['a', 'c', 'g', 't', 'n'],
+             'RNA': ['a', 'c', 'g', 'u', 'n']}
 
-COMPLEMENTARY = {'DNA': {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'},
-                 'RNA': {'A': 'U', 'C': 'G', 'G': 'C', 'U': 'A', 'N': 'N'}}
+COMPLEMENTARY = {'DNA': {'a': 't', 'c': 'g', 'g': 'c', 't': 'a', 'n': 'n'},
+                 'RNA': {'a': 'u', 'c': 'g', 'g': 'c', 'u': 'a', 'n': 'n'}}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
@@ -25,6 +25,7 @@ def parse_fasta_reference(fasta_file):
     file = f.filehandle_for(fasta_file)
     seq_dict = {}
     chromosomes = []
+    alphabet = set()
 
     key = None
     value = ""
@@ -41,7 +42,10 @@ def parse_fasta_reference(fasta_file):
             value = ""
         else:
             if key:
-                value += line.strip()
+                line = line.strip()
+                value += line
+                l = [char for char in line.lower()]
+                alphabet.update(l)
             else:
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
@@ -52,7 +56,7 @@ def parse_fasta_reference(fasta_file):
     file.close()
     chromosomes.sort()
 
-    return seq_dict, chromosomes
+    return seq_dict, chromosomes, alphabet
 
 
 # def is_valid_chr(chromosome):
@@ -122,10 +126,10 @@ def onehot_encode_alphabet(alphabet):
     return encoded_alphabet
 
 
-def dna_to_rna(char):
-    encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
-    translated_letter = translate(char, encoding)
-    return translated_letter
+# def dna_to_rna(char):
+#     encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
+#     translated_letter = translate(char, encoding)
+#     return translated_letter
 
 
 def translate(char, encoding):
@@ -137,5 +141,15 @@ def translate(char, encoding):
     if char.lower() in encoding.keys():
         return encoding[char.lower()]
     else:
-        raise ValueError(f"Invalid character '{char}' found, given encoding {encoding}. "
+        raise UserInputError(f"Invalid character '{char}' found, given encoding {encoding}. "
                          "Provided encoding must contain all possible characters (case-insensitive).")
+
+
+def define_alphabet(alphabet):
+    if all(x in ALPHABETS['DNA'] for x in alphabet):
+        return 'DNA'
+    elif all(x in ALPHABETS['RNA'] for x in alphabet):
+        return 'RNA'
+    else:
+        print(alphabet)
+        raise UserInputError('The characters used in the reference fasta file do not match DNA nor RNA sequence. Can not continue, sorry.')
