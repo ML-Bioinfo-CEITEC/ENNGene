@@ -132,6 +132,18 @@ class Predict(Subcommand):
         dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
+        status.text('Calculating Integrated Gradients...')
+
+        # MODEL nacteny hdf5 soubor do keras modelu
+        model
+
+        # zakodovane sekvence ze 'seq' branch, ktere budes potrebovat
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':  # kontroluje ze se model sklada pouze z jedne vetve se sekvenci
+            predict_x  # toto by mela byt data primo ve formatu pro prediction, a tedy snad i pro tvuj ucel
+
+        # slozka, do ktere se exportuji vysledne soubory z tohoto behu, pokud by vysledkem tveho kodu bylo vic souboru, idealne pro ne vytvor nejakou podslozku
+        self.params['predict_dir']
+
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
         dataset.save_to_file(ignore_cols=self.params['branches'], outfile_path=result_file)  #TODO ignore branches cols ??
