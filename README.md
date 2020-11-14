@@ -129,7 +129,7 @@ You might choose only from the branches preprocessed in the first module.
 `No. of training epochs` An epoch is one complete pass through the training data. There can be an arbitrary number of training epochs.
 
 `Apply early stopping` A regularization technique to avoid overfitting when training for too many epochs. 
-The model will stop training if the monitored metric (accuracy) does not improve for more than 0.1 (min_delta) during 10 training epochs (patience). 
+The model will stop training if the validation loss does not decrease for more than 0.01 (min_delta) during 10 training epochs (patience). 
 
 `Optimizer` Select an optimizer. Available options: 
  * Stochastic Gradient Descent ([SGD](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD)) - 

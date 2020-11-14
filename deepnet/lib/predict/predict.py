@@ -138,7 +138,7 @@ class Predict(Subcommand):
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
             if 'Train' in previous_params.keys():
-                header += f"{self.train_header(previous_params['Train']['metric'])}"
+                header += f"{self.train_header()}"
                 row += f"{self.train_row(previous_params['Train'])}"
                 if 'Preprocess' in previous_params.keys():
                     header += f'{self.preprocess_header()}\n'
