@@ -18,6 +18,7 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
+from ..utils import eval_plots
 from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
@@ -276,11 +277,16 @@ class Train(Subcommand):
         # Evaluate
         status.text('Testing the network...')
         test_results = self.test(model, self.params['batch_size'], test_x, test_y)
+        test_scores = model.predict(test_x, verbose=1)
 
         self.log_eval_metrics(test_results, self.params)
 
-
-
+        # Plot evaluation metric
+        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
+        self.ensure_dir(eval_plot_dir)
+        # eval_plots.plot_eval_cfm(test_y, test_scores, encoded_labels, eval_plot_dir)
+        # eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
 
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
