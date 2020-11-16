@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-import seaborn as sns
+import seaborn
 
 from sklearn.metrics import average_precision_score, auc, confusion_matrix, precision_recall_curve, roc_curve
 
@@ -13,8 +13,8 @@ from sklearn.metrics import average_precision_score, auc, confusion_matrix, prec
 
 def plot_eval_cfm(y_true, y_pred, labels_dict, output_dir_path):
     file_path = os.path.join(output_dir_path, 'confusion_matrix')
-    klass_names = list(labels_dict.values())
-    model_cfm = confusion_matrix(y_true, y_pred, labels=list(labels_dict.keys()))
+    klass_names = list(labels_dict.keys())
+    model_cfm = confusion_matrix(y_true, y_pred, labels=list(labels_dict.values()))
 
     figsize = (36, 30)
 
@@ -38,13 +38,13 @@ def plot_eval_cfm(y_true, y_pred, labels_dict, output_dir_path):
     cfm.index.name = 'True'
     cfm.columns.name = 'Predicted'
     fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(cfm, cmap='Reds', annot=annot, fmt='', ax=ax, annot_kws={"fontsize": 14})
-    ax.set_xlabel('Predicted', fontsize=20)
+    seaborn.heatmap(cfm, cmap='Reds', annot=annot, fmt='', ax=ax, annot_kws={"fontsize": 14})
+    ax.set_xlabel('Highest scoring predicted class', fontsize=20)
     ax.xaxis.set_label_position('top') 
-    ax.set_xticklabels(klass_names, rotation=0, fontsize=18)
+    ax.set_xticklabels(klass_names, fontsize=18)
     ax.xaxis.tick_top()
-    ax.set_ylabel('True', fontsize=20)
-    ax.set_yticklabels(klass_names, rotation=360, fontsize=18)
+    ax.set_ylabel('True class', fontsize=20)
+    ax.set_yticklabels(klass_names, fontsize=18)
     
     plt.savefig(file_path, format='png', dpi=300)
     plt.clf()
@@ -59,14 +59,16 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     n_classes = len(klass_labels)
 
     for i in range(n_classes):
-        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i],
-                                                            y_score[:, i])
+        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
         average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
 
     # A "micro-average": quantifying score on all classes jointly
-    precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(),
-        y_score.ravel())
+    precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
     average_precision["micro"] = average_precision_score(y_test, y_score, average="micro")
+
+    # A macro-average # TODO
+    # precision["macro"], recall["macro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
+    # average_precision["macro"] = average_precision_score(y_test, y_score, average="macro")
     
     plt.figure(figsize=(12, 12))
 
@@ -74,26 +76,30 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     lines = []
     labels = []
     for f_score in f_scores:
+        f_score = round(f_score, 1)  # for some reason 0.6 was showing as 0.6000000000001
         x = np.linspace(0.01, 1)
         y = f_score * x / (2 * x - f_score)
-        l, _ = plt.plot(x[y >= 0], y[y >= 0], color='gray', alpha=0.2)
+        l,  = plt.plot(x[y >= 0], y[y >= 0], color='gray', alpha=0.2)
         plt.annotate(f'f1 = {f_score}', xy=(0.9, y[45] + 0.02))
-        lines.append(l)
 
-    labels.append('iso-f1 curves')
-    l, _ = plt.plot(recall["micro"], precision["micro"], color='gold', lw=3)
     lines.append(l)
-    labels.append(f'Micro-average Precision-recall (auc = {average_precision["micro"]})')
+    labels.append('iso-f1 curves')
+
+    l, = plt.plot(recall["micro"], precision["micro"], color='gold', lw=3)
+    lines.append(l)
+    labels.append(f'Micro-average precision-recall (AP = {average_precision["micro"]})')
+
+    # l, = plt.plot(recall["macro"], precision["macro"], color='gold', lw=3)
+    # lines.append(l)
+    # labels.append(f'Macro-average precision-recall (auc = {average_precision["macro"]})')
 
     for i in range(n_classes):
-        l, _ = plt.plot(recall[i], precision[i], lw=2)
+        l, = plt.plot(recall[i], precision[i], lw=2)
         lines.append(l)
-        labels.append(f'Precision-recall for {klass_labels[i]} (auc = {average_precision[i]})')
+        labels.append(f'Precision-recall for {klass_labels[i]} (AP = {average_precision[i]})')
 
-    fig = plt.gcf()
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.grid(True)
     plt.xlabel('Recall', fontsize=14)
     plt.ylabel('Precision', fontsize=14)
     plt.title('Precision-Recall curve', fontsize=16)
@@ -119,6 +125,7 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     fpr["micro"], tpr["micro"], _ = roc_curve(test_y.ravel(), test_scores.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
+    # Compute macro-average ROC and ROC curve
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
 
@@ -135,7 +142,7 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
 
     # Plot all ROC curves
-    # plt.figure(figsize=(12, 12))
+    plt.figure(figsize=(12, 12))
     plt.plot(fpr["micro"], tpr["micro"], label=f'Micro-average ROC curve (auc = {roc_auc["micro"]})', linestyle=':')
     plt.plot(fpr["macro"], tpr["macro"], label=f'Macro-average ROC curve (auc = {roc_auc["macro"]})', linestyle=':')
 
@@ -145,7 +152,6 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     plt.plot([0, 1], [0, 1], 'k--', lw=3, alpha=0.2)
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.grid(True)
     plt.xlabel('False Positive Rate (1-specifity)', fontsize=14)
     plt.ylabel('True Positive Rate (sensitivity)', fontsize=14)
     plt.title('Multiclass Receiver operating characteristic', fontsize=16)

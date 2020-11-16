@@ -284,9 +284,12 @@ class Train(Subcommand):
         # Plot evaluation metric
         eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
         self.ensure_dir(eval_plot_dir)
-        # eval_plots.plot_eval_cfm(test_y, test_scores, encoded_labels, eval_plot_dir)
-        # eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
+
         eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        # FIXME
+        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
 
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
