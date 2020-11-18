@@ -158,7 +158,8 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        fasta_dict, self.params['valid_chromosomes'], _ = seq.read_and_cache(self.params['fasta'])
+                        fasta_dict, self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
+                        self.params['alphabet'] = seq.define_alphabet(alphabet)
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
@@ -166,7 +167,7 @@ class Preprocess(Subcommand):
             if self.params['fasta']:
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
-                        st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
+                        st.markdown("##### WARNING: While selecting the chromosomes, you may ignore the yellow warning box, \
                         and continue selecting even while it's present, as long as you work within one selectbox "
                                     "(e.g. you can select multiple chromosomes within training dataset, but than "
                                     "you have to wait until the warning disappears before you start working with the validation set).")
