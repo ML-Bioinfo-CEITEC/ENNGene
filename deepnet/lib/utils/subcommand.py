@@ -8,6 +8,7 @@ import yaml
 
 from . import validators
 from .exceptions import UserInputError
+from . import sequence as seq
 
 logger = logging.getLogger('root')
 
@@ -24,8 +25,6 @@ class Subcommand:
     OPTIMIZERS = {'SGD': 'sgd',
                   'RMSprop': 'rmsprop',
                   'Adam': 'adam'}
-    METRICS = {'Accuracy': 'accuracy'}
-    LOSSES = {'Categorical Crossentropy': 'categorical_crossentropy'}
     LR_OPTIMS = {'Fixed lr': 'fixed',
                  'LR scheduler': 'lr_scheduler',
                  # 'LR finder': 'lr_finder',
@@ -114,6 +113,7 @@ class Subcommand:
                         try:
                             training_params['win'] = user_params['Preprocess']['win']
                             training_params['winseed'] = user_params['Preprocess']['winseed']
+                            training_params['alphabet'] = user_params['Preprocess']['alphabet']
                             training_params['no_klasses'] = len(user_params['Preprocess']['klasses'])
                             training_params['klasses'] = user_params['Preprocess']['klasses']
                             training_params['branches'] = user_params['Train']['branches']
@@ -122,6 +122,7 @@ class Subcommand:
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
                         if not training_params['win'] or not training_params['winseed'] \
+                                or not training_params['alphabet'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
                                 or len(training_params['klasses']) != training_params['no_klasses'] \
                                 or len(training_params['branches']) == 0:
@@ -132,6 +133,7 @@ class Subcommand:
                             st.markdown('###### Parameters read from given folder:\n'
                                         f"* Window size: {training_params['win']}\n"
                                         f"* Window seed: {training_params['winseed']}\n"
+                                        f"* Alphabet: {training_params['alphabet']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
                                         f"* Class labels: {', '.join(training_params['klasses'])}\n"
                                         f"* Branches: {', '.join([self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']])}")
@@ -151,6 +153,9 @@ class Subcommand:
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
                 self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
                                                              value=self.defaults['winseed']))
+                self.params['alphabet'] = st.selectbox('Alphabet:',
+                                                       list(seq.ALPHABETS.keys()),
+                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['no_klasses'] = int(st.number_input('Number of classes used for training', min_value=2,
                                                                 value=self.defaults['no_klasses']))
                 st.markdown('##### **WARNING:** Make sure the class order is the same as when training the model.')
@@ -282,19 +287,20 @@ class Subcommand:
                f"{params['cons_dir'] if params['cons_dir'] else '-'}\t"
 
     @staticmethod
-    def train_header(metric):
+    def train_header():
         return 'Training directory\t' \
                'Evaluation loss\t' \
-               f'Evaluation {metric}\t' \
-               'Best training loss\t' \
-               f'Best training {metric}\t' \
-               'Best validation loss\t' \
-               f'Best validation {metric}\t' \
+               'Evaluation accuracy\t' \
+               'Evaluation AUC\t' \
+               'Training loss\t' \
+               'Training accuracy\t' \
+               'Training AUC\t' \
+               'Validation loss\t' \
+               'Validation accuracy\t' \
+               'Validation AUC\t' \
                'Training branches\t' \
                'Batch size\t' \
                'Optimizer\t' \
-               'Metric\t' \
-               'Loss\t' \
                'Learning rate\t' \
                'LR optimizer\t' \
                'Epochs\t' \
@@ -308,15 +314,16 @@ class Subcommand:
         return f"{os.path.basename(params['train_dir'])}\t" \
                f"{params['eval_loss']}\t" \
                f"{params['eval_acc']}\t" \
-               f"{params['best_loss']}\t" \
-               f"{params['best_acc']}\t" \
-               f"{params['best_val_loss']}\t" \
-               f"{params['best_val_acc']}\t" \
+               f"{params['eval_auc']}\t" \
+               f"{params['train_loss']}\t" \
+               f"{params['train_acc']}\t" \
+               f"{params['train_auc']}\t" \
+               f"{params['val_loss']}\t" \
+               f"{params['val_acc']}\t" \
+               f"{params['val_auc']}\t" \
                f"{[self.get_dict_key(b, self.BRANCHES) for b in params['branches']]}\t" \
                f"{params['batch_size']}\t" \
                f"{self.get_dict_key(params['optimizer'], self.OPTIMIZERS)}\t" \
-               f"{self.get_dict_key(params['metric'], self.METRICS)}\t" \
-               f"{self.get_dict_key(params['loss'], self.LOSSES)}\t" \
                f"{params['lr']}\t" \
                f"{self.get_dict_key(params['lr_optim'], self.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \

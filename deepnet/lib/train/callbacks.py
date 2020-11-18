@@ -9,11 +9,12 @@ logger = logging.getLogger('root')
 
 class ProgressMonitor(tf.keras.callbacks.Callback):
 
-    def __init__(self, epochs, progress_bar=None, progress_status=None, chart=None):
+    def __init__(self, epochs, progress_bar=None, progress_status=None, chart=None, metrics=None):
         self.epochs = epochs
         self.progress_bar = progress_bar
         self.progress_status = progress_status
         self.chart = chart
+        self.metrics = metrics
 
     def on_epoch_begin(self, epoch, logs=None):
         self.progress_bar.progress((epoch+1)/self.epochs)
@@ -21,10 +22,17 @@ class ProgressMonitor(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         epoch_data = pd.DataFrame([['Training loss', round(logs['loss'], 2), epoch+1],
-                                   ['Training accuracy', round(logs['accuracy'], 2), epoch+1],
-                                   ['Validation loss', round(logs['val_loss'], 2), epoch+1],
-                                   ['Validation accuracy', round(logs['val_accuracy'], 2), epoch+1]],
+                                   ['Validation loss', round(logs['val_loss'], 2), epoch+1]],
                                   columns=['Metric', 'Metric value', 'Epoch'])
+        for metric in self.metrics:
+            # For now plot only acc and auc during the training
+            metric_name = metric if metric == 'accuracy' else metric.name
+            if metric_name == 'auc' or metric_name == 'accuracy':
+                metric_df = pd.DataFrame([[f'Training {metric_name}', round(logs[metric_name], 2), epoch+1],
+                                          [f'Validation {metric_name}', round(logs[f'val_{metric_name}'], 2), epoch+1]],
+                                         columns=['Metric', 'Metric value', 'Epoch'])
+                epoch_data = epoch_data.append(metric_df, ignore_index=True)
+
         self.chart.add_rows(epoch_data)
 
 

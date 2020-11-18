@@ -27,7 +27,8 @@ class Preprocess(Subcommand):
                                 'is_ratio': [],
                                 'not_empty_chromosomes': [],
                                 'min_two_files': []}
-        self.klasses = []
+        self.params['klasses'] = []
+        self.params['full_dataset_dir'] = ''
         self.klass_sizes = {}
 
         st.markdown('# Preprocessing')
@@ -36,8 +37,7 @@ class Preprocess(Subcommand):
         # TODO add show/hide separate section after stateful operations are allowed
         self.general_options()
 
-        # self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
-        self.params['use_mapped'] = False
+        self.params['use_mapped'] = st.checkbox('Use already preprocessed file from a previous run', self.defaults['use_mapped'])
 
         if not self.params['use_mapped']:
             default_branches = [self.get_dict_key(b, self.BRANCHES) for b in self.defaults['branches']]
@@ -57,9 +57,6 @@ class Preprocess(Subcommand):
 
             self.references = {}
             if 'seq' in self.params['branches']:
-                self.params['alphabet'] = st.selectbox('Alphabet:',
-                                                       list(seq.ALPHABETS.keys()),
-                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
                 self.params['fasta'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta'])
@@ -84,7 +81,6 @@ class Preprocess(Subcommand):
             self.params['input_files'] = self.params['input_files'][0:no_files]
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
-            self.params['klasses'] = []
 
             for i in range(no_files):
                 file = st.text_input(f'File no. {i+1} (.bed)',
@@ -113,14 +109,16 @@ class Preprocess(Subcommand):
             self.validation_hash['min_two_files'].append(self.params['input_files'])
         else:
             # When using already mapped file
-            self.params['full_dataset_file'] = st.text_input(f'Path to the mapped file (task_subfolder/full_datasets/merged_all.tsv.zip)', value=self.defaults['full_dataset_file'])
-            self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
+            self.params['full_dataset_dir'] = st.text_input(f"Folder from the previous run of the task (must contain 'full_datasets' subfolder)", value=self.defaults['full_dataset_dir'])
+            if self.params['full_dataset_dir']:
+                self.params['full_dataset_file'] = os.path.join(self.params['full_dataset_dir'], 'full_datasets', 'merged_all.tsv.zip')
+                self.validation_hash['is_full_dataset'].append({'file_path': self.params['full_dataset_file'], 'branches': self.params['branches']})
 
-            if self.params['full_dataset_file']:
-                try:
-                    self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
-                except Exception:
-                    raise UserInputError('Invalid dataset file!')
+                if self.params['full_dataset_file']:
+                    try:
+                        self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
+                    except Exception:
+                        raise UserInputError('The file with mapped dataset does not exist or is not valid, sorry.')
 
         st.markdown('## Dataset Size Reduction')
         st.markdown('###### Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), '
@@ -160,7 +158,7 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        fasta_dict, self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
+                        fasta_dict, self.params['valid_chromosomes'], _ = seq.read_and_cache(self.params['fasta'])
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
@@ -228,12 +226,14 @@ class Preprocess(Subcommand):
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
-            # Read-in fasta file to dictionary
+            # Read-in fasta file to dictionary if it's needed and it is not yet read in
             if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
-                fasta_dict, valid_chromosomes = seq.parse_fasta_reference(self.references['seq'])
+                fasta_dict, valid_chromosomes, alphabet = seq.parse_fasta_reference(self.references['seq'])
+                if 'seq' in self.params['branches']:
+                    self.params['alphabet'] = seq.define_alphabet(alphabet)
                 if not valid_chromosomes:
-                    raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
+                    raise UserInputError('Sorry, did not find any chromosomes in given fasta file.')
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
@@ -280,11 +280,12 @@ class Preprocess(Subcommand):
 
     @staticmethod
     def default_params():
-        return {'alphabet': 'DNA',
+        return {'alphabet': None,
                 'branches': [],
                 'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
                 'cons_dir': '',
                 'fasta': '',
+                'full_dataset_dir': '',
                 'full_dataset_file': '',
                 'input_files': [],
                 'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output'),

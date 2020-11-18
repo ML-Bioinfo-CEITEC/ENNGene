@@ -33,15 +33,16 @@ After running a task, several files will be exported to the task subfolder.
 
 The ENN-Gene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
 Currently, all input files (or folders) must be defined by an absolute path.
-Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.   
+
+> **Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.**
+
+Hopefully, this behavior will be removed with the framework update.
 
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
 
-<!--
-TODO fix first
-`Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run, and you want to just e.g. change the chromosomes' distribution among categories. 
--->
+`Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run. 
+Using a mapped file, you can still change the datasets' size, or redistribute data across categories.
 
 `Branches` You may select one or more input types engineered from the given interval files.
 Each input type later corresponds to a branch in the neural network.
@@ -128,7 +129,7 @@ You might choose only from the branches preprocessed in the first module.
 `No. of training epochs` An epoch is one complete pass through the training data. There can be an arbitrary number of training epochs.
 
 `Apply early stopping` A regularization technique to avoid overfitting when training for too many epochs. 
-The model will stop training if the monitored metric (accuracy) does not improve for more than 0.1 (min_delta) during 10 training epochs (patience). 
+The model will stop training if the validation loss does not decrease for more than 0.01 (min_delta) during 10 training epochs (patience). 
 
 `Optimizer` Select an optimizer. Available options: 
  * Stochastic Gradient Descent ([SGD](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD)) - 
@@ -230,7 +231,7 @@ You can provide the input sequences you wish to classify in following formats:
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
 `Run` After all the parameters are set and selected, press the run button. 
-Calculating the predictions maight take minutes to hours, depending on the number of sequnces, branches, hardware available etc.
+Calculating the predictions might take minutes to hours, depending on the number of sequnces, branches, hardware available etc.
 
 Results are exported to the 'prediction' subfolder in the selected `output folder`. Information about the input sequences
 are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are two more columns with the results appended.

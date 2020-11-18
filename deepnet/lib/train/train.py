@@ -18,6 +18,7 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
+from ..utils import eval_plots
 from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
@@ -27,6 +28,13 @@ logger = logging.getLogger('root')
 
 
 class Train(Subcommand):
+    TRAIN_METRICS = {
+        'accuracy': 'Accuracy (threshold = 0.5)',
+        tf.keras.metrics.AUC(name='auc'): 'AUC',
+        tf.keras.metrics.Precision(name='precision'): 'Precision (threshold = 0.5)',
+        tf.keras.metrics.Recall(name='recall'): 'Recall (threshold = 0.5)'
+    }
+
     def __init__(self):
         self.params = {'task': 'Train'}
         self.validation_hash = {'not_empty_branches': [],
@@ -71,7 +79,7 @@ class Train(Subcommand):
         # TODO make sure batch size is smaller than dataset size
         self.params['batch_size'] = st.number_input('Batch size', min_value=1, value=self.defaults['batch_size'])
         self.params['epochs'] = st.number_input('No. of training epochs', min_value=1, value=self.defaults['epochs'])
-        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 10, delta 0.1)', value=self.defaults['early_stop'])
+        self.params['early_stop'] = st.checkbox('Apply early stopping (patience 10, delta 0.01)', value=self.defaults['early_stop'])
         self.params['optimizer'] = self.OPTIMIZERS[st.selectbox(
             'Optimizer', list(self.OPTIMIZERS.keys()), index=self.get_dict_index(self.defaults['optimizer'], self.OPTIMIZERS))]
         if self.params['optimizer'] == 'sgd':
@@ -85,12 +93,6 @@ class Train(Subcommand):
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
         self.params['lr'] = st.number_input(
             'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
-        self.params['metric'] = self.METRICS[st.selectbox('Metric',
-                                                          list(self.METRICS.keys()),
-                                                          self.get_dict_index(self.defaults['metric'], self.METRICS))]
-        self.params['loss'] = self.LOSSES[st.selectbox('Loss function',
-                                                       list(self.LOSSES.keys()),
-                                                       self.get_dict_index(self.defaults['loss'], self.LOSSES))]
 
         # TODO change the logic when stateful design is enabled
         # self.branch_layers = {}
@@ -237,10 +239,10 @@ class Train(Subcommand):
         optimizer = self.create_optimizer(self.params['optimizer'], self.params['lr'])
         model.compile(
             optimizer=optimizer,
-            loss=[self.params['loss']],
-            metrics=[self.params['metric']])
+            loss=['categorical_crossentropy'],
+            metrics=[list(self.TRAIN_METRICS.keys())])
 
-        # Training & testing the model
+        # Train the model
         status.text('Training the network...')
 
         progress_bar = st.progress(0)
@@ -260,41 +262,41 @@ class Train(Subcommand):
             if early_epochs and early_epochs.stopped_epoch != 0:
                 self.params['epochs'] = early_epochs.stopped_epoch
 
-        self.params['best_acc'] = str(round(max(history[self.params['metric']]), 4))
-        self.params['best_loss'] = str(round(min(history['loss']), 4))
-        self.params['best_val_acc'] = str(round(max(history[f"val_{self.params['metric']}"]), 4))
-        self.params['best_val_loss'] = str(round(min(history[f"val_loss"]), 4))
+        self.log_train_val_metrics(history, self.params)
 
-        logger.info('Best achieved training ' + self.params['metric'] + ': ' + self.params['best_acc'])
-        logger.info('Best achieved training loss: ' + self.params['best_loss'])
-        logger.info('Best achieved ' + f"validation {self.params['metric']}" + ': ' + self.params['best_val_acc'])
-        logger.info('Best achieved validation loss: ' + self.params['best_val_loss'])
-
-        st.text(f"Best achieved training {self.params['metric']}: {self.params['best_acc']}\n"
-                f"Best achieved training loss: {self.params['best_loss']}\n\n"
-                f"Best achieved validation {self.params['metric']}: " + self.params['best_val_acc'] + '\n'
-                'Best achieved validation loss: ' + self.params['best_val_loss'] + '\n\n')
-
-        # Plot metrics
+        # Plot training metrics
         # if self.params['lr_optim'] != 'lr_finder':
-        self.plot_graph(history, self.params['metric'], self.params['metric'].capitalize(), self.params['train_dir'])
-        self.plot_graph(history, 'loss', f"Loss: {self.params['loss'].capitalize()}", self.params['train_dir'])
+        train_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'training_metrics')
+        self.ensure_dir(train_plot_dir)
+        for metric, title in self.TRAIN_METRICS.items():
+            metric_name = metric if metric == 'accuracy' else metric.name
+            self.plot_training_metric(history, metric_name, title, train_plot_dir)
+
         tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
 
+        # Evaluate
         status.text('Testing the network...')
         test_results = self.test(model, self.params['batch_size'], test_x, test_y)
+        test_scores = model.predict(test_x, verbose=1)
 
-        self.params['eval_loss'] = str(round(test_results[0], 4))
-        self.params['eval_acc'] = str(round(test_results[1], 4))
-        logger.info('Evaluation loss: ' + self.params['eval_loss'])
-        logger.info('Evaluation acc: ' + self.params['eval_acc'])
-        st.text(f"Evaluation loss: {self.params['eval_loss']} \nEvaluation acc: {self.params['eval_acc']} \n")
+        self.log_eval_metrics(test_results, self.params)
+
+        # Plot evaluation metric
+        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
+        self.ensure_dir(eval_plot_dir)
+        categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
+
+        eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        # FIXME
+        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
 
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
             json_file.write(model_json)
 
-        header = self.train_header(self.params['metric'])
+        # Prepare tsv row content
+        header = self.train_header()
         row = self.train_row(self.params)
         if 'Preprocess' in previous_params.keys():
             header += f'{self.preprocess_header()}\n'
@@ -302,6 +304,7 @@ class Train(Subcommand):
         else:
             header += '\n'
             row += '\n'
+
         self.finalize_run(logger, self.params['train_dir'], self.params, header, row, self.previous_param_file)
         status.text('Finished!')
     
@@ -321,14 +324,14 @@ class Train(Subcommand):
                                append=True,
                                separator='\t')
 
-        progress = ProgressMonitor(epochs, progress_bar, progress_status, chart)
+        progress = ProgressMonitor(epochs, progress_bar, progress_status, chart, Train.TRAIN_METRICS.keys())
 
         callbacks = [mcp, csv_logger, progress]
 
         if early_stop:
             earlystopper = EarlyStopping(monitor='val_loss',
                                          patience=10,
-                                         min_delta=0.1,
+                                         min_delta=0.01,
                                          verbose=1,
                                          mode='auto')
             callbacks.append(earlystopper)
@@ -399,23 +402,65 @@ class Train(Subcommand):
         return test_results
 
     @staticmethod
-    def plot_graph(history, metric, title, out_dir):
+    def log_train_val_metrics(history, params):
+        st.text('Final metric values:')
+
+        params['train_loss'] = str(round(history['loss'][-1], 4))
+        params['train_acc'] = str(round(history['accuracy'][-1], 4))
+        params['train_auc'] = str(round(history['auc'][-1], 4))
+
+        logger.info('Training loss: ' + params['train_loss'])
+        logger.info('Training accuracy: ' + params['train_acc'])
+        logger.info('Training AUC: ' + params['train_auc'])
+
+        params['val_loss'] = str(round(history['val_loss'][-1], 4))
+        params['val_acc'] = str(round(history['val_accuracy'][-1], 4))
+        params['val_auc'] = str(round(history['val_auc'][-1], 4))
+
+        logger.info('Validation loss: ' + params['val_loss'])
+        logger.info('Validation accuracy: ' + params['val_acc'])
+        logger.info('Validation AUC: ' + params['val_auc'])
+
+        st.text(f"Final achieved training loss: {params['train_loss']}\n"
+                f"Final achieved training accuracy: {params['train_acc']}\n"
+                f"Final achieved training AUC: {params['train_auc']}\n"
+                "\n"
+                f"Final achieved validation loss: {params['val_loss']} \n"
+                f"Final achieved validation accuracy: {params['val_acc']} \n"
+                f"Final achieved validation AUC: {params['val_auc']} \n\n")
+
+    @staticmethod
+    def log_eval_metrics(test_results, params):
+        params['eval_loss'] = str(round(test_results[0], 4))
+        params['eval_acc'] = str(round(test_results[1], 4))
+        params['eval_auc'] = str(round(test_results[2], 4))
+
+        logger.info('Evaluation loss: ' + params['eval_loss'])
+        logger.info('Evaluation acc: ' + params['eval_acc'])
+        logger.info('Evaluation acc: ' + params['eval_acc'])
+
+        st.text(f"Evaluation loss: {params['eval_loss']} \n"
+                f"Evaluation accuracy: {params['eval_acc']} \n"
+                f"Evaluation AUC: {params['eval_auc']} \n")
+
+    @staticmethod
+    def plot_training_metric(history, metric, title, out_dir):
         val_metric = f'val_{metric}'
-        file_name = f'/{metric}.png'
+        file_path = os.path.join(out_dir, f'{metric}')
 
-        plt.plot(history[metric])
-        plt.plot(history[val_metric])
+        plt.plot(history[metric], label='Training')
+        plt.plot(history[val_metric], label='Validation')
 
-        if metric == 'accuracy':
-            plt.ylim(0.0, 1.0)
+        if metric == 'accuracy' or metric == 'auc' or metric == 'precision' or metric == 'recall':
+            plt.ylim(0.0, 1.05)
         elif metric == 'loss':
-            plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])))
+            plt.ylim(0.0, max(max(history[metric]), max(history[val_metric])) + 0.05)
 
         plt.title(title)
         plt.ylabel(title)
         plt.xlabel('Epoch')
-        plt.legend(['Training', 'Validation'], loc='lower right')
-        plt.savefig(out_dir + file_name, dpi=300)
+        plt.legend(loc='lower right')
+        plt.savefig(file_path, format='png', dpi=300)
         plt.clf()
 
     @staticmethod
@@ -439,10 +484,8 @@ class Train(Subcommand):
                 'early_stop': True,
                 'epochs': 100,
                 'input_folder': '',
-                'loss': 'categorical_crossentropy',
                 'lr': 0.005,
                 'lr_optim': 'fixed',
-                'metric': 'accuracy',
                 'no_branches_layers': {'seq': 1, 'fold': 1, 'cons': 1},
                 'no_common_layers': 1,
                 'optimizer': 'sgd',

@@ -213,20 +213,11 @@ def is_model_file(file_path):
     return warning if invalid else None
 
 
-def is_multiline_text(text, alphabet):
+def is_multiline_text(text):
     invalid = False
     sequences = text.strip().split('\n')
     if len(text) == 0 or len(sequences) == 0:
         invalid = True
         warning = 'You must provide at least one sequence to be classified.'
-
-    invalid_characters = []
-    for sequence in sequences:
-        for letter in sequence:
-            if letter not in alphabet:
-                invalid_characters.append(letter)
-    if len(invalid_characters) > 0:
-        invalid = True
-        warning = f'Given sequences contain invalid characters: {invalid_characters}.'
 
     return warning if invalid else None
