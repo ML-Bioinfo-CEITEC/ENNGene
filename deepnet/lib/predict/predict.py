@@ -117,7 +117,8 @@ class Predict(Subcommand):
                                   win=self.params['win'], winseed=self.params['winseed'])
 
         dataset.map_to_branches(
-            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path)
+            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, predict=True)
+
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()
             predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
@@ -132,17 +133,18 @@ class Predict(Subcommand):
         dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
-        status.text('Calculating Integrated Gradients...')
-
-        # MODEL nacteny hdf5 soubor do keras modelu
-        model
-
-        # zakodovane sekvence ze 'seq' branch, ktere budes potrebovat
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':  # kontroluje ze se model sklada pouze z jedne vetve se sekvenci
+            status.text('Calculating Integrated Gradients...')
+
+            raw_sequence = dataset.df['input_seq']  # sekvence bez one hot enoded
+            print('RAW SEQUENCE', raw_sequence)
             predict_x  # toto by mela byt data primo ve formatu pro prediction, a tedy snad i pro tvuj ucel
 
-        # slozka, do ktere se exportuji vysledne soubory z tohoto behu, pokud by vysledkem tveho kodu bylo vic souboru, idealne pro ne vytvor nejakou podslozku
-        self.params['predict_dir']
+            # MODEL nacteny hdf5 soubor do keras modelu
+            model
+
+            # slozka, do ktere se exportuji vysledne soubory z tohoto behu, pokud by vysledkem tveho kodu bylo vic souboru, idealne pro ne vytvor nejakou podslozku
+            self.params['predict_dir']
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')

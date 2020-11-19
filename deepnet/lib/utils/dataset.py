@@ -161,7 +161,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None, predict=False):
         dna = alphabet == 'DNA'
         for branch in self.branches:
             if branch == 'seq':
@@ -170,7 +170,7 @@ class Dataset:
                     self.encode_col('seq', alphabet)
                 else:
                     logger.info(f'Mapping intervals to the fasta reference...')
-                    self.df = Dataset.map_to_fasta_dict(self.df, branch, references[branch], alphabet, strand)
+                    self.df = Dataset.map_to_fasta_dict(self.df, branch, references[branch], alphabet, strand, predict=predict)
             elif branch == 'cons':
                 logger.info(f'Mapping sequences to the wig reference...')
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
@@ -245,10 +245,11 @@ class Dataset:
         return df
 
     @staticmethod
-    def map_to_fasta_dict(df, branch, ref_dictionary, alphabet, strand):
+    def map_to_fasta_dict(df, branch, ref_dictionary, alphabet, strand, predict=False):
         # Returns only successfully mapped samples
         old_shape = df.shape[0]
         df[branch] = None
+        if branch == 'seq': df['input_seq'] = None
 
         def map(row):
             if row['chrom_name'] in ref_dictionary.keys():
@@ -259,6 +260,7 @@ class Dataset:
                     sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
                 if branch == 'seq':
                     row[branch] = Dataset.sequence_to_string(Dataset.encode_sequence(sequence, alphabet))
+                    if predict: row['input_seq'] = sequence
                 elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
