@@ -131,7 +131,7 @@ class Preprocess(Subcommand):
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
                     min_value=0.00001, value=0.01, format='%.5f'))})
-            st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+            st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
             self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
@@ -168,7 +168,7 @@ class Preprocess(Subcommand):
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
                         st.markdown("##### WARNING: While selecting the chromosomes, you may ignore the yellow warning box, \
-                        and continue selecting even while it's present, as long as you work within one selectbox "
+                                    and continue selecting even while it's present, as long as you work within one selectbox "
                                     "(e.g. you can select multiple chromosomes within training dataset, but than "
                                     "you have to wait until the warning disappears before you start working with the validation set).")
                     self.params['chromosomes'] = self.defaults['chromosomes']
