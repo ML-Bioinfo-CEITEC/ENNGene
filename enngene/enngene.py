@@ -34,8 +34,8 @@ except Exception as err:
     st.warning(f'Failed to load logger, continuing without logging...')
 
 
-def deepNet():
-    st.sidebar.title('ENN-Gene')
+def enngene():
+    st.sidebar.title('ENNGene')
     st.sidebar.markdown('')
 
     available_subcommands = {'Preprocessing': 'preprocess',
@@ -61,7 +61,7 @@ def deepNet():
     st.sidebar.markdown(html_ml, unsafe_allow_html=True)
     st.sidebar.markdown('---')
 
-    logger.debug(f'DeepNet started with the following subcommand: {subcommand}')
+    logger.debug(f'ENNGene started with the following subcommand: {subcommand}')
 
     module_path = f'lib.{subcommand}.{subcommand}'
     subcommand_class = ''.join(x.title() for x in subcommand.split('_'))
@@ -73,7 +73,7 @@ def deepNet():
 
 if __name__ == '__main__':
     try:
-        deepNet()
+        enngene()
     except MyException as err:
         logger.exception(f'{err.__class__.__name__}: {err}')
         st.warning(f'{err}\n Exiting...')

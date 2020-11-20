@@ -18,7 +18,7 @@ logger = logging.getLogger('root')
 
 
 class Predict(Subcommand):
-    # TODO add option to use deepnet blackbox file (already mapped and not bed) - instead add separate section to test a model on the blackbox dataset
+    # TODO add option to use blackbox file (already mapped and not bed) - instead add separate section to test a model on the blackbox dataset
     # test module - either on already mapped blackbox dataset, or not encoded dataset, eg from different experiment to check transferbality of the results
 
     def __init__(self):
@@ -190,5 +190,5 @@ class Predict(Subcommand):
             'fasta_ref': '',
             'cons_dir': '',
             'winseed': 42,
-            'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output')
+            'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }

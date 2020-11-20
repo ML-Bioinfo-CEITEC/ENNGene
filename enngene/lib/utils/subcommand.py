@@ -74,7 +74,7 @@ class Subcommand:
     def model_options(self, blackbox=False, warning=None):
         missing_model = False
         missing_params = False
-        model_types = {'Use a model trained by the deepnet app': 'from_app',
+        model_types = {'Use a model trained by the ENNGene': 'from_app',
                        'Use a custom trained model': 'custom'}
 
         st.markdown(warning) if warning else None
