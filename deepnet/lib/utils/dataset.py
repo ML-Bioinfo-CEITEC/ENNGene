@@ -260,7 +260,7 @@ class Dataset:
                     sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
                 if branch == 'seq':
                     row[branch] = Dataset.sequence_to_string(Dataset.encode_sequence(sequence, alphabet))
-                    if predict: row['input_seq'] = sequence
+                    if predict: row['input_seq'] = ''.join(sequence)
                 elif branch == 'fold':
                     #  only temporary value for folding (won't be saved like this to file)
                     row[branch] = ''.join(sequence)
