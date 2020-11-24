@@ -354,7 +354,8 @@ class Train(Subcommand):
                 callbacks.append(Train.step_decay_schedule(initial_lr=lr))
 
         if tb:
-            callbacks.append(TensorBoard(log_dir=out_dir, histogram_freq=1, profile_batch=3))
+            tb_dir = os.path.join(out_dir, 'tb')
+            callbacks.append(TensorBoard(log_dir=tb_dir, histogram_freq=1, profile_batch=3))
 
         return callbacks
 
