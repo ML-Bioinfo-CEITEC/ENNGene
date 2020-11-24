@@ -271,6 +271,7 @@ class Train(Subcommand):
         for metric, title in self.TRAIN_METRICS.items():
             metric_name = metric if metric == 'accuracy' else metric.name
             self.plot_training_metric(history, metric_name, title, train_plot_dir)
+        self.plot_training_metric(history, 'loss', 'Loss', train_plot_dir)
 
         tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
 
