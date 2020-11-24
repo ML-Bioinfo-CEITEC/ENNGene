@@ -28,12 +28,10 @@ logger = logging.getLogger('root')
 
 
 class Train(Subcommand):
-    TRAIN_METRICS = {
-        'accuracy': 'Accuracy (threshold = 0.5)',
-        tf.keras.metrics.AUC(name='auc'): 'AUC',
-        tf.keras.metrics.Precision(name='precision'): 'Precision (threshold = 0.5)',
-        tf.keras.metrics.Recall(name='recall'): 'Recall (threshold = 0.5)'
-    }
+    TRAIN_METRICS = {'accuracy': 'Accuracy (threshold = 0.5)'}
+        # tf.keras.metrics.AUC(name='auc'): 'AUC',  # TODO get implementation for softmax fc
+        # tf.keras.metrics.Precision(name='precision'): 'Precision (threshold = 0.5)',
+        # tf.keras.metrics.Recall(name='recall'): 'Recall (threshold = 0.5)'
 
     def __init__(self):
         self.params = {'task': 'Train'}
@@ -408,41 +406,41 @@ class Train(Subcommand):
 
         params['train_loss'] = str(round(history['loss'][-1], 4))
         params['train_acc'] = str(round(history['accuracy'][-1], 4))
-        params['train_auc'] = str(round(history['auc'][-1], 4))
+        # params['train_auc'] = str(round(history['auc'][-1], 4))
 
         logger.info('Training loss: ' + params['train_loss'])
         logger.info('Training accuracy: ' + params['train_acc'])
-        logger.info('Training AUC: ' + params['train_auc'])
+        # logger.info('Training AUC: ' + params['train_auc'])
 
         params['val_loss'] = str(round(history['val_loss'][-1], 4))
         params['val_acc'] = str(round(history['val_accuracy'][-1], 4))
-        params['val_auc'] = str(round(history['val_auc'][-1], 4))
+        # params['val_auc'] = str(round(history['val_auc'][-1], 4))
 
         logger.info('Validation loss: ' + params['val_loss'])
         logger.info('Validation accuracy: ' + params['val_acc'])
-        logger.info('Validation AUC: ' + params['val_auc'])
+        # logger.info('Validation AUC: ' + params['val_auc'])
 
         st.text(f"Final achieved training loss: {params['train_loss']}\n"
                 f"Final achieved training accuracy: {params['train_acc']}\n"
-                f"Final achieved training AUC: {params['train_auc']}\n"
+                # f"Final achieved training AUC: {params['train_auc']}\n"
                 "\n"
                 f"Final achieved validation loss: {params['val_loss']} \n"
-                f"Final achieved validation accuracy: {params['val_acc']} \n"
-                f"Final achieved validation AUC: {params['val_auc']} \n\n")
+                f"Final achieved validation accuracy: {params['val_acc']} \n")
+                # f"Final achieved validation AUC: {params['val_auc']} \n\n")
 
     @staticmethod
     def log_eval_metrics(test_results, params):
         params['eval_loss'] = str(round(test_results[0], 4))
         params['eval_acc'] = str(round(test_results[1], 4))
-        params['eval_auc'] = str(round(test_results[2], 4))
+        # params['eval_auc'] = str(round(test_results[2], 4))
 
         logger.info('Evaluation loss: ' + params['eval_loss'])
         logger.info('Evaluation acc: ' + params['eval_acc'])
-        logger.info('Evaluation acc: ' + params['eval_acc'])
+        # logger.info('Evaluation auc: ' + params['eval_auc'])
 
         st.text(f"Evaluation loss: {params['eval_loss']} \n"
-                f"Evaluation accuracy: {params['eval_acc']} \n"
-                f"Evaluation AUC: {params['eval_auc']} \n")
+                f"Evaluation accuracy: {params['eval_acc']} \n")
+                # f"Evaluation AUC: {params['eval_auc']} \n")
 
     @staticmethod
     def plot_training_metric(history, metric, title, out_dir):
