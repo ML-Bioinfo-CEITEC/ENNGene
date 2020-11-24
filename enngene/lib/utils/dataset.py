@@ -161,7 +161,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=1):
         dna = alphabet == 'DNA'
         for branch in self.branches:
             if branch == 'seq':

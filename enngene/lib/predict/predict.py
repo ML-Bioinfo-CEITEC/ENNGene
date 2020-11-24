@@ -112,7 +112,7 @@ class Predict(Subcommand):
                                   win=self.params['win'], winseed=self.params['winseed'])
 
         dataset.map_to_branches(
-            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path)
+            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, self.ncpu)
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()
             predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
