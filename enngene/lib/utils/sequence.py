@@ -7,11 +7,11 @@ from .exceptions import UserInputError
 
 # TODO allow option custom, to be specified by text input
 # TODO add amino acid alphabet - in that case disable cons and fold i guess
-ALPHABETS = {'DNA': ['a', 'c', 'g', 't', 'n'],
-             'RNA': ['a', 'c', 'g', 'u', 'n']}
+ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
+             'RNA': ['A', 'C', 'G', 'U', 'N']}
 
-COMPLEMENTARY = {'DNA': {'a': 't', 'c': 'g', 'g': 'c', 't': 'a', 'n': 'n'},
-                 'RNA': {'a': 'u', 'c': 'g', 'g': 'c', 'u': 'a', 'n': 'n'}}
+COMPLEMENTARY = {'DNA': {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'},
+                 'RNA': {'A': 'U', 'C': 'G', 'G': 'C', 'U': 'A', 'N': 'N'}}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
@@ -44,7 +44,7 @@ def parse_fasta_reference(fasta_file):
             if key:
                 line = line.strip()
                 value += line
-                l = [char for char in line.lower()]
+                l = [char for char in line.upper()]
                 alphabet.update(l)
             else:
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
@@ -121,7 +121,7 @@ def onehot_encode_alphabet(alphabet):
         for x in range(len(alphabet)):
             array.append(0.0)
         array[i] = 1.0
-        encoded_alphabet.update({str(char).lower(): array})
+        encoded_alphabet.update({str(char).upper(): array})
 
     return encoded_alphabet
 
@@ -138,8 +138,8 @@ def translate(char, encoding):
     if not encoding or not (encoding.__class__.__name__ == 'dict'):
         raise ValueError('Encoding missing...')
 
-    if char.lower() in encoding.keys():
-        return encoding[char.lower()]
+    if char.upper() in encoding.keys():
+        return encoding[char.upper()]
     else:
         raise UserInputError(f"Invalid character '{char}' found, given encoding {encoding}. "
                          "Provided encoding must contain all possible characters (case-insensitive).")

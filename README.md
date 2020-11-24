@@ -1,23 +1,23 @@
-## ENN-Gene 
-ENN-Gene is an application that simplifies the local training of custom Convolutional Neural Network models on Genomic data 
-via an easy to use Graphical User Interface. ENN-Gene allows multiple streams of input information, including sequence, 
+## ENNGene 
+ENNGene is an application that simplifies the local training of custom Convolutional Neural Network models on Genomic data 
+via an easy to use Graphical User Interface. ENNGene allows multiple streams of input information, including sequence, 
 evolutionary conservation, and secondary structure, and includes utilities that can perform needed preprocessing steps, 
 allowing simplified input such as genomic coordinates. 
-ENN-Gene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
+ENNGene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
 empowering researchers that may not be experts in machine learning to perform this powerful type of analysis.
 
-> We are preparing a video tutorial for an even easier start with the ENN-Gene application!
+> We are preparing a video tutorial for an even easier start with the ENNGene application!
 
 ### Installation
 
 TODO 
 
 ### Implementation
-ENN-Gene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
+ENNGene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
 It can run on either CPU or GPU, offering a considerable speed-up when training larger CNNs.
-ENN-Gene accepts BED genomic interval files corresponding to a user-determined genome or transcriptome reference.
+ENNGene accepts BED genomic interval files corresponding to a user-determined genome or transcriptome reference.
 Classifiers can be built for two or more classes.
-Full reproducibility of the process is ensured by logging all the user’s input and exporting it as a yaml file that can be loaded in ENN-Gene for future runs.
+Full reproducibility of the process is ensured by logging all the user’s input and exporting it as a yaml file that can be loaded in ENNGene for future runs.
 The application consists of three consecutive modules, each module performing a specific task.
  
 To select a task browse the select box in the side panel. 
@@ -31,7 +31,7 @@ After running a task, several files will be exported to the task subfolder.
    You can easily manage and compare results across the specific task with different parameters' setup.
  * Other task-specific files.
 
-The ENN-Gene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
+The ENNGene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
 Currently, all input files (or folders) must be defined by an absolute path.
 
 > **Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.**
@@ -193,9 +193,9 @@ In the last module, a trained model can be used to classify novel, unseen data.
 Sequences provided to be classified are preprocessed similar to the first module for the purpose of the CNN. 
 
 ##### Model
-You can either use a model trained with the ENN-Gene application, or any custom trained model.
+You can either use a model trained with the ENNGene application, or any custom trained model.
 
-`Use a model trained by the ENN-Gene application` Preferred option. When selected this option, you must provide:
+`Use a model trained by the ENNGene application` Preferred option. When selected this option, you must provide:
  * `Training folder containing the model (hdf5 file)` Except the hdf5 file with the trained model, the folder must contain the parameters.yaml file logged when training the model. 
  Form that the parameters necessary for sequence preprocessing are read, and displayed below the field after that. 
 
@@ -246,7 +246,7 @@ If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed 
 - Go to the project directory `cd deepnet`
 - Recreate environment from yml file `conda env create -f environment.yml`
 - Activate the environment`conda activate deepnet-app`
-- Run the app `cd deepnet` and `streamlit run deepnet.py`
+- Run the app `cd deepnet` and `streamlit run enngene.py`
 
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.

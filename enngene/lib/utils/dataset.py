@@ -161,7 +161,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=None):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=1):
         dna = alphabet == 'DNA'
         for branch in self.branches:
             if branch == 'seq':
@@ -478,7 +478,7 @@ class Dataset:
                     new_df.loc[index, 'fold'] = Dataset.sequence_to_string(value)
             self.df = new_df
         else:
-            logger.warning(f'Did not fold all the datapoints! (Only {len(lines)/3} out of {original_length}).')
+            logger.warning(f'Number of folded datapoints does not match the number of input datapoints! (Folded: {len(lines)/3}, given: {original_length}).')
             # We probably have no way to determine which were not folded if this happens
             raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
 

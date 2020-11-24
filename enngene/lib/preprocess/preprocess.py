@@ -131,7 +131,7 @@ class Preprocess(Subcommand):
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
                     min_value=0.00001, value=0.01, format='%.5f'))})
-            st.markdown('###### Warning: the data are reduced randomly across the dataset. Thus in a rare occasion, when later '
+            st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
             self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
@@ -158,7 +158,8 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        fasta_dict, self.params['valid_chromosomes'], _ = seq.read_and_cache(self.params['fasta'])
+                        fasta_dict, self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
+                        self.params['alphabet'] = seq.define_alphabet(alphabet)
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
                     self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
@@ -166,8 +167,8 @@ class Preprocess(Subcommand):
             if self.params['fasta']:
                 if self.params['valid_chromosomes']:
                     if not self.params['use_mapped']:
-                        st.markdown("Note: While selecting the chromosomes, you may ignore the yellow warning box, \
-                        and continue selecting even while it's present, as long as you work within one selectbox "
+                        st.markdown("##### WARNING: While selecting the chromosomes, you may ignore the yellow warning box, \
+                                    and continue selecting even while it's present, as long as you work within one selectbox "
                                     "(e.g. you can select multiple chromosomes within training dataset, but than "
                                     "you have to wait until the warning disappears before you start working with the validation set).")
                     self.params['chromosomes'] = self.defaults['chromosomes']
@@ -288,7 +289,7 @@ class Preprocess(Subcommand):
                 'full_dataset_dir': '',
                 'full_dataset_file': '',
                 'input_files': [],
-                'output_folder': os.path.join(os.path.expanduser('~'), 'deepnet_output'),
+                'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output'),
                 'reducelist': [],
                 'reduceratio': {},
                 'reduceseed': 112,
