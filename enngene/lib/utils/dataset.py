@@ -165,8 +165,8 @@ class Dataset:
         dna = alphabet == 'DNA'
         for branch in self.branches:
             if branch == 'seq':
-                if 'input_seq' in self.df.columns:
-                    self.df['seq'] = self.df['input_seq']
+                if 'input_sequence' in self.df.columns:
+                    self.df['seq'] = self.df['input_sequence']
                     self.encode_col('seq', alphabet)
                 else:
                     logger.info(f'Mapping intervals to the fasta reference...')
@@ -176,9 +176,9 @@ class Dataset:
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
             elif branch == 'fold':
                 logger.info(f'Mapping and folding the sequences...')
-                if 'input_seq' in self.df.columns:
-                    self.df['fold'] = self.df['input_seq']
-                    key_cols = ['input_seq']
+                if 'input_sequence' in self.df.columns:
+                    self.df['fold'] = self.df['input_sequence']
+                    key_cols = ['input_sequence']
                 else:
                     self.df = Dataset.map_to_fasta_dict(self.df, branch, references[branch], alphabet, strand)
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
@@ -234,14 +234,14 @@ class Dataset:
                     else:
                         raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
-        df.columns = ['header', 'input_seq']
+        df.columns = ['header', 'input_sequence']
         return df
 
     @staticmethod
     def read_in_text(text):
         df = pd.DataFrame()
         seq_series = pd.Series(text.strip().split('\n'))
-        df['input_seq'] = seq_series
+        df['input_sequence'] = seq_series
         return df
 
     @staticmethod
@@ -528,7 +528,7 @@ class Dataset:
             return row
 
         def fasta_window(row):
-            sequence = row['input_seq']
+            sequence = row['input_sequence']
             length = len(sequence)
             if length > window_size:
                 above = length - window_size
@@ -541,7 +541,7 @@ class Dataset:
             else:
                 new_sequence = sequence
 
-            row['input_seq'] = new_sequence
+            row['input_sequence'] = new_sequence
             return row
 
         if type == 'bed':

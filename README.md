@@ -10,7 +10,14 @@ empowering researchers that may not be experts in machine learning to perform th
 
 ### Installation
 
-TODO 
+#### Conda environment
+If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
+- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
+- Unzip the directory `tar -xf deepnet.tar.gz`
+- Go to the project directory `cd deepnet`
+- Recreate environment from yml file `conda env create -f environment.yml`
+- Activate the environment`conda activate enngene`
+- Run the app `cd enngene` and `streamlit run enngene.py`
 
 ### Implementation
 ENNGene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
