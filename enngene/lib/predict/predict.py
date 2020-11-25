@@ -124,7 +124,8 @@ class Predict(Subcommand):
             predict_x,
             verbose=1)
 
-        dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
+        for i, klass in enumerate(self.params['klasses']):
+            dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
         status.text('Exporting results...')
