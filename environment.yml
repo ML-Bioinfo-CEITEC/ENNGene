@@ -1,4 +1,4 @@
-name: deepnet-gui
+name: enngene
 channels:
   - bioconda
   - conda-forge
@@ -17,4 +17,3 @@ dependencies:
   - pydot=1.4.1=py36_0
   - pip:
     - streamlit==0.64
-
