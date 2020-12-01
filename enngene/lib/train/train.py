@@ -271,7 +271,10 @@ class Train(Subcommand):
             self.plot_training_metric(history, metric_name, title, train_plot_dir)
         self.plot_training_metric(history, 'loss', 'Loss', train_plot_dir)
 
-        tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
+        try:
+            tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
+        except:
+            logger.warning('Did not exported model plot due to an error.')
 
         # Evaluate
         status.text('Testing the network...')
