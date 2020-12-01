@@ -48,9 +48,9 @@ def enngene():
     )]
 
     st.sidebar.markdown('')
-    st.sidebar.markdown('[Documentation](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/README.md)')
-    st.sidebar.markdown('[FAQ](https://gitlab.com/RBP_Bioinformatics/deepnet/-/blob/master/FAQ.md)')
-    st.sidebar.markdown('[GitHub](https://gitlab.com/RBP_Bioinformatics/deepnet)')
+    st.sidebar.markdown('[Documentation](https://github.com/ML-Bioinfo-CEITEC/ENNGene/blob/master/README.md)')
+    st.sidebar.markdown('[FAQ](https://github.com/ML-Bioinfo-CEITEC/ENNGene/blob/master/FAQ.md)')
+    st.sidebar.markdown('[GitHub](https://github.com/ML-Bioinfo-CEITEC/ENNGene)')
 
     st.sidebar.markdown('---')
     encoded_ceitec_logo = base64.b64encode(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'imgs/CEITEC_logo_K-0.png'), "rb").read()).decode()
