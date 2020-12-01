@@ -61,9 +61,9 @@ def is_fasta(file):
                 try:
                     line1 = f.readline()
                     line2 = f.readline()
+                    if not line1 or not ('>' in line1) or not line2:
+                        invalid = True
                 except Exception:
-                    invalid = True
-                if not ('>' in line1) or not line2:
                     invalid = True
             warning = f"File {file} does not look like valid FASTA file."
         else:
