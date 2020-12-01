@@ -45,6 +45,17 @@ Currently, all input files (or folders) must be defined by an absolute path.
 
 Hopefully, this behavior will be removed with the framework update.
 
+##### Error handling
+All the user input is verified by the application for its correctness, to the possible extent. 
+When an incorrect input is given (e.g. file with a wrong format, non-existent folder etc.), the application gives a warning and exits before starting the task itself.
+This way, you can save a lot of time, instead of debugging the process yourself. 
+
+If you see an unspecified warning 'Unexpected error occurred in the application.', please check the provided log file for more details.
+Sometimes this happens as a result of a glitch in the Streamlit framework, and simple reloading the page with the application solves the issue.
+
+> **If you get an 'Unexpected error', try first reloading the page with the application. 
+>This sometimes happens due to a glitch in the Streamlit framework, and reloading the page solves the issue.** 
+
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
 
