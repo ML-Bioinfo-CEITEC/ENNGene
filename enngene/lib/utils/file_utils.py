@@ -31,11 +31,14 @@ def write(path, content):
 def unzip_if_zipped(zipped_file):
     if ".gz" in zipped_file:
         file = gzip.open(zipped_file, 'r')
+        zipped = True
     elif ".zip" in zipped_file:
         file = ZipFile(zipped_file).extractall()
+        zipped = True
     else:
         file = open(zipped_file)
-    return file
+        zipped = False
+    return file, zipped
 
 
 def read_decoded_line(opened_file, zipped):

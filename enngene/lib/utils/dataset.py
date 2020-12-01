@@ -354,11 +354,7 @@ class Dataset:
                         current_file.close()
                     current_chr = row['chrom_name']
 
-                    current_file = f.unzip_if_zipped(files[0])
-                    if '.gz' in files[0] or '.zip' in files[0]:
-                        zipped = True
-                    else:
-                        zipped = False
+                    current_file, zipped = f.unzip_if_zipped(files[0])
 
                     line = f.read_decoded_line(current_file, zipped)
                     # Expecting first line of the file to be a header
