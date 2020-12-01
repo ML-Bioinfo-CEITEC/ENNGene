@@ -57,14 +57,15 @@ def is_fasta(file):
         warning = 'You must provide the FASTA file.'
     else:
         if os.path.isfile(file):
-            with open(file) as f:
-                try:
-                    line1 = f.readline()
-                    line2 = f.readline()
-                    if not line1 or not ('>' in line1) or not line2:
-                        invalid = True
-                except Exception:
+            fasta, zipped = f.unzip_if_zipped(file)
+            try:
+                line1 = f.read_decoded_line(fasta, zipped)
+                print(line1)
+                line2 = f.read_decoded_line(fasta, zipped)
+                if not line1 or not ('>' in line1) or not line2:
                     invalid = True
+            except Exception:
+                invalid = True
             warning = f"File {file} does not look like valid FASTA file."
         else:
             invalid = True
