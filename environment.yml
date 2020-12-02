@@ -15,7 +15,7 @@ dependencies:
   - pip=20.0.2=py36_0
   - pyyaml=5.3.1
   - pydot=1.4.1=py36_0
+  - scikit-learn=0.23
   - seaborn=0.10
   - pip:
     - streamlit==0.64
-
