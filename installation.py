@@ -1,5 +1,5 @@
 from pathlib import Path 
-from subprocess import SubprocessError
+from subprocess import SubprocessError, check_output
 import subprocess
 import sys
 
@@ -45,6 +45,15 @@ def perform_and_check(cmd):
         return True
     except subprocess.CalledProcessError:
         print(colored('Oups, something went wrong, check the message above!', 'red'))
+        return False
+
+
+def conda_env_check(cmd):
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        print(colored('Conda environment named "enngene" already exists. Updating the env..\n', 'yellow'))
         return False
 
 
@@ -155,6 +164,7 @@ else:
     else:
         pass
 
+
 print(colored(f'Downloading ENNGene from the repository to {enngene_dir} \n', 'blue'))
 try:
     subprocess.run(f'git clone --single-branch --branch master https://github.com/ML-Bioinfo-CEITEC/ENNGene {enngene_dir}', shell=True, check=True)
@@ -169,12 +179,17 @@ else:
 
 # Create conda env and install all dependencies
 print(colored('Creating conda environment: enngene; installing all dependencies \n', 'blue'))
-conda_env = perform_and_check(cmd=f'conda env create -f {enngene_dir}/environment.yml')
+conda_env = conda_env_check(cmd=f'conda env create -f {enngene_dir}/environment.yml')
 if conda_env is True:
     print(colored('Complete! \nYou can activate env using cmd: conda activate enngene \n', 'green'))
 else:
-    print(colored(f'Environment set up has failed. \n\
+    conda_env_update = perform_and_check(cmd=f'conda env update --name enngene -f {enngene_dir}/environment.yml -v')
+    if conda_env_update is True:
+        print(colored('Complete! \nYou can activate env using cmd: conda activate enngene \n', 'green'))
+    else:
+        print(colored(f'Environment set up has failed. \n\
 Use the following command to create environment manually later: conda env create -f {enngene_dir}/environment.yml \n\
+If you only need to update enngene environment, use following command: conda env update --name engene -f {enngene_dir}/environment.yml \n\
 Installation continues.. \n', 'yellow'))
 
 
