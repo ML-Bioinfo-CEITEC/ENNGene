@@ -461,6 +461,10 @@ class Dataset:
         lines = out_file.readlines()
         out_file.close()
 
+        if (len(lines) / 3) + 1 == original_length:
+            # For some reason sometimes returns first sequence twice
+            lines = lines[3:]
+
         if (len(lines) / 3) == original_length:
             # The order should remain the same as long as --unordered is not set to True
             cols = list(self.df.columns)
