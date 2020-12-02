@@ -11,12 +11,12 @@ if len(conda_check.stdout) > 0:
     version = conda_check.stdout.decode('ascii')
     print(f'Anaconda is already installed! Version: {version}')
 else:
-    print('Cannot continue without Anaconda installed in your system. Read the Docs. Stopping instalation. \n', 'red')
+    print('Cannot continue without Anaconda installed in your system. Read the Docs. Stopping installation. \n', 'red')
     sys.exit(0)
 
 
 # Install and import python package termcolor
-print('Installing python package termcolor to conda env, that\'s neccessary for this installation script. \n')
+print('Installing python package termcolor to conda env, that\'s necessary for this installation script. \n')
 try:
     termcolor_pkg_install = subprocess.run('conda install termcolor', shell=True, check=True)
     print('\nPackage successfully installed. \n')
@@ -148,7 +148,7 @@ else:
     try:
         empty_dir = any(enngene_dir.iterdir())
         if empty_dir is True:
-            non_empty_default_dir_status = yes_or_no('Default directory is not empty. Do you want to delete its content (necessary for successfull cloning)? (y/n): ', color='yellow')
+            non_empty_default_dir_status = yes_or_no('Default directory is not empty. Do you want to delete its content (necessary for successful cloning)? (y/n): ', color='yellow')
             if non_empty_default_dir_status is True:
                 delete_directory_content = perform_and_check(f'rm -rf {enngene_dir}')
                 if delete_directory_content is True:
@@ -199,7 +199,7 @@ print(colored('Creating ENNGene launcher \n', 'blue'))
 tmp_launcher_path = enngene_dir / 'launcher.txt'
 final_launcher_path = enngene_dir / 'launcher.desktop'
 
-with tmp_launcher_path.open('w', encoding ='utf-8') as launcher:
+with tmp_launcher_path.open('w', encoding='utf-8') as launcher:
     launcher.write(
         f'#!/bin/bash\n\
         [Desktop Entry]\n\
