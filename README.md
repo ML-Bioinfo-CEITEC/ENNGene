@@ -25,7 +25,7 @@ If the installation does not work for you, please follow the steps for the manua
 
 #### Manual installation
 If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
-- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
+- Download the latest release from [the repository](https://github.com/ML-Bioinfo-CEITEC/ENNGene/releases)
 - Unzip the directory `tar -xf enngene.tar.gz`
 - Go to the project directory `cd enngene`
 - Recreate environment from yml file `conda env create -f environment.yml`
@@ -265,16 +265,6 @@ are preserved in the result file (e.g. fasta header or coordinates from a bed fi
 One column shows raw probabilities predicted by the model, the other class with the highest probability (#TODO decide upon the threshold). 
 
 <!--
-### Installation
-#### Conda environment
-If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
-- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
-- Unzip the directory `tar -xf deepnet.tar.gz`
-- Go to the project directory `cd deepnet`
-- Recreate environment from yml file `conda env create -f environment.yml`
-- Activate the environment`conda activate deepnet-app`
-- Run the app `cd deepnet` and `streamlit run enngene.py`
-
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.
 
