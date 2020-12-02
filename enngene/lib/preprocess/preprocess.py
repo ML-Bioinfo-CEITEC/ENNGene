@@ -231,8 +231,7 @@ class Preprocess(Subcommand):
             if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
                 status.text('Reading in reference fasta file...')
                 fasta_dict, valid_chromosomes, alphabet = seq.parse_fasta_reference(self.references['seq'])
-                if 'seq' in self.params['branches']:
-                    self.params['alphabet'] = seq.define_alphabet(alphabet)
+                self.params['alphabet'] = seq.define_alphabet(alphabet)
                 if not valid_chromosomes:
                     raise UserInputError('Sorry, did not find any chromosomes in given fasta file.')
                 self.references.update({'seq': fasta_dict, 'fold': fasta_dict})

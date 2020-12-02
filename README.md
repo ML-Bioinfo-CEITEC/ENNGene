@@ -9,12 +9,25 @@ empowering researchers that may not be experts in machine learning to perform th
 > We are preparing a video tutorial for an even easier start with the ENNGene application!
 
 ### Installation
+To install ENNGene, you need the following prerequisites:
+- [Python 3](https://www.python.org/) - Python language is usually already available with the OS
+- [Anaconda](https://www.anaconda.com/products/individual) - Python package manager for safe installation 
 
-#### Conda environment
+For 'one-click' installation, please copy the following lines into the terminal:
+
+`curl -fsSL https://raw.githubusercontent.com/ML-Bioinfo-CEITEC/ENNGene/master/installation.py > ENNGene_installation.py`
+
+`python3 ENNGene_installation.py`
+
+This will download the repository, and create a new conda environment where all the necessary packages will be installed.
+
+If the installation does not work for you, please follow the steps for the manual installation below.
+
+#### Manual installation
 If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
 - Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
-- Unzip the directory `tar -xf deepnet.tar.gz`
-- Go to the project directory `cd deepnet`
+- Unzip the directory `tar -xf enngene.tar.gz`
+- Go to the project directory `cd enngene`
 - Recreate environment from yml file `conda env create -f environment.yml`
 - Activate the environment`conda activate enngene`
 - Run the app `cd enngene` and `streamlit run enngene.py`
@@ -45,6 +58,17 @@ Currently, all input files (or folders) must be defined by an absolute path.
 
 Hopefully, this behavior will be removed with the framework update.
 
+##### Error handling
+All the user input is verified by the application for its correctness, to the possible extent. 
+When an incorrect input is given (e.g. file with a wrong format, non-existent folder etc.), the application gives a warning and exits before starting the task itself.
+This way, you can save a lot of time, instead of debugging the process yourself. 
+
+If you see an unspecified warning 'Unexpected error occurred in the application.', please check the provided log file for more details.
+Sometimes this happens as a result of a glitch in the Streamlit framework, and simple reloading the page with the application solves the issue.
+
+> **If you get an 'Unexpected error', try first reloading the page with the application. 
+>This sometimes happens due to a glitch in the Streamlit framework, and reloading the page solves the issue.** 
+
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
 
@@ -56,8 +80,6 @@ Each input type later corresponds to a branch in the neural network.
  * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
  * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
  * Conservation score – counted based on the user provided reference file/s. 
-
-`Alphabet` Define the nature of the sequences (DNA or RNA).
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
@@ -224,8 +246,6 @@ You can provide the input sequences you wish to classify in following formats:
  * Text input - Paste one sequence per line.
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
-
-`Alphabet` Define the nature of the sequences (DNA or RNA).
 
 `BED file` When providing the sequences via an interval file, following must be specified:
  * `Path to the BED file containing intervals to be classified`

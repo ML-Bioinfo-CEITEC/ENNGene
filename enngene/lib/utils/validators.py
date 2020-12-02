@@ -57,14 +57,15 @@ def is_fasta(file):
         warning = 'You must provide the FASTA file.'
     else:
         if os.path.isfile(file):
-            with open(file) as f:
-                try:
-                    line1 = f.readline()
-                    line2 = f.readline()
-                except Exception:
+            fasta, zipped = f.unzip_if_zipped(file)
+            try:
+                line1 = f.read_decoded_line(fasta, zipped)
+                print(line1)
+                line2 = f.read_decoded_line(fasta, zipped)
+                if not line1 or not ('>' in line1) or not line2:
                     invalid = True
-                if not ('>' in line1) or not line2:
-                    invalid = True
+            except Exception:
+                invalid = True
             warning = f"File {file} does not look like valid FASTA file."
         else:
             invalid = True
@@ -85,9 +86,8 @@ def is_wig_dir(folder):
             files = f.list_files_in_dir(folder, 'wig')
             one_wig = next((file for file in files if 'wig' in file), None)
             if one_wig:
-                zipped = True if ('gz' in one_wig or 'zip' in one_wig) else False
                 try:
-                    wig_file = f.unzip_if_zipped(one_wig)
+                    wig_file, zipped = f.unzip_if_zipped(one_wig)
                     line1 = f.read_decoded_line(wig_file, zipped)
                     if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
                         invalid = True

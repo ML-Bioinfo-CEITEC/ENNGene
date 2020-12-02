@@ -22,7 +22,6 @@ def read_and_cache(fasta):
 
 
 def parse_fasta_reference(fasta_file):
-    file = f.filehandle_for(fasta_file)
     seq_dict = {}
     chromosomes = []
     alphabet = set()
@@ -30,7 +29,12 @@ def parse_fasta_reference(fasta_file):
     key = None
     value = ""
 
-    for line in file:
+    file, zipped = f.unzip_if_zipped(fasta_file)
+    while True:
+        line = f.read_decoded_line(file, zipped)
+        if not line:
+            break
+    
         if '>' in line:
             # Save finished previous key value pair (unless it's the first iteration)
             if key:  # and is_valid_chr(key):

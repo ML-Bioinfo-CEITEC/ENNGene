@@ -291,13 +291,10 @@ class Subcommand:
         return 'Training directory\t' \
                'Evaluation loss\t' \
                'Evaluation accuracy\t' \
-               'Evaluation AUC\t' \
                'Training loss\t' \
                'Training accuracy\t' \
-               'Training AUC\t' \
                'Validation loss\t' \
                'Validation accuracy\t' \
-               'Validation AUC\t' \
                'Training branches\t' \
                'Batch size\t' \
                'Optimizer\t' \
@@ -314,13 +311,10 @@ class Subcommand:
         return f"{os.path.basename(params['train_dir'])}\t" \
                f"{params['eval_loss']}\t" \
                f"{params['eval_acc']}\t" \
-               f"{params['eval_auc']}\t" \
                f"{params['train_loss']}\t" \
                f"{params['train_acc']}\t" \
-               f"{params['train_auc']}\t" \
                f"{params['val_loss']}\t" \
                f"{params['val_acc']}\t" \
-               f"{params['val_auc']}\t" \
                f"{[self.get_dict_key(b, self.BRANCHES) for b in params['branches']]}\t" \
                f"{params['batch_size']}\t" \
                f"{self.get_dict_key(params['optimizer'], self.OPTIMIZERS)}\t" \
