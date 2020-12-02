@@ -60,7 +60,6 @@ def is_fasta(file):
             fasta, zipped = f.unzip_if_zipped(file)
             try:
                 line1 = f.read_decoded_line(fasta, zipped)
-                print(line1)
                 line2 = f.read_decoded_line(fasta, zipped)
                 if not line1 or not ('>' in line1) or not line2:
                     invalid = True
