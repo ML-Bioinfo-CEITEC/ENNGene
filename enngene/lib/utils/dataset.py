@@ -461,7 +461,7 @@ class Dataset:
         lines = out_file.readlines()
         out_file.close()
 
-        if (len(lines) / 3) + 1 == original_length:
+        if (len(lines) / 3) - 1 == original_length:
             # For some reason sometimes returns first sequence twice
             lines = lines[3:]
 
