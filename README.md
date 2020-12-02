@@ -79,7 +79,7 @@ Using a mapped file, you can still change the datasets' size, or redistribute da
 Each input type later corresponds to a branch in the neural network.
  * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
  * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
- * Conservation score – counted based on the user provided reference file/s. 
+ * Conservation score – counted based on the user provided reference file/s. This option is the most time-consuming, we advise to use it judiciously.
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
