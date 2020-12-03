@@ -243,7 +243,7 @@ Please, check your permissions and set up privileges of the launcher later with 
     \tstreamlit run {enngene_dir}/enngene/enngene.py \n', 'yellow'))
         sys.exit(0)
 else:
-    print(colored('\nSkipping desktop launcher. \n\
+    print(colored(f'\nSkipping desktop launcher. \n\
 You can create a desktop launcher later by using following commands: \n\
 \t cp {enngene_dir}/launcher.desktop {home}/Desktop/ \n\
 \t chmod a+x {home}/Desktop/launcher.desktop \n', 'green'))

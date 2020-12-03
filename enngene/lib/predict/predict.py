@@ -111,7 +111,7 @@ class Predict(Subcommand):
                 dataset = Dataset(text_input=self.params['seq_source'], branches=self.params['branches'], category='predict',
                                   win=self.params['win'], winseed=self.params['winseed'])
 
-        dataset.map_to_branches(
+        dataset.sort_datapoints().map_to_branches(
             self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, self.ncpu)
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()

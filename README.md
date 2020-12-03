@@ -79,7 +79,7 @@ Using a mapped file, you can still change the datasets' size, or redistribute da
 Each input type later corresponds to a branch in the neural network.
  * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
  * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
- * Conservation score – counted based on the user provided reference file/s. 
+ * Conservation score – counted based on the user provided reference file/s. This option is the most time-consuming, we advise to use it judiciously.
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
@@ -261,8 +261,9 @@ You can provide the input sequences you wish to classify in following formats:
 Calculating the predictions might take minutes to hours, depending on the number of sequnces, branches, hardware available etc.
 
 Results are exported to the 'prediction' subfolder in the selected `output folder`. Information about the input sequences
-are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are two more columns with the results appended.
-One column shows raw probabilities predicted by the model, the other class with the highest probability (#TODO decide upon the threshold). 
+are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are multiple columns with the results appended.
+First, there is one column per each klass showing predicted probability of the sequence belonging to the given class.
+Last column shows highest scoring class (do not confuse with predicted class - that is based on the user's choice of the threshold for each class).
 
 <!--
 ### Development
