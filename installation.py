@@ -39,21 +39,12 @@ def yes_or_no(question, color='blue'):
         yes_or_no(question)
 
 
-def perform_and_check(cmd):
+def perform_and_check(cmd, color='red', answer='Oups, something went wrong, check the message above! \n'):
     try:
         subprocess.run(cmd, shell=True, check=True)
         return True
     except subprocess.CalledProcessError:
-        print(colored('Oups, something went wrong, check the message above!', 'red'))
-        return False
-
-
-def conda_env_check(cmd):
-    try:
-        subprocess.run(cmd, shell=True, check=True)
-        return True
-    except subprocess.CalledProcessError:
-        print(colored('Conda environment named "enngene" already exists. Updating the env..\n', 'yellow'))
+        print(colored(f'{answer}', color))
         return False
 
 
@@ -179,19 +170,39 @@ else:
 
 # Create conda env and install all dependencies
 print(colored('Creating conda environment: enngene; installing all dependencies \n', 'blue'))
-conda_env = conda_env_check(cmd=f'conda env create -f {enngene_dir}/environment.yml')
+conda_env = perform_and_check(cmd=f'conda env create -f {enngene_dir}/environment.yml', 
+                              answer='Conda environment named "enngene" already exists. Updating the env..\n',
+                              color='yellow')
 if conda_env is True:
     print(colored('Complete! \nYou can activate env using cmd: conda activate enngene \n', 'green'))
 else:
-    conda_env_update = perform_and_check(cmd=f'conda env update --name enngene -f {enngene_dir}/environment.yml -v')
+    conda_env_update = perform_and_check(cmd=f'conda env update --name enngene -f {enngene_dir}/environment.yml',
+                                        color='yellow')
     if conda_env_update is True:
         print(colored('Complete! \nYou can activate env using cmd: conda activate enngene \n', 'green'))
     else:
-        print(colored(f'Environment set up has failed. \n\
+        conda_env_remove_status = yes_or_no(f'There is problem with updating existing enngene environment. Do you agree with removing old environment \
+and replacing it with a new one? (y/n) ')
+        if conda_env_remove_status is True:
+            conda_remove_env = perform_and_check(cmd=f'conda env remove --name enngene')
+            if conda_remove_env is True:
+                print(colored('Complete! \nOld enngene environment was successfully removed.\n', 'green'))
+                print(colored('Creating conda environment: enngene; installing all dependencies \n', 'blue'))
+                new_conda_env = perform_and_check(cmd=f'conda env create -f {enngene_dir}/environment.yml',
+                                                  color='red')
+                if new_conda_env is True:
+                    print(colored('Complete! \nYou can activate env using cmd: conda activate enngene \n', 'green'))
+                else:
+                    print(colored(f'Environment set up has failed. \n\
 Use the following command to create environment manually later: conda env create -f {enngene_dir}/environment.yml \n\
 If you only need to update enngene environment, use following command: conda env update --name engene -f {enngene_dir}/environment.yml \n\
 Installation continues.. \n', 'yellow'))
-
+        else:
+            print(colored(f'Cannot continue without removing existing enngene environment.. \n\
+Use the following commands to remove and re-create environment manually later: \n\
+\t\t\t\t conda env remove --name enngene \n\
+\t\t\t\t conda env create -f {enngene_dir}/environment.yml \n', 'yellow'))
+        
 
 # Create and activate ENNGene launcher
 print(colored('Creating ENNGene launcher \n', 'blue'))
