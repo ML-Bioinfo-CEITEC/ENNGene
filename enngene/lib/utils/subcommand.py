@@ -114,8 +114,9 @@ class Subcommand:
                             training_params['win'] = user_params['Preprocess']['win']
                             training_params['winseed'] = user_params['Preprocess']['winseed']
                             training_params['alphabet'] = user_params['Preprocess']['alphabet']
-                            training_params['no_klasses'] = len(user_params['Preprocess']['klasses'])
-                            training_params['klasses'] = user_params['Preprocess']['klasses']
+                            klasses = list(set(user_params['Preprocess']['klasses']))
+                            training_params['no_klasses'] = len(klasses)
+                            training_params['klasses'] = klasses
                             training_params['branches'] = user_params['Train']['branches']
                         except:
                             missing_params = True

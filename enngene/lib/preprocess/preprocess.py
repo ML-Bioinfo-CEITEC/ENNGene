@@ -26,7 +26,9 @@ class Preprocess(Subcommand):
                                 'is_full_dataset': [],
                                 'is_ratio': [],
                                 'not_empty_chromosomes': [],
-                                'min_two_files': []}
+                                'min_two_files': [],
+                                'uniq_files': [],
+                                'uniq_klasses': []}
         self.params['klasses'] = []
         self.params['full_dataset_dir'] = ''
         self.klass_sizes = {}
@@ -101,12 +103,17 @@ class Preprocess(Subcommand):
                                 self.params['klasses'].append(klass)
                                 # subprocess.run(['wc', '-l', file], check=True)
                                 self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
+                            if klass in self.params['klasses']:
+                                warning.markdown(
+                                    f'**WARNING**: Class {klass} already used. Class names must be unique.')
                     else:
                         warning.markdown(
                             '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
                 else:
                     st.markdown(f'##### **WARNING**: Input file no. {i+1} does not exist.')
             self.validation_hash['min_two_files'].append(self.params['input_files'])
+            self.validation_hash['uniq_files'].append(self.params['input_files'])
+            self.validation_hash['uniq_klasses'].append(self.params['klasses'])
         else:
             # When using already mapped file
             self.params['full_dataset_dir'] = st.text_input(f"Folder from the previous run of the task (must contain 'full_datasets' subfolder)", value=self.defaults['full_dataset_dir'])

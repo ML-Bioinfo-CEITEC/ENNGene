@@ -19,6 +19,16 @@ def min_two_files(input_files):
     return warning if len(input_files) < 2 else None
 
 
+def uniq_files(input_files):
+    warning = f"The input files must be unique. Currently: {', '.join(input_files)}."
+    return warning if any(input_files.count(element) > 1 for element in input_files) else None
+
+
+def uniq_klasses(klasses):
+    warning = f"The class names must be unique. Currently: {', '.join(klasses)}."
+    return warning if any(klasses.count(element) > 1 for element in klasses) else None
+
+
 def is_bed(file):
     invalid = False
 
