@@ -77,20 +77,20 @@ class Preprocess(Subcommand):
             st.markdown('## Input Coordinate Files')
 
             warning = st.empty()
-            self.params['input_files'] = self.defaults['input_files']
             no_files = st.number_input('Number of input files (= no. of classes):', min_value=2,
                                        value=max(2, len(self.defaults['input_files'])))
-            self.params['input_files'] = self.params['input_files'][0:no_files]
+            self.params['input_files'] = [None] * no_files
+            for i, file in enumerate(self.defaults['input_files']):
+                if len(self.params['input_files']) >= i+1:
+                    self.params['input_files'][i] = self.defaults['input_files'][i]
+            self.params['klasses'] = [None] * no_files
 
             self.allowed_extensions = ['.bed', '.narrowPeak']
 
             for i in range(no_files):
                 file = st.text_input(f'File no. {i+1} (.bed)',
                     value=(self.defaults['input_files'][i] if len(self.defaults['input_files']) > i else ''))
-                if len(self.params['input_files']) >= i+1:
-                    self.params['input_files'][i] = file
-                else:
-                    self.params['input_files'].append(file)
+                self.params['input_files'][i] = file
 
                 if not file: continue
                 self.validation_hash['is_bed'].append(file)
@@ -100,17 +100,15 @@ class Preprocess(Subcommand):
                         for ext in self.allowed_extensions:
                             if ext in file_name:
                                 klass = file_name.replace(ext, '')
-                                self.params['klasses'].append(klass)
+                                self.params['klasses'][i] = klass
                                 # subprocess.run(['wc', '-l', file], check=True)
                                 self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
-                            if klass in self.params['klasses']:
-                                warning.markdown(
-                                    f'**WARNING**: Class {klass} already used. Class names must be unique.')
                     else:
                         warning.markdown(
                             '**WARNING**: Only files of following format are allowed: {}.'.format(', '.join(self.allowed_extensions)))
                 else:
                     st.markdown(f'##### **WARNING**: Input file no. {i+1} does not exist.')
+
             self.validation_hash['min_two_files'].append(self.params['input_files'])
             self.validation_hash['uniq_files'].append(self.params['input_files'])
             self.validation_hash['uniq_klasses'].append(self.params['klasses'])

@@ -15,17 +15,19 @@ def not_empty_branches(branches):
 
 
 def min_two_files(input_files):
+    files = [f for f in input_files if not None]
     warning = 'You must provide at least two input files for a classification problem.'
-    return warning if len(input_files) < 2 else None
+    return warning if len(files) < 2 else None
 
 
 def uniq_files(input_files):
-    warning = f"The input files must be unique. Currently: {', '.join(input_files)}."
-    return warning if any(input_files.count(element) > 1 for element in input_files) else None
+    files = [f for f in input_files if not None]
+    warning = f"The input files must be unique. Currently: {files}."
+    return warning if any(files.count(element) > 1 for element in files) else None
 
 
 def uniq_klasses(klasses):
-    warning = f"The class names must be unique. Currently: {', '.join(klasses)}."
+    warning = f"The class names must be unique. Currently: {klasses}."
     return warning if any(klasses.count(element) > 1 for element in klasses) else None
 
 
