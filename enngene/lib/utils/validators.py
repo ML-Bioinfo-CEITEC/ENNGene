@@ -15,8 +15,20 @@ def not_empty_branches(branches):
 
 
 def min_two_files(input_files):
+    files = [f for f in input_files if not None]
     warning = 'You must provide at least two input files for a classification problem.'
-    return warning if len(input_files) < 2 else None
+    return warning if len(files) < 2 else None
+
+
+def uniq_files(input_files):
+    files = [f for f in input_files if not None]
+    warning = f"The input files must be unique. Currently: {files}."
+    return warning if any(files.count(element) > 1 for element in files) else None
+
+
+def uniq_klasses(klasses):
+    warning = f"The class names must be unique. Currently: {klasses}."
+    return warning if any(klasses.count(element) > 1 for element in klasses) else None
 
 
 def is_bed(file):
@@ -58,14 +70,19 @@ def is_fasta(file):
     else:
         if os.path.isfile(file):
             fasta, zipped = f.unzip_if_zipped(file)
-            try:
-                line1 = f.read_decoded_line(fasta, zipped)
-                line2 = f.read_decoded_line(fasta, zipped)
-                if not line1 or not ('>' in line1) or not line2:
-                    invalid = True
-            except Exception:
+            # the fasta must be unzipped for the bedtools
+            if zipped:
                 invalid = True
-            warning = f"File {file} does not look like valid FASTA file."
+                warning = 'The fasta file must be extracted first. Can not accept compressed file.'
+            else:
+                try:
+                    line1 = f.read_decoded_line(fasta, zipped)
+                    line2 = f.read_decoded_line(fasta, zipped)
+                    if not line1 or not ('>' in line1) or not line2:
+                        invalid = True
+                except Exception:
+                    invalid = True
+                warning = f"File {file} does not look like valid FASTA file."
         else:
             invalid = True
             warning = f'Given FASTA file {file} does not exist.'

@@ -17,7 +17,7 @@ class MyLocallyConnected1D:
 
     @staticmethod
     def build(x, filters=40, kernel=4, batchnorm=False, dropout=None):
-        x = LocallyConnected1D(filters=filters, kernel_size=kernel, padding='same')(x)
+        x = LocallyConnected1D(filters=filters, kernel_size=kernel, padding='valid')(x)
         x = LeakyReLU()(x)
         if batchnorm: x = BatchNormalization()(x)
         x = MaxPooling1D(pool_size=2, padding='same')(x)

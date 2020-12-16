@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import re
 import streamlit as st
 import subprocess
 import sys
@@ -121,21 +122,19 @@ class Dataset:
 
         if len(df.columns) == 3:
             df.columns = ['chrom_name', 'seq_start', 'seq_end']
-            df['strand_sign'] = ''
+            df['strand_sign'] = ''; df['name'] = ''; df['score'] = np.nan
         elif len(df.columns) >= 6:
-            df = df[[0, 1, 2, 5]]
-            df.columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
+            df = df[[0, 1, 2, 3, 4, 5]]
+            df.columns = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
         else:
             raise UserInputError('Invalid format of a .bed file.')
         if self.klass:
             df['klass'] = self.klass
 
-        # TODO is it possible to do that in one line using just boolean masking? (could not manage that...)
         # def check_valid(row):
         #     return row if seq.is_valid_chr(row['chrom_name']) else None
-
         # df = df.apply(check_valid, axis=1).dropna()
-        df = df.dropna()
+
         return df
 
     def reduce(self, ratio, seed):
@@ -163,28 +162,41 @@ class Dataset:
 
     def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=1):
         dna = alphabet == 'DNA'
+        mapped = False
+        # map seq branch first so that we can replace the df without loosing anny information
+        self.branches.sort(key=lambda x: (x != 'seq', x != 'fold'))
+
         for branch in self.branches:
             if branch == 'seq':
                 if 'input_sequence' in self.df.columns:
                     self.df['seq'] = self.df['input_sequence']
-                    self.encode_col('seq', alphabet)
                 else:
                     logger.info(f'Mapping intervals to the fasta reference...')
-                    self.df = Dataset.map_to_fasta_dict(self.df, branch, references[branch], alphabet, strand)
+                    self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
+                    mapped = True
             elif branch == 'cons':
                 logger.info(f'Mapping sequences to the wig reference...')
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
             elif branch == 'fold':
-                logger.info(f'Mapping and folding the sequences...')
+                logger.info(f'Folding the sequences...')
                 if 'input_sequence' in self.df.columns:
                     self.df['fold'] = self.df['input_sequence']
                     key_cols = ['input_sequence']
                 else:
-                    self.df = Dataset.map_to_fasta_dict(self.df, branch, references[branch], alphabet, strand)
+                    if mapped:
+                        self.df['fold'] = self.df['seq']  # already finished above
+                    else:
+                        self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
                 self.fold_branch(key_cols, ncpu, dna=dna)
 
+        if 'seq' in self.branches:
+            # encode it at the end, so that it can be used for folding before that
+            encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
+            self.encode_col('seq', encoding)
+
+        self.df.dropna(inplace=True)
         self.save_to_file(outfile_path, do_zip=True)
         return self
 
@@ -197,16 +209,16 @@ class Dataset:
         self.df.to_csv(outfile_path, sep='\t', columns=to_export, index=False)
 
         if do_zip:
-            logger.info(f'Compressing dataset file...')
+            logger.info(f'Compressing dataset file... {outfile_path}')
             zipped = ZipFile(f'{outfile_path}.zip', 'w')
             zipped.write(outfile_path, os.path.basename(outfile_path), compress_type=ZIP_DEFLATED)
             zipped.close()
             os.remove(outfile_path)
 
-    def encode_col(self, col, alphabet):
+    def encode_col(self, col, encoding):
         def map(row):
             sequence = row[col]
-            encoded = Dataset.encode_sequence(sequence, alphabet)
+            encoded = Dataset.encode_sequence(sequence, encoding)
             row[col] = self.sequence_to_string(encoded)
             return row
 
@@ -245,43 +257,77 @@ class Dataset:
         return df
 
     @staticmethod
-    def map_to_fasta_dict(df, branch, ref_dictionary, alphabet, strand):
-        # Returns only successfully mapped samples
-        old_shape = df.shape[0]
+    def map_to_fasta(df, branch, strand, fasta):
         df[branch] = None
+        tmp_dir = tempfile.gettempdir()
+        tmp_df = df
+        has_klass = 'klass' in df.columns
 
-        def map(row):
-            if row['chrom_name'] in ref_dictionary.keys():
-                sequence = []
-                for i in range(row['seq_start'], row['seq_end']):
-                    if i < len(ref_dictionary[row['chrom_name']]):
-                        sequence.append(ref_dictionary[row['chrom_name']][i])
-                    else:
-                        break
-                if (row['seq_end'] - row['seq_start']) == len(sequence):
-                    if strand and row['strand_sign'] == '-':
-                        sequence = seq.complement(sequence, seq.COMPLEMENTARY[alphabet])
-                    if branch == 'seq':
-                        row[branch] = Dataset.sequence_to_string(Dataset.encode_sequence(sequence, alphabet))
-                    elif branch == 'fold':
-                        #  only temporary value for folding (won't be saved like this to file)
-                        row[branch] = ''.join(sequence)
-                else:
-                    row[branch] = None
+        # we need to preserve klass name in Preprocessing, while bedtools can only keep name column
+        if has_klass: df['name'] = df['klass']
+
+        if strand:
+            key_cols = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
+            tmp_df['name'] = tmp_df['name'].replace(r'^\s*$', 'x', regex=True)
+            tmp_df['strand_sign'] = tmp_df['strand_sign'].replace(r'^\s*$', '+', regex=True)
+        else:
+            key_cols = ['chrom_name', 'seq_start', 'seq_end']
+        bed_file = Dataset.dataframe_to_bed(tmp_df, key_cols, tmp_dir, f'bed_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+
+        tmp_file = os.path.join(tmp_dir, f'mapped_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        err_file = os.path.join(tmp_dir, f'err_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        out_file = open(tmp_file, 'w+')
+        out_err = open(err_file, 'w+')
+
+        try:
+            if strand:
+                subprocess.run(['bedtools', 'getfasta', '-s', '-name', '-tab', '-fi', fasta, '-bed', bed_file],
+                               stdout=out_file, stderr=out_err, check=True)
             else:
-                row[branch] = None
-            return row
+                subprocess.run(['bedtools', 'getfasta', '-name', '-tab', '-fi', fasta, '-bed', bed_file],
+                               stdout=out_file, stderr=out_err, check=True)
+        except Exception:
+            raise ProcessError('There was an error during mapping sequences to the fasta reference. '
+                               f'Please check bedtools error report: {err_file}.')
 
-        df = df.apply(map, axis=1)
-        df.dropna(subset=[branch], inplace=True)
+        bedtools_df = pd.read_csv(tmp_file, sep='\t', header=None)
 
-        portion = round((df.shape[0] / old_shape * 100), 2)
-        logger.info(f'Successfully mapped {portion}% of samples.')
-        return df
+        if len(df) == len(bedtools_df):
+            df[branch] = bedtools_df.iloc[:, 1]
+            new_df = df
+        else:
+            logger.info(f'Mapped {len(bedtools_df)} sequences out of {len(df)}')
+            # It is too slow to cherrypick the mapped into to original df, so we replace it by the smaller one instead
+            bedtools_df.columns = ['header', branch]
+            bedtools_df['chrom_name'] = ''; bedtools_df['seq_start'] = np.nan; bedtools_df['seq_end'] = np.nan; bedtools_df['klass'] = None
+
+            def parse_header(row):
+                header = row['header']
+                klass, rest = header.split('::')
+                chr, rest = rest.split(':')
+                start = int(rest.split('-')[0])
+                rest = rest.split('-')[1]
+                end = int(rest.split('(')[0])
+                match = re.search(r'\((.)\)$', rest)
+                strand = match[1] if match else ''
+
+                row['chrom_name'] = chr
+                row['seq_start'] = start
+                row['seq_end'] = end
+                if has_klass: row['klass'] = klass
+                row['strand_sign'] = strand
+                return row
+            new_df = bedtools_df.apply(parse_header, axis=1)
+            new_df = new_df.drop('header', 1)
+            reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
+            new_df = new_df[reordered_cols]
+
+        print(new_df)
+
+        return new_df
 
     @staticmethod
-    def encode_sequence(sequence, alphabet):
-        encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
+    def encode_sequence(sequence, encoding):
         new_sequence = [seq.translate(item, encoding) for item in sequence]
         return new_sequence
 
@@ -385,7 +431,7 @@ class Dataset:
                 # Score may be fully or partially missing if the coordinates are not part of the reference
                 df.loc[i, branch] = Dataset.sequence_to_string(score)
 
-        df.dropna(subset=[branch], inplace=True)
+        # df.dropna(subset=[branch], inplace=True)
         return df
 
     @staticmethod
@@ -489,6 +535,24 @@ class Dataset:
             raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
 
         return self
+
+    @staticmethod
+    def dataframe_to_bed(df, key_cols, path, name):
+        path_to_bed = os.path.join(path, (name + ".bed"))
+        content = []
+
+        def to_bed(row):
+            cols = ""
+            for col in key_cols:
+                cols += str(row[col])
+                cols += '\t'
+            line = cols.strip() + '\n'
+            content.append(line)
+            return row
+
+        df.apply(to_bed, axis=1)
+        f.write(path_to_bed, ''.join(content).strip())
+        return path_to_bed
 
     @staticmethod
     def dataframe_to_fasta(df, branch, key_cols, path, name):

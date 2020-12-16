@@ -22,7 +22,6 @@ def read_and_cache(fasta):
 
 
 def parse_fasta_reference(fasta_file):
-    seq_dict = {}
     chromosomes = []
     alphabet = set()
 
@@ -40,7 +39,6 @@ def parse_fasta_reference(fasta_file):
             if key:  # and is_valid_chr(key):
                 # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
                 chromosomes.append(key)
-                seq_dict.update({key: value.strip()})
 
             key = line.strip().strip('>')
             value = ""
@@ -53,14 +51,10 @@ def parse_fasta_reference(fasta_file):
             else:
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
-    # Save the last kay value pair
-    if key:  # and is_valid_chr(key):
-        chromosomes.append(key)
-        seq_dict.update({key: value.strip()})
     file.close()
     chromosomes.sort()
 
-    return seq_dict, chromosomes, alphabet
+    return chromosomes, alphabet
 
 
 # def is_valid_chr(chromosome):
@@ -112,7 +106,6 @@ def complement(sequence_list, dictionary):
     return [dictionary[base] for base in sequence_list]
 
 
-@st.cache
 def onehot_encode_alphabet(alphabet):
     class_name = alphabet.__class__.__name__
     if class_name != 'list' and class_name != 'ndarray':

@@ -223,7 +223,8 @@ class Train(Subcommand):
         if self.previous_param_file:
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
-                encoded_labels = seq.onehot_encode_alphabet(previous_params['Preprocess']['klasses'])
+                klasses = list(set(previous_params['Preprocess']['klasses']))
+                encoded_labels = seq.onehot_encode_alphabet(klasses)
         else:
             raise UserInputError('Could not read class labels from parameters.yaml file).')
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], encoded_labels)
