@@ -97,10 +97,6 @@ class Predict(Subcommand):
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
                               win=self.params['win'], winseed=self.params['winseed'])
-            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
-                status.text('Parsing reference fasta file...')
-                fasta_dict, _, _ = seq.parse_fasta_reference(self.params['fasta_ref'])
-                self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
             status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
 
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':

@@ -163,11 +163,10 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        fasta_dict, self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
+                        self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
                         self.params['alphabet'] = seq.define_alphabet(alphabet)
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
-                    self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             if self.params['fasta']:
                 if self.params['valid_chromosomes']:
@@ -184,7 +183,7 @@ class Preprocess(Subcommand):
                     self.params['chromosomes'].update({'test': set(
                         st.multiselect('Test Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['test'])))})
                     self.params['chromosomes'].update({'blackbox': set(
-                      st.multiselect('BlackBox Dataset', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
+                      st.multiselect('BlackBox Dataset (optional)', self.params['valid_chromosomes'], list(self.defaults['chromosomes']['blackbox'])))})
                     self.validation_hash['not_empty_chromosomes'].append(list(self.params['chromosomes'].items()))
                 else:
                     raise UserInputError('Sorry, did not find any valid chromosomes in given fasta file.')
@@ -232,14 +231,10 @@ class Preprocess(Subcommand):
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
-            # Read-in fasta file to dictionary if it's needed and it is not yet read in
             if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
-                status.text('Reading in reference fasta file...')
-                fasta_dict, valid_chromosomes, alphabet = seq.parse_fasta_reference(self.references['seq'])
+                status.text('Checking reference fasta file...')
+                _, alphabet = seq.parse_fasta_reference(self.references['seq'])
                 self.params['alphabet'] = seq.define_alphabet(alphabet)
-                if not valid_chromosomes:
-                    raise UserInputError('Sorry, did not find any chromosomes in given fasta file.')
-                self.references.update({'seq': fasta_dict, 'fold': fasta_dict})
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
@@ -248,13 +243,16 @@ class Preprocess(Subcommand):
                 self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, self.ncpu)
 
         status.text('Processing mapped samples...')
+        print('Processing mapped samples...')
         mapped_datasets = set()
         for klass in self.params['klasses']:
+            print(klass)
             df = merged_dataset.df[merged_dataset.df['klass'] == klass]
             mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
         split_datasets = set()
         for dataset in mapped_datasets:
+            print(dataset)
             # Reduce size of selected klasses
             if self.params['reducelist'] and (dataset.klass in self.params['reducelist']):
                 status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
@@ -270,9 +268,14 @@ class Preprocess(Subcommand):
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
         status.text('Redistributing samples to categories and exporting into final files...')
+        print('Redistributing samples to categories and exporting into final files...')
         final_datasets = Dataset.merge_by_category(split_datasets)
 
+        print('no of final datasets:')
+        print(len(final_datasets))
         for dataset in final_datasets:
+            print('In final datasets')
+            print(dataset)
             dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
@@ -282,6 +285,7 @@ class Preprocess(Subcommand):
                           f'{self.preprocess_header()} \n',
                           f'{self.preprocess_row(self.params)} \n')
         status.text('Finished!')
+        print('Finished!')
 
     @staticmethod
     def default_params():
