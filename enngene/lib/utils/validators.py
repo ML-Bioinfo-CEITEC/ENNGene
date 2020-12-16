@@ -70,14 +70,19 @@ def is_fasta(file):
     else:
         if os.path.isfile(file):
             fasta, zipped = f.unzip_if_zipped(file)
-            try:
-                line1 = f.read_decoded_line(fasta, zipped)
-                line2 = f.read_decoded_line(fasta, zipped)
-                if not line1 or not ('>' in line1) or not line2:
-                    invalid = True
-            except Exception:
+            # the fasta must be unzipped for the bedtools
+            if zipped:
                 invalid = True
-            warning = f"File {file} does not look like valid FASTA file."
+                warning = 'The fasta file must be extracted first. Can not accept compressed file.'
+            else:
+                try:
+                    line1 = f.read_decoded_line(fasta, zipped)
+                    line2 = f.read_decoded_line(fasta, zipped)
+                    if not line1 or not ('>' in line1) or not line2:
+                        invalid = True
+                except Exception:
+                    invalid = True
+                warning = f"File {file} does not look like valid FASTA file."
         else:
             invalid = True
             warning = f'Given FASTA file {file} does not exist.'
