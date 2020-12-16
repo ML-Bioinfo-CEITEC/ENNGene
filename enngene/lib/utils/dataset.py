@@ -491,6 +491,24 @@ class Dataset:
         return self
 
     @staticmethod
+    def dataframe_to_bed(df, key_cols, path, name):
+        path_to_bed = os.path.join(path, (name + ".bed"))
+        content = []
+
+        def to_bed(row):
+            cols = ""
+            for col in key_cols:
+                cols += str(row[col])
+                cols += '\t'
+            line = cols.strip() + '\n'
+            content.append(line)
+            return row
+
+        df.apply(to_bed, axis=1)
+        f.write(path_to_bed, ''.join(content).strip())
+        return path_to_bed
+
+    @staticmethod
     def dataframe_to_fasta(df, branch, key_cols, path, name):
         path_to_fasta = os.path.join(path, (name + ".fa"))
         content = []
