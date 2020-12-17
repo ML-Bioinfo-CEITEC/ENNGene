@@ -293,9 +293,10 @@ class Dataset:
 
         bedtools_df = pd.read_csv(tmp_file, sep='\t', header=None)
 
-        if len(df) + 1 == len(bedtools_df):
-            # For some reason sometimes returns first sequence twice
-            bedtools_df = bedtools_df[1:]
+        if len(bedtools_df) > len(df):
+            # For some reason sometimes returns first sequence multiple times
+            dif = len(bedtools_df) - len(df)
+            bedtools_df = bedtools_df[dif:]
 
         if len(df) == len(bedtools_df):
             df[branch] = bedtools_df.iloc[:, 1]
@@ -511,9 +512,11 @@ class Dataset:
         lines = out_file.readlines()
         out_file.close()
 
-        if (len(lines) / 3) - 1 == original_length:
-            # For some reason sometimes returns first sequence twice
-            lines = lines[3:]
+        if len(lines) > (original_length*3):
+            # For some reason sometimes returns first sequence multiple times
+            dif = len(lines) - (original_length*3)
+            new = round(dif/3)*3
+            lines = lines[new:]
 
         if (len(lines) / 3) == original_length:
             # The order should remain the same as long as --unordered is not set to True
