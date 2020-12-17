@@ -190,7 +190,7 @@ class Dataset:
                         self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
-                self.fold_branch(key_cols, ncpu, dna=dna)
+                self.df = self.fold_branch(self.df, key_cols, ncpu, dna=dna)
 
         if 'seq' in self.branches:
             # encode it at the end, so that it can be used for folding before that
@@ -494,11 +494,11 @@ class Dataset:
 
         return [score + new_score, current_header, parsed_line]
 
-    def fold_branch(self, key_cols, ncpu=1, dna=True):
-        # TODO check output, it's suspiciously quick for large numbers of samples
+    @staticmethod
+    def fold_branch(df, key_cols, ncpu=1, dna=True):
         tmp_dir = tempfile.gettempdir()
-        original_length = self.df.shape[0]
-        fasta_file = Dataset.dataframe_to_fasta(self.df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        original_length = df.shape[0]
+        fasta_file = Dataset.dataframe_to_fasta(df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
 
         out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         out_file = open(out_path, 'w+')
@@ -508,40 +508,47 @@ class Dataset:
             subprocess.run(['RNAfold', '--verbose', '--noPS', '--noconv', f'--jobs={ncpu}', fasta_file], stdout=out_file,
                            check=True)
 
-        out_file = open(out_path)
-        lines = out_file.readlines()
-        out_file.close()
+        folded_df = pd.read_csv(out_path, header=None, sep='\t')
+        folded_df.reset_index(inplace=True, drop=True)  # ensure ordered index
 
-        if len(lines) > (original_length*3):
+        if len(folded_df) > (original_length*3):
             # For some reason sometimes returns first sequence multiple times
-            dif = len(lines) - (original_length*3)
+            dif = len(folded_df) - (original_length*3)
             new = round(dif/3)*3
-            lines = lines[new:]
+            folded_df = folded_df[new:]
+            folded_df.reset_index(inplace=True, drop=True)
 
-        if (len(lines) / 3) == original_length:
-            # The order should remain the same as long as --unordered is not set to True
-            cols = list(self.df.columns)
-            new_df = pd.DataFrame(columns=cols)
-            fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
+        folded_len = (len(folded_df) / 3)
+        folded_df.columns = ['folding']
+        folded_df['parsed'] = None
+        fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
 
-            for i, line in enumerate(lines):
-                # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
-                if (i + 1) % 3 == 0:
-                    index = int(i/3)
-                    new_df = new_df.append(self.df.iloc[index], ignore_index=True)
-                    value = []
-                    # line format: '.... (0.00)'
-                    part1 = line.split(' ')[0].strip()
-                    for char in part1:
-                        value.append(seq.translate(char, fold_encoding))
-                    new_df.loc[index, 'fold'] = Dataset.sequence_to_string(value)
-            self.df = new_df
+        def parse_folding(row):
+            folding = row['folding']
+            value = []
+            # line format: '.... (0.00)'
+            part1 = folding.split(' ')[0].strip()
+            for char in part1:
+                value.append(seq.translate(char, fold_encoding))
+            row['parsed'] = Dataset.sequence_to_string(value)
+            return row
+
+        # The order should remain the same as long as --unordered is not set to True
+        if folded_len == original_length:
+            # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
+            folded_df = folded_df[(folded_df.index+1) % 3 == 0]
+            folded_df = folded_df.apply(parse_folding, axis=1)
+            folded_df.reset_index(inplace=True, drop=True)
+            new_df = df
+            new_df.reset_index(inplace=True, drop=True)
+            new_df['fold'] = folded_df['parsed']
         else:
-            logger.warning(f'Number of folded datapoints does not match the number of input datapoints! (Folded: {len(lines)/3}, given: {original_length}).')
+            # TODO replace original df with the new one, parse the header, sequence put into sqe branch and fold into fold branch
+            logger.warning(f'Number of folded datapoints does not match the number of input datapoints! (Folded: {folded_len}, given: {original_length}).')
             # We probably have no way to determine which were not folded if this happens
             raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
 
-        return self
+        return new_df
 
     @staticmethod
     def dataframe_to_bed(df, key_cols, path, name):
