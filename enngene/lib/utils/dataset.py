@@ -122,7 +122,7 @@ class Dataset:
 
         if len(df.columns) == 3:
             df.columns = ['chrom_name', 'seq_start', 'seq_end']
-            df['strand_sign'] = ''; df['name'] = ''; df['score'] = np.nan
+            df['strand_sign'] = '+'; df['name'] = ''; df['score'] = np.nan
         elif len(df.columns) >= 6:
             df = df[[0, 1, 2, 3, 4, 5]]
             df.columns = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
@@ -197,7 +197,6 @@ class Dataset:
             encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
             self.encode_col('seq', encoding)
 
-        self.df.dropna(inplace=True)
         self.save_to_file(outfile_path, do_zip=True)
         return self
 
@@ -574,10 +573,10 @@ class Dataset:
         content = []
 
         def to_fasta(row):
-            key = ""
+            key = []
             for col in key_cols:
-                key += f'{row[col]}_'
-            line1 = ">" + key.strip('_') + "\n"
+                key.append(str(row[col]))
+            line1 = ">" + '_'.join(key) + "\n"
             line2 = str(row[branch]) + "\n"
             content.append(line1)
             content.append(line2)
