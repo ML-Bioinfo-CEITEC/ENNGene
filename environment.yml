@@ -99,6 +99,8 @@ dependencies:
     - enum-compat==0.0.3
     - future==0.18.2
     - gast==0.2.2
+    - gitdb==4.0.5
+    - gitpython==3.1.11
     - google-auth==1.20.0
     - google-auth-oauthlib==0.4.1
     - google-pasta==0.1.8
@@ -133,7 +135,7 @@ dependencies:
     - pexpect==4.8.0
     - pickleshare==0.7.5
     - pillow==6.2.1
-    - pip==20.2.2
+    - pip==20.3.3
     - prometheus-client==0.8.0
     - prompt-toolkit==3.0.5
     - protobuf==3.12.4
@@ -152,7 +154,8 @@ dependencies:
     - rsa==4.0
     - s3transfer==0.3.3
     - send2trash==1.5.0
-    - streamlit==0.64.0
+    - smmap==3.0.4
+    - streamlit==0.72.0
     - style==1.1.0
     - tensorboard==2.0.1
     - tensorflow-estimator==2.0.1
