@@ -292,6 +292,10 @@ class Dataset:
 
         bedtools_df = pd.read_csv(tmp_file, sep='\t', header=None)
 
+        if len(df) + 1 == len(bedtools_df):
+            # For some reason sometimes returns first sequence twice
+            bedtools_df = bedtools_df[1:]
+
         if len(df) == len(bedtools_df):
             df[branch] = bedtools_df.iloc[:, 1]
             new_df = df
@@ -322,8 +326,7 @@ class Dataset:
             reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
             new_df = new_df[reordered_cols]
 
-        print(new_df)
-
+        new_df.reset_index(inplace=True, drop=True)
         return new_df
 
     @staticmethod
