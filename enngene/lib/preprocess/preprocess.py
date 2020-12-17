@@ -274,7 +274,7 @@ class Preprocess(Subcommand):
             dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
-            dataset.save_to_file(file_path, do_zip=True)
+            dataset.save_to_file(file_path, ignore_cols=['name', 'score'], do_zip=True)
 
         self.finalize_run(logger, self.params['datasets_dir'], self.params,
                           f'{self.preprocess_header()} \n',

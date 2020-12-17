@@ -190,14 +190,15 @@ class Dataset:
                         self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
-                self.df = self.fold_branch(self.df, key_cols, ncpu, dna=dna)
+                seq_branch = 'seq' in self.branches
+                self.df = self.fold_branch(self.df, key_cols, seq_branch, ncpu, dna=dna)
 
         if 'seq' in self.branches:
             # encode it at the end, so that it can be used for folding before that
             encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
             self.encode_col('seq', encoding)
 
-        self.save_to_file(outfile_path, do_zip=True)
+        self.save_to_file(outfile_path, ignore_cols=['name', 'score'], do_zip=True)
         return self
 
     def sort_datapoints(self):
@@ -310,18 +311,16 @@ class Dataset:
                 header = row['header']
                 klass, rest = header.split('::')
                 chr, rest = rest.split(':')
-                start = int(rest.split('-')[0])
+                row['chrom_name'] = chr
+                row['seq_start'] = int(rest.split('-')[0])
                 rest = rest.split('-')[1]
-                end = int(rest.split('(')[0])
+                row['seq_end'] = int(rest.split('(')[0])
                 match = re.search(r'\((.)\)$', rest)
                 strand = match[1] if match else ''
-
-                row['chrom_name'] = chr
-                row['seq_start'] = start
-                row['seq_end'] = end
-                if has_klass: row['klass'] = klass
                 row['strand_sign'] = strand
+                if has_klass: row['klass'] = klass
                 return row
+
             new_df = bedtools_df.apply(parse_header, axis=1)
             new_df = new_df.drop('header', 1)
             reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
@@ -494,9 +493,11 @@ class Dataset:
         return [score + new_score, current_header, parsed_line]
 
     @staticmethod
-    def fold_branch(df, key_cols, ncpu=1, dna=True):
+    def fold_branch(df, key_cols, seq_branch=True, ncpu=1, dna=True):
         tmp_dir = tempfile.gettempdir()
         original_length = df.shape[0]
+        has_klass = 'klass' in df.columns
+        if has_klass: key_cols += ['klass']
         fasta_file = Dataset.dataframe_to_fasta(df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
 
         out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
@@ -518,34 +519,67 @@ class Dataset:
             folded_df.reset_index(inplace=True, drop=True)
 
         folded_len = (len(folded_df) / 3)
-        folded_df.columns = ['folding']
-        folded_df['parsed'] = None
+        folded_df.columns = ['output']
         fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
 
         def parse_folding(row):
-            folding = row['folding']
+            folding = row['output']
             value = []
             # line format: '.... (0.00)'
             part1 = folding.split(' ')[0].strip()
             for char in part1:
                 value.append(seq.translate(char, fold_encoding))
-            row['parsed'] = Dataset.sequence_to_string(value)
+            row['fold'] = Dataset.sequence_to_string(value)
+            return row
+
+        def parse_all(row):
+            header = row['header']
+            header_parts = header.split('_')
+            row['chrom_name'] = header_parts[0][1:]
+            row['seq_start'] = header_parts[1]
+            row['seq_end'] = header_parts[2]
+            row['strand_sign'] = header_parts[3]
+            if has_klass:
+                klass = '_'.join(header_parts[4:])
+                row['klass'] = klass
+
+            row['seq'] = row['seq'].replace('U', 'T')
+
+            folding = row['fold']
+            value = []
+            # line format: '.... (0.00)'
+            part1 = folding.split(' ')[0].strip()
+            for char in part1:
+                value.append(seq.translate(char, fold_encoding))
+            row['fold'] = Dataset.sequence_to_string(value)
             return row
 
         # The order should remain the same as long as --unordered is not set to True
         if folded_len == original_length:
             # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
+            folded_df['fold'] = None
             folded_df = folded_df[(folded_df.index+1) % 3 == 0]
             folded_df = folded_df.apply(parse_folding, axis=1)
             folded_df.reset_index(inplace=True, drop=True)
             new_df = df
             new_df.reset_index(inplace=True, drop=True)
-            new_df['fold'] = folded_df['parsed']
+            new_df['fold'] = folded_df['fold']
         else:
-            # TODO replace original df with the new one, parse the header, sequence put into sqe branch and fold into fold branch
-            logger.warning(f'Number of folded datapoints does not match the number of input datapoints! (Folded: {folded_len}, given: {original_length}).')
-            # We probably have no way to determine which were not folded if this happens
-            raise ProcessError(f'Sorry, there was an error while trying to fold the given sequences.')
+            df1 = folded_df.iloc[::3].reset_index(drop=True)
+            df2 = folded_df.iloc[1::3].reset_index(drop=True)
+            df3 = folded_df.iloc[2::3].reset_index(drop=True)
+            new_df = pd.concat([df1, df2, df3], ignore_index=True, axis=1)
+            new_df.columns = ['header', 'seq', 'fold']
+
+            new_df['chrom_name'] = ''; new_df['seq_start'] = np.nan; new_df['seq_end'] = np.nan; new_df['klass'] = None
+            new_df = new_df.apply(parse_all, axis=1)
+            new_df = new_df.drop('header', 1)
+            reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'seq', 'fold']
+            new_df = new_df[reordered_cols]
+            if not seq_branch:
+                new_df = new_df.drop('seq', 1)
+            new_df.reset_index(inplace=True, drop=True)
+            new_df.sort_values(by=['chrom_name', 'seq_start'])
 
         return new_df
 
