@@ -246,16 +246,13 @@ class Preprocess(Subcommand):
                 self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, status, self.ncpu)
 
         status.text('Processing mapped samples...')
-        print('Processing mapped samples...')
         mapped_datasets = set()
         for klass in self.params['klasses']:
-            print(klass)
             df = merged_dataset.df[merged_dataset.df['klass'] == klass]
             mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
         split_datasets = set()
         for dataset in mapped_datasets:
-            print(dataset)
             # Reduce size of selected klasses
             if self.params['reducelist'] and (dataset.klass in self.params['reducelist']):
                 status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
@@ -271,14 +268,9 @@ class Preprocess(Subcommand):
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
         status.text('Redistributing samples to categories and exporting into final files...')
-        print('Redistributing samples to categories and exporting into final files...')
         final_datasets = Dataset.merge_by_category(split_datasets)
 
-        print('no of final datasets:')
-        print(len(final_datasets))
         for dataset in final_datasets:
-            print('In final datasets')
-            print(dataset)
             dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
@@ -288,7 +280,7 @@ class Preprocess(Subcommand):
                           f'{self.preprocess_header()} \n',
                           f'{self.preprocess_row(self.params)} \n')
         status.text('Finished!')
-        print('Finished!')
+        logger.info('Finished!')
 
     @staticmethod
     def default_params():
