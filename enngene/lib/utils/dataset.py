@@ -578,7 +578,7 @@ class Dataset:
             for col in key_cols:
                 key += f'{row[col]}_'
             line1 = ">" + key.strip('_') + "\n"
-            line2 = row[branch] + "\n"
+            line2 = str(row[branch]) + "\n"
             content.append(line1)
             content.append(line2)
             return row
