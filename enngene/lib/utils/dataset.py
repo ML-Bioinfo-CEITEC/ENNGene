@@ -160,7 +160,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, ncpu=1):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, status, ncpu=1):
         dna = alphabet == 'DNA'
         mapped = False
         # map seq branch first so that we can replace the df without loosing anny information
@@ -171,14 +171,15 @@ class Dataset:
                 if 'input_sequence' in self.df.columns:
                     self.df['seq'] = self.df['input_sequence']
                 else:
-                    logger.info(f'Mapping intervals to the fasta reference...')
+                    status.text(f'Mapping intervals to the fasta reference...')
                     self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
                     mapped = True
             elif branch == 'cons':
-                logger.info(f'Mapping sequences to the wig reference...')
+                status.text(f'Mapping sequences to the wig reference... \n'
+                            f'Note: This is rather slow process, it might take a while.')
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
             elif branch == 'fold':
-                logger.info(f'Folding the sequences...')
+                status.text(f'Folding the sequences...')
                 if 'input_sequence' in self.df.columns:
                     self.df['fold'] = self.df['input_sequence']
                     key_cols = ['input_sequence']

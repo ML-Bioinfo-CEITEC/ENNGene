@@ -48,6 +48,7 @@ class Preprocess(Subcommand):
                                                               list(self.BRANCHES.keys()),
                                                               default=default_branches)))
             self.validation_hash['not_empty_branches'].append(self.params['branches'])
+            cons_warning = st.empty()
 
             if 'fold' in self.params['branches']:
                 # currently used only as an option for RNAfold
@@ -65,6 +66,8 @@ class Preprocess(Subcommand):
                 self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})
                 self.validation_hash['is_fasta'].append(self.params['fasta'])
             if 'cons' in self.params['branches']:
+                cons_warning.markdown('**WARNING**: Calculating the conservation score is a time-consuming process, '
+                                      'it might take up to few hours (based on the size of the wig files).')
                 self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
                                                         value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
@@ -238,9 +241,9 @@ class Preprocess(Subcommand):
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
-                f"Mapping intervals from all classes to {len(self.params['branches'])} branch(es) and exporting...")
+                f"Mapping all intervals from to {len(self.params['branches'])} branch(es) and exporting...")
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, self.ncpu)
+                self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, status, self.ncpu)
 
         status.text('Processing mapped samples...')
         print('Processing mapped samples...')
