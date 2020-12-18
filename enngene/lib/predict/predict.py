@@ -5,11 +5,15 @@ import os
 import pandas as pd
 import streamlit as st
 import yaml
+import csv
+import tensorflow as tf
+
 
 # TODO export the env when releasing, check pandas == 1.1.1
 
 from tensorflow import keras
 
+from . import ig
 from ..utils.dataset import Dataset
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
@@ -115,14 +119,68 @@ class Predict(Subcommand):
             # TODO check effectiveness of the to_list on larger dataset
 
         status.text('Calculating predictions...')
+
         model = keras.models.load_model(self.params['model_file'])
         predict_y = model.predict(
             predict_x,
             verbose=1)
 
+        status.text('Calculating Integrated Gradients...')
         for i, klass in enumerate(self.params['klasses']):
             dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
+
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
+
+            status.text('Calculating Integrated Gradients...')
+
+            raw_sequence = dataset.df['input_seq']  # sekvence bez one hot enoded
+            print('RAW SEQUENCE', raw_sequence)
+            # predict_x  # toto by mela byt data primo ve formatu pro prediction, a tedy snad i pro tvuj ucel
+
+            # slozka, do ktere se exportuji vysledne soubory z tohoto behu, pokud by vysledkem tveho kodu bylo vic souboru, idealne pro ne vytvor nejakou podslozku
+            # self.params['predict_dir']
+
+
+            # set baseline, win parameter in yaml and num 5, num of sequence
+            baseline = tf.zeros(shape=(self.params['win'], 5))
+
+
+
+            # file to write html from IG predictions
+            with open(self.params['predict_dir'] + "/HTML_visualisation.csv",
+                      'w', encoding='utf-8') as tabular_output:
+
+                tabular_writer = csv.writer(tabular_output, delimiter=',')
+
+                # need to transform to right shape:
+                predict_x_np = np.array(predict_x[0])
+
+                # take each prediction, unprocessed data and count IG
+                for sample, letter_sequence in zip(predict_x_np, raw_sequence):
+
+                    # return tensor of shape: (window width(sequence length), encoded base shape)
+                    sample = tf.convert_to_tensor(sample, dtype=tf.float32)
+
+                    # contain significance of each base in sequence
+                    ig_attribution = ig.integrated_gradients(model, baseline, sample)
+
+                    # choose attribution for specific encoded base
+                    attrs = ig.choose_validation_points(ig_attribution, self.params['win'], 5)
+
+                    # return HTML code with colored bases
+                    visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
+
+                    # write each HTML code to csv file
+                    tabular_writer.writerow([visualisation])
+
+
+
+            dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
+            dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
+
+
+
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
@@ -190,3 +248,4 @@ class Predict(Subcommand):
             'winseed': 42,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }
+
