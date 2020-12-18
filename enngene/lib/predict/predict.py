@@ -126,7 +126,8 @@ class Predict(Subcommand):
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
-        dataset.save_to_file(ignore_cols=self.params['branches'], outfile_path=result_file)  #TODO ignore branches cols ??
+        ignore = ['name', 'score'] + self.params['branches']
+        dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)  #TODO ignore branches cols ??
 
         header = self.predict_header()
         row = self.predict_row(self.params)

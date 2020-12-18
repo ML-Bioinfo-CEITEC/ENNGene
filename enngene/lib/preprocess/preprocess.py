@@ -234,7 +234,8 @@ class Preprocess(Subcommand):
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
-            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and type(self.references['seq']) != dict:
+            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and \
+                    type(self.references['seq']) != dict and not self.params['alphabet']:
                 status.text('Checking reference fasta file...')
                 _, alphabet = seq.parse_fasta_reference(self.references['seq'])
                 self.params['alphabet'] = seq.define_alphabet(alphabet)
@@ -274,7 +275,7 @@ class Preprocess(Subcommand):
             dir_path = os.path.join(self.params['datasets_dir'], 'final_datasets')
             self.ensure_dir(dir_path)
             file_path = os.path.join(dir_path, f'{dataset.category}.tsv')
-            dataset.save_to_file(file_path, do_zip=True)
+            dataset.save_to_file(file_path, ignore_cols=['name', 'score'], do_zip=True)
 
         self.finalize_run(logger, self.params['datasets_dir'], self.params,
                           f'{self.preprocess_header()} \n',
