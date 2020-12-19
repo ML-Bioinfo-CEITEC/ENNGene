@@ -160,7 +160,7 @@ class Dataset:
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, status, ncpu=1):
+    def map_to_branches(self, references, alphabet, strand, outfile_path, status, predict=False, ncpu=1):
         dna = alphabet == 'DNA'
         mapped = False
         # map seq branch first so that we can replace the df without loosing anny information
@@ -172,7 +172,7 @@ class Dataset:
                     self.df['seq'] = self.df['input_sequence']
                 else:
                     status.text(f'Mapping intervals to the fasta reference...')
-                    self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
+                    self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
                     mapped = True
             elif branch == 'cons':
                 status.text(f'Mapping sequences to the wig reference... \n'
@@ -187,7 +187,7 @@ class Dataset:
                     if mapped:
                         self.df['fold'] = self.df['seq']  # already finished above
                     else:
-                        self.df = self.map_to_fasta(self.df, branch, strand, references[branch])
+                        self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
                 seq_branch = 'seq' in self.branches
@@ -258,7 +258,7 @@ class Dataset:
         return df
 
     @staticmethod
-    def map_to_fasta(df, branch, strand, fasta):
+    def map_to_fasta(df, branch, strand, fasta, predict):
         df[branch] = None
         tmp_dir = tempfile.gettempdir()
         tmp_df = df
@@ -326,6 +326,7 @@ class Dataset:
             reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
             new_df = new_df[reordered_cols]
 
+        if predict: new_df['input_seq'] = new_df[branch]
         new_df.reset_index(inplace=True, drop=True)
         return new_df
 

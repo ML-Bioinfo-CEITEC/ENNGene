@@ -310,7 +310,8 @@ class Train(Subcommand):
 
         self.finalize_run(logger, self.params['train_dir'], self.params, header, row, self.previous_param_file)
         status.text('Finished!')
-    
+        logger.info('Finished!')
+
     @staticmethod
     def step_decay_schedule(initial_lr, drop=0.5, epochs_drop=10.0):
         def schedule(epoch):
