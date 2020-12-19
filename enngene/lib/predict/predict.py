@@ -112,7 +112,7 @@ class Predict(Subcommand):
                                   win=self.params['win'], winseed=self.params['winseed'])
 
         dataset.sort_datapoints().map_to_branches(
-            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, self.ncpu)
+            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()
             predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
@@ -131,24 +131,14 @@ class Predict(Subcommand):
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
-
             status.text('Calculating Integrated Gradients...')
-
-            raw_sequence = dataset.df['input_seq']  # sekvence bez one hot enoded
-            print('RAW SEQUENCE', raw_sequence)
-            # predict_x  # toto by mela byt data primo ve formatu pro prediction, a tedy snad i pro tvuj ucel
-
-            # slozka, do ktere se exportuji vysledne soubory z tohoto behu, pokud by vysledkem tveho kodu bylo vic souboru, idealne pro ne vytvor nejakou podslozku
-            # self.params['predict_dir']
-
+            raw_sequence = dataset.df['input_seq']
 
             # set baseline, win parameter in yaml and num 5, num of sequence
             baseline = tf.zeros(shape=(self.params['win'], 5))
 
-
-
             # file to write html from IG predictions
-            with open(self.params['predict_dir'] + "/HTML_visualisation.csv",
+            with open(os.path.join(self.params['predict_dir'], 'HTML_visualisation.csv'),
                       'w', encoding='utf-8') as tabular_output:
 
                 tabular_writer = csv.writer(tabular_output, delimiter=',')
@@ -173,14 +163,6 @@ class Predict(Subcommand):
 
                     # write each HTML code to csv file
                     tabular_writer.writerow([visualisation])
-
-
-
-            dataset.df[f"predicted probabilities ({', '.join(self.params['klasses'])})"] = [Dataset.sequence_to_string(y) for y in predict_y]
-            dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
-
-
-
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
@@ -208,6 +190,7 @@ class Predict(Subcommand):
 
         self.finalize_run(logger, self.params['predict_dir'], self.params, header, row, self.previous_param_file)
         status.text('Finished!')
+        logger.info('Finished!')
 
     @staticmethod
     def get_klass(predicted, klasses):
