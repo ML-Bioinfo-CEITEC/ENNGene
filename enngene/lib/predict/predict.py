@@ -86,6 +86,10 @@ class Predict(Subcommand):
         else:
             self.ncpu = 1
 
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
+            self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
+            st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
+
         self.validate_and_run(self.validation_hash)
 
     def run(self):
@@ -130,7 +134,7 @@ class Predict(Subcommand):
             dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
-        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
             status.text('Calculating Integrated Gradients...')
             raw_sequence = dataset.df['input_seq']
 
@@ -229,6 +233,7 @@ class Predict(Subcommand):
             'fasta_ref': '',
             'cons_dir': '',
             'winseed': 42,
+            'ig': True,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }
 
