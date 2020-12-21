@@ -198,6 +198,7 @@ class Dataset:
             encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
             self.encode_col('seq', encoding)
 
+        self.df.dropna(subset=self.branches, inplace=True)
         self.save_to_file(outfile_path, ignore_cols=['name', 'score'], do_zip=True)
         return self
 
@@ -435,7 +436,6 @@ class Dataset:
                 # Score may be fully or partially missing if the coordinates are not part of the reference
                 df.loc[i, branch] = Dataset.sequence_to_string(score)
 
-        # df.dropna(subset=[branch], inplace=True)
         return df
 
     @staticmethod
