@@ -175,7 +175,7 @@ class Dataset:
                     self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
                     mapped = True
             elif branch == 'cons':
-                status.text(f'Mapping sequences to the wig reference... \n'
+                status.text(f'Mapping intervals to the wig reference... \n'
                             f'Note: This is rather slow process, it might take a while.')
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
             elif branch == 'fold':
@@ -289,7 +289,7 @@ class Dataset:
                 subprocess.run(['bedtools', 'getfasta', '-name', '-tab', '-fi', fasta, '-bed', bed_file],
                                stdout=out_file, stderr=out_err, check=True)
         except Exception:
-            raise ProcessError('There was an error during mapping sequences to the fasta reference. '
+            raise ProcessError('There was an error during mapping intervals to the fasta reference. '
                                f'Please check bedtools error report: {err_file}.')
 
         bedtools_df = pd.read_csv(tmp_file, sep='\t', header=None)
@@ -300,11 +300,11 @@ class Dataset:
             bedtools_df = bedtools_df[dif:]
 
         if len(df) == len(bedtools_df):
-            logger.info(f'Sequence: Mapped 100% of the sequences.')
+            logger.info(f'Sequence: Mapped 100% of the intervals.')
             df[branch] = bedtools_df.iloc[:, 1]
             new_df = df
         else:
-            logger.info(f'Sequence: Mapped {len(bedtools_df)/len(df)*100}% sequences ({len(bedtools_df)} out of {len(df)})')
+            logger.info(f'Sequence: Mapped {round((len(bedtools_df)/len(df)*100), 1)}% intervals ({len(bedtools_df)} out of {len(df)})')
             # It is too slow to cherrypick the mapped into to original df, so we replace it by the smaller one instead
             bedtools_df.columns = ['header', branch]
             bedtools_df['chrom_name'] = ''; bedtools_df['seq_start'] = np.nan; bedtools_df['seq_end'] = np.nan; bedtools_df['klass'] = None
@@ -438,7 +438,7 @@ class Dataset:
                 df.loc[i, branch] = Dataset.sequence_to_string(score)
 
         unmapped = df[branch].isna().sum()
-        logger.info(f'Conservation score: mapped {(len(df)-unmapped)/len(df)*100}% of the samples ({(len(df)-unmapped)} out of {len(df)}).')
+        logger.info(f'Conservation score: mapped {round(((len(df)-unmapped)/len(df)*100), 1)}% of the intervals ({(len(df)-unmapped)} out of {len(df)}).')
         return df
 
     @staticmethod
@@ -570,7 +570,7 @@ class Dataset:
             new_df.reset_index(inplace=True, drop=True)
             new_df['fold'] = folded_df['fold']
         else:
-            logger.info(f'Secondary structure: Folded {(len(folded_df)/3)/original_length*100}% of sequences ({len(folded_df)/3} out of {original_length}.')
+            logger.info(f'Secondary structure: Folded {round(((len(folded_df)/3)/original_length*100), 1)}% of sequences ({len(folded_df)/3} out of {original_length}.')
             df1 = folded_df.iloc[::3].reset_index(drop=True)
             df2 = folded_df.iloc[1::3].reset_index(drop=True)
             df3 = folded_df.iloc[2::3].reset_index(drop=True)

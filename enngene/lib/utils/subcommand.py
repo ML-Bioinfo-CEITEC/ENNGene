@@ -54,7 +54,7 @@ class Subcommand:
                                 self.defaults.update(user_params[self.__class__.__name__])
                                 self.params_loaded = True
                             else:
-                                raise UserInputError('Found yaml file does not contain parameters for the currently selected task.')
+                                raise UserInputError('Given yaml file does not contain parameters for the currently selected task.')
                     else:
                         raise UserInputError('No yaml file was found in the given folder.')
                 else:
