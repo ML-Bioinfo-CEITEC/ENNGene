@@ -300,10 +300,11 @@ class Dataset:
             bedtools_df = bedtools_df[dif:]
 
         if len(df) == len(bedtools_df):
+            logger.info(f'Sequence: Mapped 100% of the sequences.')
             df[branch] = bedtools_df.iloc[:, 1]
             new_df = df
         else:
-            logger.info(f'Mapped {len(bedtools_df)} sequences out of {len(df)}')
+            logger.info(f'Sequence: Mapped {len(bedtools_df)/len(df)*100}% sequences ({len(bedtools_df)} out of {len(df)})')
             # It is too slow to cherrypick the mapped into to original df, so we replace it by the smaller one instead
             bedtools_df.columns = ['header', branch]
             bedtools_df['chrom_name'] = ''; bedtools_df['seq_start'] = np.nan; bedtools_df['seq_end'] = np.nan; bedtools_df['klass'] = None
@@ -436,6 +437,8 @@ class Dataset:
                 # Score may be fully or partially missing if the coordinates are not part of the reference
                 df.loc[i, branch] = Dataset.sequence_to_string(score)
 
+        unmapped = df[branch].isna().sum()
+        logger.info(f'Conservation score: mapped {(len(df)-unmapped)/len(df)*100}% of the samples ({(len(df)-unmapped)} out of {len(df)}).')
         return df
 
     @staticmethod
@@ -557,6 +560,7 @@ class Dataset:
 
         # The order should remain the same as long as --unordered is not set to True
         if folded_len == original_length:
+            logger.info('Secondary structure: Folded 100% sequences.')
             # We're interested only in each third line in the output file (there are 3 lines per one input sequence)
             folded_df['fold'] = None
             folded_df = folded_df[(folded_df.index+1) % 3 == 0]
@@ -566,6 +570,7 @@ class Dataset:
             new_df.reset_index(inplace=True, drop=True)
             new_df['fold'] = folded_df['fold']
         else:
+            logger.info(f'Secondary structure: Folded {(len(folded_df)/3)/original_length*100}% of sequences ({len(folded_df)/3} out of {original_length}.')
             df1 = folded_df.iloc[::3].reset_index(drop=True)
             df2 = folded_df.iloc[1::3].reset_index(drop=True)
             df3 = folded_df.iloc[2::3].reset_index(drop=True)
