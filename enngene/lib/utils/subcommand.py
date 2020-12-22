@@ -54,7 +54,7 @@ class Subcommand:
                                 self.defaults.update(user_params[self.__class__.__name__])
                                 self.params_loaded = True
                             else:
-                                raise UserInputError('Found yaml file does not contain parameters for the currently selected task.')
+                                raise UserInputError('Given yaml file does not contain parameters for the currently selected task.')
                     else:
                         raise UserInputError('No yaml file was found in the given folder.')
                 else:
@@ -216,8 +216,9 @@ class Subcommand:
         return list(dictionary.keys())[index]
 
     @staticmethod
-    def finalize_run(logger, out_dir, user_params, csv_header, csv_row, previous_param_file=None):
-        st.text(f'You can find your results at {out_dir}')
+    def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):
+        place = placeholder or st.empty()
+        place.text(f'You can find your results at {out_dir}')
         params = user_params.copy()
         task = params.pop('task')
         params = {task: user_params}
