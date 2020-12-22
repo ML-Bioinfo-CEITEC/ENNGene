@@ -1,23 +1,57 @@
-## ENN-Gene 
-ENN-Gene is an application that simplifies the local training of custom Convolutional Neural Network models on Genomic data 
-via an easy to use Graphical User Interface. ENN-Gene allows multiple streams of input information, including sequence, 
+## ENNGene 
+ENNGene is an application that simplifies the local training of custom Convolutional Neural Network models on Genomic data 
+via an easy to use Graphical User Interface. ENNGene allows multiple streams of input information, including sequence, 
 evolutionary conservation, and secondary structure, and includes utilities that can perform needed preprocessing steps, 
 allowing simplified input such as genomic coordinates. 
-ENN-Gene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
+ENNGene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
 empowering researchers that may not be experts in machine learning to perform this powerful type of analysis.
 
-> We are preparing a video tutorial for an even easier start with the ENN-Gene application!
+> We are preparing a video tutorial for an even easier start with the ENNGene application!
 
 ### Installation
+To install ENNGene, you need the following prerequisites:
+- [Python 3](https://www.python.org/) - Python language is usually already available with the OS
+- [Anaconda](https://www.anaconda.com/products/individual) - Python package manager for safe installation 
+- Web browser
 
-TODO 
+Application and installation scripts were tested on the following systems:
+- Ubuntu 18.04.5 LTS, 64-bit, GNOME Version 3.28.2, with Google Chrome browser (Version 86.0.4240.198 (Official Build) (64-bit))
+- Ubuntu 20.04.1 LTS, 64-bit, GNOME Version 3.36.8, with Google Chrome browser (Version 87.0.4280.88 (Official Build) (64-bit))
+- Ubuntu 20.04.1 LTS, 64-bit, GNOME version 3.36.8, with Firefox Browser 84.0 64-bit.
+
+#### "One-click" installation
+For 'one-click' installation, please copy the following lines into the terminal:
+
+`curl -fsSL https://raw.githubusercontent.com/ML-Bioinfo-CEITEC/ENNGene/master/installation.py > ENNGene_installation.py`
+
+`python3 ENNGene_installation.py`
+
+This will download the repository, and create a new conda environment where all the necessary packages will be installed.
+
+User has the opportunity to create a desktop launcher for the app during the "one-click" installation.
+
+**Note** that the launcher will work only on the Ubuntu OS. 
+For the Ubuntu 18.04 LTS, there can be two fully functional launchers (first in the app folder, second on the desktop) right after the installation. 
+If you have the OS Ubuntu 20.04 LTS, only the desktop launcher will work due to the nature of the system, and the launcher needs to be activated. 
+To activate the launcher, right-click on the launcher and check the option `Allow launching`.
+
+If the installation does not work for you, please follow the steps for the manual installation below.
+
+#### Manual installation
+If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
+- Download the latest release from [the repository](https://github.com/ML-Bioinfo-CEITEC/ENNGene/releases)
+- Unzip the directory `tar -xf enngene.tar.gz`
+- Go to the project directory `cd enngene`
+- Recreate environment from yml file `conda env create -f environment.yml`
+- Activate the environment`conda activate enngene`
+- Run the app `cd enngene` and `streamlit run enngene.py`
 
 ### Implementation
-ENN-Gene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
+ENNGene is built atop TensorFlow, one of the most popular Deep Learning frameworks. 
 It can run on either CPU or GPU, offering a considerable speed-up when training larger CNNs.
-ENN-Gene accepts BED genomic interval files corresponding to a user-determined genome or transcriptome reference.
+ENNGene accepts BED genomic interval files corresponding to a user-determined genome or transcriptome reference.
 Classifiers can be built for two or more classes.
-Full reproducibility of the process is ensured by logging all the user’s input and exporting it as a yaml file that can be loaded in ENN-Gene for future runs.
+Full reproducibility of the process is ensured by logging all the user’s input and exporting it as a yaml file that can be loaded in ENNGene for future runs.
 The application consists of three consecutive modules, each module performing a specific task.
  
 To select a task browse the select box in the side panel. 
@@ -31,25 +65,35 @@ After running a task, several files will be exported to the task subfolder.
    You can easily manage and compare results across the specific task with different parameters' setup.
  * Other task-specific files.
 
-The ENN-Gene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
+The ENNGene application uses the [Streamlit framework](https://www.streamlit.io/) that is still in its early stages of development.
 Currently, all input files (or folders) must be defined by an absolute path.
-Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.   
+
+> **Due to the nature of the Streamlit framework, it is strongly recommended to fill-in the input fields top to bottom to avoid resetting already specified options.**
+
+Hopefully, this behavior will be removed with the framework update.
+
+##### Error handling
+All the user input is verified by the application for its correctness, to the possible extent. 
+When an incorrect input is given (e.g. file with a wrong format, non-existent folder etc.), the application gives a warning and exits before starting the task itself.
+This way, you can save a lot of time, instead of debugging the process yourself. 
+
+If you see an unspecified warning 'Unexpected error occurred in the application.', please check the provided log file for more details.
+Sometimes this happens as a result of a glitch in the Streamlit framework, and simple reloading the page with the application solves the issue.
+
+> **If you get an 'Unexpected error', try first reloading the page with the application. 
+>This sometimes happens due to a glitch in the Streamlit framework, and reloading the page solves the issue.** 
 
 #### 1 Preprocessing
 In the first module, data is preprocessed into a format convenient for CNN input.
 
-<!--
-TODO fix first
-`Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run, and you want to just e.g. change the chromosomes' distribution among categories. 
--->
+`Use already preprocessed file` Check this option to save preprocessing time if you already have files prepared from the previous run. 
+Using a mapped file, you can still change the datasets' size, or redistribute data across categories.
 
 `Branches` You may select one or more input types engineered from the given interval files.
 Each input type later corresponds to a branch in the neural network.
  * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
  * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
- * Conservation score – counted based on the user provided reference file/s. 
-
-`Alphabet` Define the nature of the sequences (DNA or RNA).
+ * Conservation score – counted based on the user provided reference file/s. This option is the most time-consuming, we advise to use it judiciously.
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
@@ -128,7 +172,7 @@ You might choose only from the branches preprocessed in the first module.
 `No. of training epochs` An epoch is one complete pass through the training data. There can be an arbitrary number of training epochs.
 
 `Apply early stopping` A regularization technique to avoid overfitting when training for too many epochs. 
-The model will stop training if the monitored metric (accuracy) does not improve for more than 0.1 (min_delta) during 10 training epochs (patience). 
+The model will stop training if the validation loss does not decrease for more than 0.01 (min_delta) during 10 training epochs (patience). 
 
 `Optimizer` Select an optimizer. Available options: 
  * Stochastic Gradient Descent ([SGD](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD)) - 
@@ -192,9 +236,9 @@ In the last module, a trained model can be used to classify novel, unseen data.
 Sequences provided to be classified are preprocessed similar to the first module for the purpose of the CNN. 
 
 ##### Model
-You can either use a model trained with the ENN-Gene application, or any custom trained model.
+You can either use a model trained with the ENNGene application, or any custom trained model.
 
-`Use a model trained by the ENN-Gene application` Preferred option. When selected this option, you must provide:
+`Use a model trained by the ENNGene application` Preferred option. When selected this option, you must provide:
  * `Training folder containing the model (hdf5 file)` Except the hdf5 file with the trained model, the folder must contain the parameters.yaml file logged when training the model. 
  Form that the parameters necessary for sequence preprocessing are read, and displayed below the field after that. 
 
@@ -217,8 +261,6 @@ You can provide the input sequences you wish to classify in following formats:
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
 
-`Alphabet` Define the nature of the sequences (DNA or RNA).
-
 `BED file` When providing the sequences via an interval file, following must be specified:
  * `Path to the BED file containing intervals to be classified`
  * `Apply strand` Choose to apply (if available) or ignore strand information.
@@ -229,24 +271,24 @@ You can provide the input sequences you wish to classify in following formats:
 *Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
+`Calculate Integrated Gradients` Integrated Gradients are available only for one-branched models with a sequence branch.
+Ten highest scoring sequences per each class are printed at the bottom of the application.
+The html code for each sequence is also exported for future use as the last column of the results.tsv file.
+Sequence visualization can be used for auxiliary evaluation and debugging of the model.  The technique is based on maximizing the difference between the baseline and its input sequence. The maximizing difference is to measure the dependency of interpolated sequence and prediction concerning the original features.  Average this dependency is core for sequence attribution, which is used as color enhancement. 
+Token attribution assigns each nucleobase its color. The more positive the attribution is, the more bold red color of the letter is.  The opposite direction is used blue color.
+
+
+<!-- #TODO add interpretaion of results.) -->
+
 `Run` After all the parameters are set and selected, press the run button. 
-Calculating the predictions maight take minutes to hours, depending on the number of sequnces, branches, hardware available etc.
+Calculating the predictions might take minutes to hours, depending on the number of sequences, branches, hardware available etc.
 
 Results are exported to the 'prediction' subfolder in the selected `output folder`. Information about the input sequences
-are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are two more columns with the results appended.
-One column shows raw probabilities predicted by the model, the other class with the highest probability (#TODO decide upon the threshold). 
+are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are multiple columns with the results appended.
+First, there is one column per each klass showing predicted probability of the sequence belonging to the given class.
+Last result column shows the highest scoring class (do not confuse with predicted class - that is based on the user's choice of the threshold for each class).
 
 <!--
-### Installation
-#### Conda environment
-If you do not have [Anaconda](https://www.anaconda.com/distribution/) installed on your computer, please do so first. 
-- Download the latest version of the app from [the repository](https://gitlab.com/RBP_Bioinformatics/deepnet/-/tags)
-- Unzip the directory `tar -xf deepnet.tar.gz`
-- Go to the project directory `cd deepnet`
-- Recreate environment from yml file `conda env create -f environment.yml`
-- Activate the environment`conda activate deepnet-app`
-- Run the app `cd deepnet` and `streamlit run deepnet.py`
-
 ### Development
 For now, if you wish to work with the app, test or develop the code, please contact me at Slack (@Eliska), and we can discuss the details.
 
