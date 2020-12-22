@@ -130,10 +130,12 @@ class Predict(Subcommand):
             verbose=1)
 
         status.text('Calculating Integrated Gradients...')
+        logger.info('Calculating Integrated Gradients...')
         for i, klass in enumerate(self.params['klasses']):
             dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
+        placeholder = st.empty()
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
             status.text('Calculating Integrated Gradients...')
             raw_sequence = dataset.df['input_seq']
@@ -141,37 +143,46 @@ class Predict(Subcommand):
             # set baseline, win parameter in yaml and num 5, num of sequence
             baseline = tf.zeros(shape=(self.params['win'], 5))
 
-            # file to write html from IG predictions
-            with open(os.path.join(self.params['predict_dir'], 'HTML_visualisation.csv'),
-                      'w', encoding='utf-8') as tabular_output:
+            visualisations = []
+            # need to transform to right shape:
+            predict_x_np = np.array(predict_x[0])
 
-                tabular_writer = csv.writer(tabular_output, delimiter=',')
+            # take each prediction, unprocessed data and count IG
+            for sample, letter_sequence in zip(predict_x_np, raw_sequence):
 
-                # need to transform to right shape:
-                predict_x_np = np.array(predict_x[0])
+                # return tensor of shape: (window width(sequence length), encoded base shape)
+                sample = tf.convert_to_tensor(sample, dtype=tf.float32)
 
-                # take each prediction, unprocessed data and count IG
-                for sample, letter_sequence in zip(predict_x_np, raw_sequence):
+                # contain significance of each base in sequence
+                ig_attribution = ig.integrated_gradients(model, baseline, sample)
 
-                    # return tensor of shape: (window width(sequence length), encoded base shape)
-                    sample = tf.convert_to_tensor(sample, dtype=tf.float32)
+                # choose attribution for specific encoded base
+                attrs = ig.choose_validation_points(ig_attribution, self.params['win'], 5)
 
-                    # contain significance of each base in sequence
-                    ig_attribution = ig.integrated_gradients(model, baseline, sample)
+                # return HTML code with colored bases
+                visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
+                visualisations.append(visualisation)
 
-                    # choose attribution for specific encoded base
-                    attrs = ig.choose_validation_points(ig_attribution, self.params['win'], 5)
+            st.markdown('---')
+            dataset.df['Integrated Gradients Visualisation'] = visualisations
 
-                    # return HTML code with colored bases
-                    visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
+            # Show ten best predictions per class in the application window
+            st.markdown('### Integrated Gradients Visualisation')
+            best = dataset.df[self.params['klasses']+['Integrated Gradients Visualisation']]
+            for klass in self.params['klasses']:
+                st.markdown(f'#### {klass}')
+                best.sort_values(by=klass, ascending=False, inplace=True)
+                best_ten = best[:10] if (len(best) >= 10) else best
 
-                    # write each HTML code to csv file
-                    tabular_writer.writerow([visualisation])
+                def visualize(row):
+                    st.markdown(f"{row['Integrated Gradients Visualisation']}", unsafe_allow_html=True)
+                    return row
+                best_ten.apply(visualize, axis=1)
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
         ignore = ['name', 'score'] + self.params['branches']
-        dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)  #TODO ignore branches cols ??
+        dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
 
         header = self.predict_header()
         row = self.predict_row(self.params)
@@ -192,7 +203,7 @@ class Predict(Subcommand):
                 header += '\n'
                 row += '\n'
 
-        self.finalize_run(logger, self.params['predict_dir'], self.params, header, row, self.previous_param_file)
+        self.finalize_run(logger, self.params['predict_dir'], self.params, header, row, placeholder, self.previous_param_file)
         status.text('Finished!')
         logger.info('Finished!')
 

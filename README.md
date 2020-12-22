@@ -258,8 +258,9 @@ You can provide the input sequences you wish to classify in following formats:
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
 `Calculate Integrated Gradients` Integrated Gradients are available only for one-branched models with a sequence branch.
-Calculated gradients are visualized in color at the bottom of the application (#TODO add interpretaion of results.).
-The html code is also exported for future use into HTML_visualisation.csv file, one row per sequence, in the output folder.
+Ten highest scoring sequences per each class are printed at the bottom of the application.
+The html code for each sequence is also exported for future use as the last column of the results.tsv file.
+<!-- #TODO add interpretaion of results.) -->
 
 `Run` After all the parameters are set and selected, press the run button. 
 Calculating the predictions might take minutes to hours, depending on the number of sequences, branches, hardware available etc.
@@ -267,7 +268,7 @@ Calculating the predictions might take minutes to hours, depending on the number
 Results are exported to the 'prediction' subfolder in the selected `output folder`. Information about the input sequences
 are preserved in the result file (e.g. fasta header or coordinates from a bed file), while there are multiple columns with the results appended.
 First, there is one column per each klass showing predicted probability of the sequence belonging to the given class.
-Last column shows highest scoring class (do not confuse with predicted class - that is based on the user's choice of the threshold for each class).
+Last result column shows the highest scoring class (do not confuse with predicted class - that is based on the user's choice of the threshold for each class).
 
 <!--
 ### Development

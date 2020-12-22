@@ -216,8 +216,9 @@ class Subcommand:
         return list(dictionary.keys())[index]
 
     @staticmethod
-    def finalize_run(logger, out_dir, user_params, csv_header, csv_row, previous_param_file=None):
-        st.text(f'You can find your results at {out_dir}')
+    def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):
+        place = placeholder or st.empty()
+        place.text(f'You can find your results at {out_dir}')
         params = user_params.copy()
         task = params.pop('task')
         params = {task: user_params}
