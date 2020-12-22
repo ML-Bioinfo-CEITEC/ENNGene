@@ -308,7 +308,7 @@ class Train(Subcommand):
             header += '\n'
             row += '\n'
 
-        self.finalize_run(logger, self.params['train_dir'], self.params, header, row, self.previous_param_file)
+        self.finalize_run(logger, self.params['train_dir'], self.params, header, row, previous_param_file=self.previous_param_file)
         status.text('Finished!')
         logger.info('Finished!')
 
