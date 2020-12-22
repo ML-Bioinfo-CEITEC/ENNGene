@@ -88,9 +88,10 @@ class Predict(Subcommand):
 
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
-            st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
-            st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
-                        'it may take several minutes up to few hours (depending on the number of sequences).')
+            if self.params['ig']:
+                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
+                st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
+                            'it may take several minutes up to few hours (depending on the number of sequences).')
 
         self.validate_and_run(self.validation_hash)
 
@@ -172,7 +173,9 @@ class Predict(Subcommand):
             st.markdown('---')
             st.markdown('### Integrated Gradients Visualisation')
             st.markdown('Below are ten sequences with highest predicted score per each class. \n'
-                        'You can find html visualisation code for all the sequences in the results.tsv file.')
+                        'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
+                        'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
+                        'On the other hand, the blue color means low level of attribution.')
 
             best = dataset.df[self.params['klasses']+['Integrated Gradients Visualisation']]
             for klass in self.params['klasses']:
