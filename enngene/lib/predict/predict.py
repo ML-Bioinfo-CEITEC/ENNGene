@@ -89,6 +89,8 @@ class Predict(Subcommand):
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
             st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
+            st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
+                        'it may take several minutes up to few hours (depending on the number of sequences).')
 
         self.validate_and_run(self.validation_hash)
 
@@ -129,7 +131,8 @@ class Predict(Subcommand):
             predict_x,
             verbose=1)
 
-        status.text('Calculating Integrated Gradients...')
+        status.text('Calculating Integrated Gradients... \n'
+                    'Note: This is rather slow process, it may take a while.')
         logger.info('Calculating Integrated Gradients...')
         for i, klass in enumerate(self.params['klasses']):
             dataset.df[klass] = [y[i] for y in predict_y]
@@ -163,11 +166,14 @@ class Predict(Subcommand):
                 visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
                 visualisations.append(visualisation)
 
-            st.markdown('---')
             dataset.df['Integrated Gradients Visualisation'] = visualisations
 
             # Show ten best predictions per class in the application window
+            st.markdown('---')
             st.markdown('### Integrated Gradients Visualisation')
+            st.markdown('Below are ten sequences with highest predicted score per each class. \n'
+                        'You can find html visualisation code for all the sequences in the results.tsv file.')
+
             best = dataset.df[self.params['klasses']+['Integrated Gradients Visualisation']]
             for klass in self.params['klasses']:
                 st.markdown(f'#### {klass}')

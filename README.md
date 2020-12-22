@@ -274,6 +274,7 @@ You can provide the input sequences you wish to classify in following formats:
 `Calculate Integrated Gradients` Integrated Gradients are available only for one-branched models with a sequence branch.
 Ten highest scoring sequences per each class are printed at the bottom of the application.
 The html code for each sequence is also exported for future use as the last column of the results.tsv file.
+Note that calculating the integrated gradients is a time-consuming process, it may take several minutes up to few hours (depending on the number of sequences).
 <!-- #TODO add interpretaion of results.) -->
 
 `Run` After all the parameters are set and selected, press the run button. 
