@@ -216,6 +216,6 @@ def visualize_token_attrs(sequence, attrs):
     html_text = ""
     for i, tok in enumerate(sequence):
         r, g, b = get_color(attrs[i])
-        html_text += " <span style='color:rgb(%d,%d,%d)'>%s</span>" % (r, g, b, tok)
+        html_text += "<span style='font-weight:bold;color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok)
 
     return html_text
