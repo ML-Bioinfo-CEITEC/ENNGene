@@ -1,3 +1,6 @@
+#@title Licensed under the Apache License, Version 2.0
+#https://www.apache.org/licenses/LICENSE-2.0
+
 import tensorflow as tf
 
 def generate_path_inputs(baseline, input, alphas):
