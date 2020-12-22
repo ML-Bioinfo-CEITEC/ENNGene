@@ -12,7 +12,14 @@ empowering researchers that may not be experts in machine learning to perform th
 To install ENNGene, you need the following prerequisites:
 - [Python 3](https://www.python.org/) - Python language is usually already available with the OS
 - [Anaconda](https://www.anaconda.com/products/individual) - Python package manager for safe installation 
+- Web browser
 
+Application and installation scripts were tested on the following systems:
+- Ubuntu 18.04.5 LTS, 64-bit, GNOME Version 3.28.2, with Google Chrome browser (Version 86.0.4240.198 (Official Build) (64-bit))
+- Ubuntu 20.04.1 LTS, 64-bit, GNOME Version 3.36.8, with Google Chrome browser (Version 87.0.4280.88 (Official Build) (64-bit))
+- Ubuntu 20.04.1 LTS, 64-bit, GNOME version 3.36.8, with Firefox Browser 84.0 64-bit.
+
+#### "One-click" installation
 For 'one-click' installation, please copy the following lines into the terminal:
 
 `curl -fsSL https://raw.githubusercontent.com/ML-Bioinfo-CEITEC/ENNGene/master/installation.py > ENNGene_installation.py`
@@ -20,6 +27,13 @@ For 'one-click' installation, please copy the following lines into the terminal:
 `python3 ENNGene_installation.py`
 
 This will download the repository, and create a new conda environment where all the necessary packages will be installed.
+
+User has the opportunity to create a desktop launcher for the app during the "one-click" installation.
+
+**Note** that the launcher will work only on the Ubuntu OS. 
+For the Ubuntu 18.04 LTS, there can be two fully functional launchers (first in the app folder, second on the desktop) right after the installation. 
+If you have the OS Ubuntu 20.04 LTS, only the desktop launcher will work due to the nature of the system, and the launcher needs to be activated. 
+To activate the launcher, right-click on the launcher and check the option `Allow launching`.
 
 If the installation does not work for you, please follow the steps for the manual installation below.
 
