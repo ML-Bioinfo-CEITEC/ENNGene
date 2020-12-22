@@ -67,7 +67,7 @@ class Preprocess(Subcommand):
                 self.validation_hash['is_fasta'].append(self.params['fasta'])
             if 'cons' in self.params['branches']:
                 cons_warning.markdown('**WARNING**: Calculating the conservation score is a time-consuming process, '
-                                      'it might take up to few hours (based on the size of the wig files).')
+                                      'it may take up to few hours (based on the size of the wig files).')
                 self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
                                                         value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
@@ -140,7 +140,7 @@ class Preprocess(Subcommand):
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
                     min_value=0.00001, value=0.01, format='%.5f'))})
             st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
-                    'splitting the dataset by chromosomes, some categories might end up empty. Thus it\'s recommended '
+                    'splitting the dataset by chromosomes, some categories may end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
             self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
                                                         value=self.defaults['reduceseed']))
