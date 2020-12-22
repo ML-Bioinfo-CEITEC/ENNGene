@@ -279,7 +279,7 @@ class Preprocess(Subcommand):
 
         self.finalize_run(logger, self.params['datasets_dir'], self.params,
                           f'{self.preprocess_header()} \n',
-                          previous_param_file=f'{self.preprocess_row(self.params)} \n')
+                          f'{self.preprocess_row(self.params)} \n')
         status.text('Finished!')
         logger.info('Finished!')
 
