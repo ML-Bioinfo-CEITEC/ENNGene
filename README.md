@@ -275,8 +275,8 @@ You can provide the input sequences you wish to classify in following formats:
 Ten highest scoring sequences per each class are printed at the bottom of the application.
 The html code for each sequence is also exported for future use as the last column of the results.tsv file.
 Note that calculating the integrated gradients is a time-consuming process, it may take several minutes up to few hours (depending on the number of sequences).
-<!-- #TODO add interpretaion of results.) -->
-
+Sequence visualization can be used for auxiliary evaluation and debugging of the model.  The technique is based on maximizing the difference between the baseline and its input sequence. The maximizing difference is to measure the dependency of interpolated sequence and prediction concerning the original features.  Average this dependency is core for sequence attribution, which is used as color enhancement. 
+Token attribution assigns each nucleobase its color. The more positive the attribution is, the more bold red color of the letter is.  The opposite direction is used blue color.
 `Run` After all the parameters are set and selected, press the run button. 
 Calculating the predictions might take minutes to hours, depending on the number of sequences, branches, hardware available etc.
 
