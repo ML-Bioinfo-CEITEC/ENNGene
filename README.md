@@ -271,10 +271,16 @@ You can provide the input sequences you wish to classify in following formats:
 *Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
-`Calculate Integrated Gradients` Integrated Gradients are available only for one-branched models with a sequence branch.
+`Calculate Integrated Gradients` [Integrated Gradients](https://arxiv.org/abs/1703.01365) are available only for one-branched models with a sequence branch only.
 Ten highest scoring sequences per each class are printed at the bottom of the application.
 The html code for each sequence is also exported for future use as the last column of the results.tsv file.
-<!-- #TODO add interpretaion of results.) -->
+Note that calculating the integrated gradients is a time-consuming process, it may take several minutes up to few hours (depending on the number of sequences).
+
+Sequence visualization can be used for auxiliary evaluation and debugging of the model.  
+The technique is based on maximizing the difference between a baseline, and an input sequence.
+That dependency is the core for the sequence attribution, and is expressed as color enhancement of each nucleobase.
+The higher is the attribution of the sequence to the prediction, the more pronounced is its red color.  
+On the other hand, the blue color means low level of attribution.
 
 `Run` After all the parameters are set and selected, press the run button. 
 Calculating the predictions might take minutes to hours, depending on the number of sequences, branches, hardware available etc.
