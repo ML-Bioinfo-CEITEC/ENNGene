@@ -68,7 +68,7 @@ class Predict(Subcommand):
                 self.references.update({'cons': self.params['cons_dir']})
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
-            st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (might affect '
+            st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (may affect '
                         'the prediction accuracy). Longer sequences will be cut to the length of the window.')
             if self.params['seq_type'] == 'fasta':
                 self.params['seq_source'] = st.text_input(
