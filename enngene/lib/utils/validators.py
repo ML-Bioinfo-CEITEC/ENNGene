@@ -129,15 +129,27 @@ def is_ratio(string):
         invalid = True
         warning = 'You must provide the split ratio.'
     else:
-        if (':' in string) and len(string.split(':')) == 4:
-            try:
-                numbers = [float(part) for part in string.split(':')]
-            except Exception:
+        if ':' in string:
+            parts = string.split(':')
+            if len(parts) == 4:
+                try:
+                    numbers = [float(part) for part in parts]
+                    for i, number in enumerate(numbers):
+                        warning = 'All numbers must be bigger than zero (only blackbox dataset can be zero).'
+                        if (i == 3) & (number < 0):
+                            # blackbox can be zero but not negative
+                            invalid = True
+                        if number <= 0:
+                            invalid = True
+                except Exception:
+                    invalid = True
+                    warning = 'All parts of the split ratio must be numbers (required format: train:validation:test:blackbox).'
+            else:
                 invalid = True
-                warning = 'All parts of the split ratio must be numbers.'
+                warning = 'Invalid format of the split ratio (required format: train:validation:test:blackbox).'
         else:
             invalid = True
-            warning = 'Invalid format of the split ratio.'
+            warning = 'Invalid format of the split ratio (required format: train:validation:test:blackbox).'
 
     return warning if invalid else None
 
@@ -205,9 +217,10 @@ def is_full_dataset(file_path, branches):
 def not_empty_chromosomes(chromosomes_list):
     invalid = False
     for category, chromosomes in chromosomes_list:
+        if category == 'blackbox': continue
         if not chromosomes:
             invalid = True
-            warning = 'You must select at least one chromosome per each category.'
+            warning = 'You must select at least one chromosome per each category (only blackbox dataset can remain empty).'
 
     return warning if invalid else None
 
