@@ -29,6 +29,8 @@ class Subcommand:
                  'LR scheduler': 'lr_scheduler',
                  # 'LR finder': 'lr_finder',
                  'One cycle policy': 'one_cycle'}
+    WIN_PLACEMENT = {'Randomized': 'rand',
+                     'Centered': 'center'}
 
     def general_options(self):
         self.params_loaded = False
@@ -133,6 +135,7 @@ class Subcommand:
                         else:
                             st.markdown('###### Parameters read from given folder:\n'
                                         f"* Window size: {training_params['win']}\n"
+                                        f"* Window placement: {training_params['win_place']}\n" # TODO might be missing - also for the future, probably first merge with preprocess+train defaults
                                         f"* Window seed: {training_params['winseed']}\n"
                                         f"* Alphabet: {training_params['alphabet']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
@@ -152,8 +155,12 @@ class Subcommand:
                 st.markdown('##### **WARNING:** Parameters window size, branches, and number of classes must be the same as when used for training the given model.')
                 self.params['win'] = int(
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
-                self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                             value=self.defaults['winseed']))
+                self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
+                    'Choose a way to place the window upon the sequence:',
+                    list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
+                if self.params['win_place'] == 'rand':
+                    self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                                 value=self.defaults['winseed']))
                 self.params['alphabet'] = st.selectbox('Alphabet:',
                                                        list(seq.ALPHABETS.keys()),
                                                        index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
@@ -252,6 +259,7 @@ class Subcommand:
                'Alphabet\t' \
                'Strand\t' \
                'Window\t' \
+               'Window placement\t' \
                'Window seed\t' \
                'Split\t' \
                'Split ratio\t' \
@@ -273,6 +281,7 @@ class Subcommand:
                f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \
+               f"{params['win_place']}\t" \
                f"{params['winseed']}\t" \
                f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
                f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
@@ -335,6 +344,7 @@ class Subcommand:
                'Model file\t' \
                'Predict branches\t' \
                'Window\t' \
+               'Window placement\t' \
                'Window seed\t' \
                'No. classes\t' \
                'Classes\t' \
@@ -351,6 +361,7 @@ class Subcommand:
                f"{params['model_file']}\t" \
                f"{params['branches']}\t" \
                f"{params['win']}\t" \
+               f"{params['win_place']}\t" \
                f"{params['winseed']}\t" \
                f"{params['no_klasses']}\t" \
                f"{params['klasses']}\t" \

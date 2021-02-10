@@ -74,8 +74,12 @@ class Preprocess(Subcommand):
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 
             self.params['win'] = int(st.number_input('Window size', min_value=3, value=self.defaults['win']))
-            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                         value=self.defaults['winseed']))
+            self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
+                'Choose a way to place the window upon the sequence:',
+                list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
+            if self.params['win_place'] == 'rand':
+                self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                             value=self.defaults['winseed']))
 
             st.markdown('## Input Coordinate Files')
 
@@ -229,7 +233,8 @@ class Preprocess(Subcommand):
                         klass = klass.replace(ext, '')
 
                 initial_datasets.add(
-                    Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'], winseed=self.params['winseed']))
+                    Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'],
+                            win_place=self.params['win_place'], winseed=self.params['winseed']))
 
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
@@ -304,5 +309,6 @@ class Preprocess(Subcommand):
                 'use_mapped': False,
                 'valid_chromosomes': [],
                 'win': 100,
+                'win_place': 'rand',
                 'winseed': 42
                 }

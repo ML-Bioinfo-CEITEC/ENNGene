@@ -97,7 +97,7 @@ class Dataset:
 
         return merged_datasets
 
-    def __init__(self, klass=None, branches=None, category=None, win=None, winseed=None,
+    def __init__(self, klass=None, branches=None, category=None, win=None, win_place=None, winseed=None,
                  bed_file=None, fasta_file=None, text_input=None, df=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
@@ -115,7 +115,7 @@ class Dataset:
             self.df = self.read_in_text(text_input)
 
         if win:
-            self.df = Dataset.apply_window(self.df, win, winseed, input_type)
+            self.df = Dataset.apply_window(self.df, win, win_place, winseed, input_type)
 
     def read_in_bed(self, bed_file):
         df = pd.read_csv(bed_file, sep='\t', header=None)
@@ -627,21 +627,28 @@ class Dataset:
         return path_to_fasta
 
     @staticmethod
-    def apply_window(df, window_size, window_seed=64, type='bed'):
-        np.random.seed(window_seed)
+    def apply_window(df, window_size, win_place='rand', window_seed=64, type='bed'):
+        if win_place == 'rand':
+            np.random.seed(window_seed)
 
         def bed_window(row):
             length = row['seq_end'] - row['seq_start']
             if length > window_size:
                 above = length - window_size
-                rand = np.random.randint(0, above)
-                new_start = row['seq_start'] + rand
-                new_end = row['seq_start'] + rand + window_size
+                if win_place == 'rand':
+                    diff = np.random.randint(0, above)
+                else:
+                    diff = round(above/2)
+                new_start = row['seq_start'] + diff
+                new_end = row['seq_start'] + diff + window_size
             elif length < window_size:
                 missing = window_size - length
-                rand = np.random.randint(0, missing)
-                new_start = row['seq_start'] - rand
-                new_end = row['seq_end'] + (missing - rand)
+                if win_place == 'rand':
+                    diff = np.random.randint(0, missing)
+                else:
+                    diff = round(missing/2)
+                new_start = row['seq_start'] - diff
+                new_end = row['seq_end'] + (missing - diff)
             else:
                 new_start = row['seq_start']
                 new_end = row['seq_end']

@@ -107,16 +107,16 @@ class Predict(Subcommand):
         predict_x = []
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
-                              win=self.params['win'], winseed=self.params['winseed'])
+                              win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
             status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
 
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
             if self.params['seq_type'] == 'fasta':
                 dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
-                                  win=self.params['win'], winseed=self.params['winseed'])
+                                  win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
             elif self.params['seq_type'] == 'text':
                 dataset = Dataset(text_input=self.params['seq_source'], branches=self.params['branches'], category='predict',
-                                  win=self.params['win'], winseed=self.params['winseed'])
+                                  win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
 
         dataset.sort_datapoints().map_to_branches(
             self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
