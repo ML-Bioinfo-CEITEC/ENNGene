@@ -101,6 +101,10 @@ Each input type later corresponds to a branch in the neural network.
 Longer sequences get shortened, while short sequences are completed based on the reference.
 Both is done by randomly placing a window of selected size on the original sequence.
 
+`Window placement` Choose a way to place the window upon the sequence:
+ * Randomized 
+ * Centered
+
 `Seed` Parameter used for the reproducibility of the semi-random window placement.
 
 `Path to the reference fasta file` File containing reference genome/transcriptome. 
@@ -242,11 +246,10 @@ You can either use a model trained with the ENNGene application, or any custom t
  * `Training folder containing the model (hdf5 file)` Except the hdf5 file with the trained model, the folder must contain the parameters.yaml file logged when training the model. 
  Form that the parameters necessary for sequence preprocessing are read, and displayed below the field after that. 
 
-`Use a custom trained model` When using model trained otherwise that through the application, necessary parameters must be provided separately.
+`Use a custom trained model` When using model trained otherwise than through the application, necessary parameters must be provided separately.
 When selected this option, you must provide:
  * `Trained model (hdf5 file)` Path to the hdf5 file with the trained model.
  * `Window size` The size of the window must be the same as when used ofr the training the given model.
- * `Seed` Parameter used for the reproducibility of the semi-random window placement.
  * `Number of classes` Number must be the same as the number of classes used for training the given model.
  * `Class labels` Provide names of the classes for better results interpretation. 
  The order of the classes must be the same as when encoding them for training the given model.
@@ -260,6 +263,12 @@ You can provide the input sequences you wish to classify in following formats:
  * Text input - Paste one sequence per line.
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
+
+`Window placement` Choose a way to place the window upon the sequence:
+* Randomized
+* Centered
+
+`Seed` Parameter used for the reproducibility of the semi-random window placement.
 
 `BED file` When providing the sequences via an interval file, following must be specified:
  * `Path to the BED file containing intervals to be classified`
