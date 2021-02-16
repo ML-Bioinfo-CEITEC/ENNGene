@@ -207,11 +207,18 @@ class Predict(Subcommand):
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
             if 'Train' in previous_params.keys():
+                # Parameters missing in older versions of the code
+                novel_params = {}
+                parameters = previous_params['Train']
+                parameters.update(novel_params)
                 header += f"{self.train_header()}"
-                row += f"{self.train_row(previous_params['Train'])}"
+                row += f"{self.train_row(parameters)}"
                 if 'Preprocess' in previous_params.keys():
+                    novel_params = {'win_place': 'rand'}  # It's always been 'random' for the previous versions
+                    parameters = previous_params['Preprocess']
+                    parameters.update(novel_params)
                     header += f'{self.preprocess_header()}\n'
-                    row += f"{self.preprocess_row(previous_params['Preprocess'])}\n"
+                    row += f"{self.preprocess_row(parameters)}\n"
                 else:
                     header += '\n'
                     row += '\n'

@@ -302,8 +302,12 @@ class Train(Subcommand):
         header = self.train_header()
         row = self.train_row(self.params)
         if 'Preprocess' in previous_params.keys():
+            # Parameters missing in older versions of the code
+            novel_params = {'win_place': 'rand'}  # It's always been 'random' for the previous versions
+            parameters = previous_params['Preprocess']
+            parameters.update(novel_params)
             header += f'{self.preprocess_header()}\n'
-            row += f"{self.preprocess_row(previous_params['Preprocess'])}\n"
+            row += f"{self.preprocess_row(parameters)}\n"
         else:
             header += '\n'
             row += '\n'

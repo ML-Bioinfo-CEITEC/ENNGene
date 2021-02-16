@@ -272,8 +272,8 @@ class Subcommand:
                f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \
-               f"{params['win_place']}\t" \
-               f"{params['winseed']}\t" \
+               f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
+               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
                f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
                f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
                f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
@@ -352,8 +352,8 @@ class Subcommand:
                f"{params['model_file']}\t" \
                f"{params['branches']}\t" \
                f"{params['win']}\t" \
-               f"{params['win_place']}\t" \
-               f"{params['winseed']}\t" \
+               f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
+               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
                f"{params['no_klasses']}\t" \
                f"{params['klasses']}\t" \
                f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
