@@ -51,6 +51,13 @@ class Predict(Subcommand):
                 'Select a source of the sequences for the prediction:',
                 list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
 
+        self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
+            'Choose a way to place the window upon the sequence:',
+            list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
+        if self.params['win_place'] == 'rand':
+            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                         value=self.defaults['winseed']))
+
         self.references = {}
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
@@ -252,6 +259,7 @@ class Predict(Subcommand):
             'strand': True,
             'fasta_ref': '',
             'cons_dir': '',
+            'win_place': 'rand',
             'winseed': 42,
             'ig': True,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')

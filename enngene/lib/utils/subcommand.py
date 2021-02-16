@@ -108,13 +108,12 @@ class Subcommand:
                         st.markdown('#### Sorry, could not find parameters.yaml file in the given folder. '
                                     'Check the folder or specify the parameters below.')
                     elif len(previous_param_files) == 1:
-                        training_params = {'win': None, 'winseed': None, 'no_klasses': 0, 'klasses': [], 'branches': []}
+                        training_params = {'win': None, 'no_klasses': 0, 'klasses': [], 'branches': []}
                         self.previous_param_file = os.path.join(self.params['model_folder'], previous_param_files[0])
                         with open(self.previous_param_file, 'r') as file:
                             user_params = yaml.safe_load(file)
                         try:
                             training_params['win'] = user_params['Preprocess']['win']
-                            training_params['winseed'] = user_params['Preprocess']['winseed']
                             training_params['alphabet'] = user_params['Preprocess']['alphabet']
                             klasses = list(set(user_params['Preprocess']['klasses']))
                             training_params['no_klasses'] = len(klasses)
@@ -124,7 +123,7 @@ class Subcommand:
                             missing_params = True
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
-                        if not training_params['win'] or not training_params['winseed'] \
+                        if not training_params['win'] \
                                 or not training_params['alphabet'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
                                 or len(training_params['klasses']) != training_params['no_klasses'] \
@@ -135,8 +134,6 @@ class Subcommand:
                         else:
                             st.markdown('###### Parameters read from given folder:\n'
                                         f"* Window size: {training_params['win']}\n"
-                                        f"* Window placement: {training_params['win_place']}\n" # TODO might be missing - also for the future, probably first merge with preprocess+train defaults
-                                        f"* Window seed: {training_params['winseed']}\n"
                                         f"* Alphabet: {training_params['alphabet']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
                                         f"* Class labels: {', '.join(training_params['klasses'])}\n"
@@ -155,12 +152,6 @@ class Subcommand:
                 st.markdown('##### **WARNING:** Parameters window size, branches, and number of classes must be the same as when used for training the given model.')
                 self.params['win'] = int(
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
-                self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
-                    'Choose a way to place the window upon the sequence:',
-                    list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
-                if self.params['win_place'] == 'rand':
-                    self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                                 value=self.defaults['winseed']))
                 self.params['alphabet'] = st.selectbox('Alphabet:',
                                                        list(seq.ALPHABETS.keys()),
                                                        index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
