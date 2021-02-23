@@ -135,11 +135,11 @@ def is_ratio(string):
                 try:
                     numbers = [float(part) for part in parts]
                     for i, number in enumerate(numbers):
-                        warning = 'All numbers must be bigger than zero (only blackbox dataset can be zero).'
+                        warning = 'All numbers in the split ratio must be bigger than zero (only blackbox dataset can be zero).'
+                        if (i < 3) & (number <= 0):
+                            invalid = True
                         if (i == 3) & (number < 0):
                             # blackbox can be zero but not negative
-                            invalid = True
-                        if number <= 0:
                             invalid = True
                 except Exception:
                     invalid = True
