@@ -51,6 +51,7 @@ def parse_fasta_reference(fasta_file):
             else:
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
+    chromosomes.append(key)  # save the last one
     file.close()
     chromosomes.sort()
 
