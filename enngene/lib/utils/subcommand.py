@@ -306,8 +306,7 @@ class Subcommand:
                'No. branches layers\t' \
                'Branches layers\t' \
                'No. common layers\t' \
-               'Common layers\t' \
-               'Input (preprocess) directory\t'
+               'Common layers\t'
 
     def train_row(self, params):
         return f"{os.path.basename(params['train_dir'])}\t" \
@@ -326,8 +325,7 @@ class Subcommand:
                f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
-               f"{params['common_layers']}\t" \
-               f"{params['input_folder']}\t"
+               f"{params['common_layers']}\t"
 
     @staticmethod
     def predict_header():
@@ -344,8 +342,7 @@ class Subcommand:
                'Alphabet\t' \
                'Strand\t' \
                'Fasta ref.\t' \
-               'Conservation ref\t' \
-               'Input (train) directory\t'
+               'Conservation ref\t'
 
     def predict_row(self, params):
         return f"{os.path.basename(params['predict_dir'])}\t" \
@@ -361,5 +358,4 @@ class Subcommand:
                f"{params['alphabet']}\t" \
                f"{params['strand']}\t" \
                f"{params['fasta_ref']}\t" \
-               f"{params['cons_dir']}\t" \
-               f"{params['model_folder']}\t"
+               f"{params['cons_dir']}\t"
