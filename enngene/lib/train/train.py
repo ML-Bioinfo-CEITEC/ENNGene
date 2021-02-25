@@ -289,10 +289,12 @@ class Train(Subcommand):
         self.ensure_dir(eval_plot_dir)
         categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
 
-        eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
-        eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        aucs = eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
+        avg_precisions = eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
         # FIXME
         # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
+
+        self.log_plotted_metrics(aucs, avg_precisions, self.params)
 
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
@@ -442,15 +444,36 @@ class Train(Subcommand):
     def log_eval_metrics(test_results, params):
         params['eval_loss'] = str(round(test_results[0], 4))
         params['eval_acc'] = str(round(test_results[1], 4))
-        # params['eval_auc'] = str(round(test_results[2], 4))
 
         logger.info('Evaluation loss: ' + params['eval_loss'])
         logger.info('Evaluation acc: ' + params['eval_acc'])
-        # logger.info('Evaluation auc: ' + params['eval_auc'])
 
         st.text(f"Evaluation loss: {params['eval_loss']} \n"
                 f"Evaluation accuracy: {params['eval_acc']} \n")
-                # f"Evaluation AUC: {params['eval_auc']} \n")
+
+    @staticmethod
+    def log_plotted_metrics(aucs, avg_precisions, params):
+        auc_cell = ''
+        for klass, auc in aucs.items():
+            auc_cell += f'{klass}: {auc}, '
+        params['auc'] = auc_cell.strip(', ')
+        ap_cell = ''
+        for klass, ap in avg_precisions.items():
+            ap_cell += f'{klass}: {ap}, '
+        params['avg_precision'] = ap_cell.strip(', ')
+
+        logger.info('AUC: ' + params['auc'])
+        logger.info('Average precision: ' + params['avg_precision'])
+
+        auc_rows = ''
+        for klass, auc in aucs.items():
+            auc_rows += f'{klass}: {auc}\n'
+        st.text(f'AUC \n{auc_rows}')
+
+        ap_rows = ''
+        for klass, ap in avg_precisions.items():
+            ap_rows += f'{klass}: {ap}\n'
+        st.text(f'Average precision \n{ap_rows}')
 
     @staticmethod
     def plot_training_metric(history, metric, title, out_dir):

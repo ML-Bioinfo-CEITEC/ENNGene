@@ -293,6 +293,8 @@ class Subcommand:
         return 'Training directory\t' \
                'Evaluation loss\t' \
                'Evaluation accuracy\t' \
+               'AUC\t' \
+               'Average precision\t' \
                'Training loss\t' \
                'Training accuracy\t' \
                'Validation loss\t' \
@@ -312,6 +314,8 @@ class Subcommand:
         return f"{os.path.basename(params['train_dir'])}\t" \
                f"{params['eval_loss']}\t" \
                f"{params['eval_acc']}\t" \
+               f"{params['auc']}\t" \
+               f"{params['avg_precision']}\t" \
                f"{params['train_loss']}\t" \
                f"{params['train_acc']}\t" \
                f"{params['val_loss']}\t" \

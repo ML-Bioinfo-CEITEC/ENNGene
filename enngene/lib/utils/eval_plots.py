@@ -93,10 +93,12 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     # lines.append(l)
     # labels.append(f'Macro-average precision-recall (auc = {average_precision["macro"]})')
 
+    avg_precisions = {}
     for i in range(n_classes):
         l, = plt.plot(recall[i], precision[i], lw=2)
         lines.append(l)
         labels.append(f'Precision-recall for {klass_labels[i]} (AP = {round(average_precision[i], 2)})')
+        avg_precisions.update({klass_labels[i]: round(average_precision[i], 2)})
 
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
@@ -106,6 +108,8 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     plt.legend(lines, labels, loc='lower left', prop=dict(size=14))
     plt.savefig(file_path, format='png', dpi=300)
     plt.clf()
+
+    return avg_precisions
 
 
 def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path):
@@ -146,8 +150,10 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     plt.plot(fpr["micro"], tpr["micro"], label=f'Micro-average ROC curve (auc = {round(roc_auc["micro"], 2)})', linestyle=':')
     plt.plot(fpr["macro"], tpr["macro"], label=f'Macro-average ROC curve (auc = {round(roc_auc["macro"], 2)})', linestyle=':')
 
+    aucs = {}
     for i in range(n_classes):
         plt.plot(fpr[i], tpr[i], lw=3, label=f'ROC curve of {klass_labels[i]} (auc = {round(roc_auc[i], 2)})')
+        aucs.update({klass_labels[i]: round(roc_auc[i], 2)})
 
     plt.plot([0, 1], [0, 1], 'k--', lw=3, alpha=0.2)
     plt.xlim([-0.05, 1.0])
@@ -158,3 +164,5 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     plt.legend(loc="lower right", prop=dict(size=14))
     plt.savefig(file_path, format='png', dpi=300)
     plt.clf()
+
+    return aucs
