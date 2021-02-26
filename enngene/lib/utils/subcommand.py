@@ -67,10 +67,6 @@ class Subcommand:
             'Output folder (result files will be exported here; home directory used as default)',
             value=self.defaults['output_folder']
         )
-        try:
-            self.ensure_dir(self.params['output_folder'])
-        except Exception:
-            raise UserInputError(f"Failed to create output folder at given path: {self.params['output_folder']}.")
         st.markdown('---')
 
     def model_options(self, blackbox=False, warning=None):
@@ -202,7 +198,10 @@ class Subcommand:
     @staticmethod
     def ensure_dir(dir_path):
         if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+            try:
+                os.makedirs(dir_path)
+            except Exception:
+                raise UserInputError(f"Failed to create output folder at given path: {dir_path}.")
 
     @staticmethod
     def get_dict_index(value, dictionary):
