@@ -89,6 +89,8 @@ class Train(Subcommand):
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
+        else:
+            self.params['lr_optim'] = 'fixed'
         self.params['lr'] = st.number_input(
             'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
 
