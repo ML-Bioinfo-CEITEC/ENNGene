@@ -61,6 +61,9 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     for i in range(n_classes):
         precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
         average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+        to_export = {'precision': precision[i], 'recall': recall[i]}
+        pr_rec_df = pd.DataFrame.from_dict(to_export)
+        pr_rec_df.to_csv(os.path.join(output_dir_path, f'precision_recall_{klass_labels[i]}.tsv'), sep='\t', index=False)
 
     # A "micro-average": quantifying score on all classes jointly
     precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
@@ -69,7 +72,7 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     # A macro-average # TODO
     # precision["macro"], recall["macro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
     # average_precision["macro"] = average_precision_score(y_test, y_score, average="macro")
-    
+
     plt.figure(figsize=(12, 12))
 
     f_scores = np.linspace(0.2, 0.8, num=4)
@@ -124,6 +127,9 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     for i in range(n_classes):
         fpr[i], tpr[i], _ = roc_curve(test_y[:, i], test_scores[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
+        to_export = {'fpr': fpr[i], 'tpr': tpr[i]}
+        pr_rec_df = pd.DataFrame.from_dict(to_export)
+        pr_rec_df.to_csv(os.path.join(output_dir_path, f'fpr_tpr_{klass_labels[i]}.tsv'), sep='\t', index=False)
 
     # Compute micro-average ROC curve and ROC area
     fpr["micro"], tpr["micro"], _ = roc_curve(test_y.ravel(), test_scores.ravel())
