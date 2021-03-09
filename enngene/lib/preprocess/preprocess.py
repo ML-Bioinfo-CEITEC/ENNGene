@@ -135,8 +135,9 @@ class Preprocess(Subcommand):
         st.markdown('## Dataset Size Reduction')
         st.markdown('###### Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), '
                     'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
+        default_reduce = [klass for klass in self.defaults['reducelist'] if klass in self.params['klasses']]
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
-                                                   self.params['klasses'], self.defaults['reducelist'])
+                                                   self.params['klasses'], default_reduce)
         if self.params['reducelist']:
             self.params['reduceratio'] = self.defaults['reduceratio']
             for klass in self.params['reducelist']:
