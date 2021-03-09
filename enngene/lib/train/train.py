@@ -109,7 +109,7 @@ class Train(Subcommand):
         #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
         #         print(self.branch_layers[branch])
 
-        default_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32, 'bidirect': True}
+        default_layer_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32, 'bidirect': True}
 
         st.markdown('## Network Architecture')
         self.params['branches_layers'] = self.defaults['branches_layers']
@@ -119,10 +119,13 @@ class Train(Subcommand):
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers'][branch]):
                 if self.params_loaded and i < len(self.defaults['branches_layers'][branch]):
-                    default_args = self.defaults['branches_layers'][branch][i]['args']
+                    default_args = default_layer_args
+                    default_args.update(self.defaults['branches_layers'][branch][i]['args'])
+                    print(default_args)
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
+                    default_args = default_layer_args
                     layer = {'name': 'Convolution layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
@@ -141,10 +144,12 @@ class Train(Subcommand):
             'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
         for i in range(self.params['no_common_layers']):
             if self.params_loaded:
-                default_args = self.defaults['common_layers'][i]['args']
+                default_args = default_layer_args
+                default_args.update(self.defaults['common_layers'][i]['args'])
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
                 checkbox = True
             else:
+                default_args = default_layer_args
                 layer = {'name': 'Dense layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
