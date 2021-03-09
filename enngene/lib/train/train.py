@@ -150,10 +150,10 @@ class Train(Subcommand):
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
             if i == 0:
-                allowed_layers = ['Dense layer', 'GRU', 'LSTM']
+                allowed_layers = ['Dense layer', 'Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM']
             else:
                 previous_layer = self.params['common_layers'][i-1]['name']
-                if previous_layer in ('GRU', 'LSTM'):
+                if previous_layer in ('Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM'):
                     allowed_layers = ['Dense layer', previous_layer]
                 elif previous_layer == 'Dense layer':
                     allowed_layers = ['Dense layer']
