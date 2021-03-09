@@ -209,7 +209,15 @@ You may define architecture for each of the selected branches separately, as wel
  * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
  
  Types available for the connected part of the neural network:
+ * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
+ * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
+ * [LSTM](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM)
+ * [GRU](https://www.tensorflow.org/api_docs/python/tf/keras/layers/GRU)  
  * [Dense layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense)
+
+Different types of layers are not combinable. 
+E.g. when LSTM layer is chosen, it can be followed either by another LSTM layer, or a Dense layer only.
+However, multiple layers of the same type can be stacked. 
 
 `Show advanced options` If checked, you may set options specific per layer type. If not, the defaults will apply.
 
@@ -224,8 +232,11 @@ Options available for Convolution and Locally connected 1D layers:
 * `Number of filters` The number of output filters in the convolution.
 * `Kernel size` Specifies the length of the 1D convolutional window.
 
-Options available for Dense layer:
+Options available for Dense layer, GRU and LSTM:
 * `Number of units` Dimensionality of the output space.
+
+Option available for GRU and LSTM:
+* `Bidirectional` Apply a bidirectional wrapper on a recurrent layer.
 
 *Note: The softmax activation function is used for the last layer.*
 
