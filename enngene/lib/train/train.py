@@ -109,7 +109,7 @@ class Train(Subcommand):
         #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
         #         print(self.branch_layers[branch])
 
-        default_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32}
+        default_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32, 'bidirect': True}
 
         st.markdown('## Network Architecture')
         self.params['branches_layers'] = self.defaults['branches_layers']
@@ -149,7 +149,15 @@ class Train(Subcommand):
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', list(COMMON_LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
+            if i == 0:
+                allowed_layers = ['Dense layer', 'GRU', 'LSTM']
+            else:
+                previous_layer = self.params['common_layers'][i-1]['name']
+                if previous_layer in ('GRU', 'LSTM'):
+                    allowed_layers = ['Dense layer', previous_layer]
+                elif previous_layer == 'Dense layer':
+                    allowed_layers = ['Dense layer']
+            layer.update(dict(name=st.selectbox('Layer type', allowed_layers, index=default_i, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i, checkbox, default_args)
             st.markdown('---')
             if len(self.params['common_layers']) > i:
@@ -171,9 +179,13 @@ class Train(Subcommand):
                 defaults['filters'], key=f'filters{branch}{i}')})
                 layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=
                 defaults['kernel'], key=f'kernel{branch}{i}')})
-            elif layer['name'] in ['Dense layer', 'RNN', 'GRU', 'LSTM']:
+            elif layer['name'] in ['Dense layer', 'GRU', 'LSTM']:
                 layer['args'].update({'units': st.number_input('Number of units:', min_value=1, value=
                 defaults['units'], key=f'units{branch}{i}')})
+                if layer['name'] in ['GRU', 'LSTM']:
+                    layer['args'].update({'bidirect': st.checkbox(
+                        'Bidirectional', value=defaults['bidirect'], key=f'bidirect{branch}{i}')})
+
         return layer
 
     @staticmethod

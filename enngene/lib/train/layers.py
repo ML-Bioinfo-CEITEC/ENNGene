@@ -1,4 +1,5 @@
-from tensorflow.keras.layers import Dense, Dropout, Conv1D, GRU, LocallyConnected1D, MaxPooling1D, BatchNormalization, LeakyReLU, LSTM, RNN
+from tensorflow.keras.layers import Dense, Dropout, Conv1D, GRU, LocallyConnected1D, MaxPooling1D, BatchNormalization, \
+    LeakyReLU, LSTM, Bidirectional
 
 
 class MyConv1D:
@@ -39,18 +40,11 @@ class MyDense:
 class MyLSTM:
 
     @staticmethod
-    def build(x, units=32, batchnorm=False, dropout=None):
-        x = LSTM(units)(x)
-        if batchnorm: x = BatchNormalization()(x)
-        if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
-        return x
-
-
-class MyRNN:
-
-    @staticmethod
-    def build(x, units=32, batchnorm=False, dropout=None):
-        x = RNN(units)(x)
+    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None):
+        if bidirect:
+            x = Bidirectional(LSTM(units, return_sequences=return_seq))(x)
+        else:
+            x = LSTM(units, return_sequences=return_seq)(x)
         if batchnorm: x = BatchNormalization()(x)
         if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
         return x
@@ -59,8 +53,11 @@ class MyRNN:
 class MyGRU:
 
     @staticmethod
-    def build(x, units=32, batchnorm=False, dropout=None):
-        x = GRU(units)(x)
+    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None):
+        if bidirect:
+            x = Bidirectional(GRU(units, return_sequences=return_seq))(x)
+        else:
+            x = GRU(units, return_sequences=return_seq)(x)
         if batchnorm: x = BatchNormalization()(x)
         if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
         return x
@@ -68,10 +65,11 @@ class MyGRU:
 
 LAYERS = {'Convolution layer': MyConv1D,
           'Locally Connected 1D layer': MyLocallyConnected1D,
-          'Dense layer': MyDense}
+          'Dense layer': MyDense,
+          'GRU': MyGRU,
+          'LSTM': MyLSTM}
 BRANCH_LAYERS = {'Convolution layer': MyConv1D,
                  'Locally Connected 1D layer': MyLocallyConnected1D}
-COMMON_LAYERS = {'Dense layer': MyDense}
-# 'RNN': MyRNN,
-# 'GRU': MyGRU,
-# 'LSTM': MyLSTM,
+COMMON_LAYERS = {'Dense layer': MyDense,
+                 'GRU': MyGRU,
+                 'LSTM': MyLSTM}
