@@ -118,10 +118,9 @@ class Train(Subcommand):
             self.params['no_branches_layers'][branch] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
             for i in range(self.params['no_branches_layers'][branch]):
-                if self.params_loaded and i < len(self.defaults['branches_layers'][branch]):
+                if self.params_loaded and (i < len(self.defaults['branches_layers'][branch])):
                     default_args = default_layer_args
                     default_args.update(self.defaults['branches_layers'][branch][i]['args'])
-                    print(default_args)
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
@@ -143,7 +142,8 @@ class Train(Subcommand):
         self.params['no_common_layers'] = st.number_input(
             'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
         for i in range(self.params['no_common_layers']):
-            if self.params_loaded:
+            # if self.params_loaded:
+            if self.params_loaded and (i < len(self.defaults['common_layers'])):
                 default_args = default_layer_args
                 default_args.update(self.defaults['common_layers'][i]['args'])
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
