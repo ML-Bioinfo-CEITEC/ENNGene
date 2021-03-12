@@ -142,8 +142,17 @@ class Train(Subcommand):
         self.params['no_common_layers'] = st.number_input(
             'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
         for i in range(self.params['no_common_layers']):
-            # if self.params_loaded:
-            if self.params_loaded and (i < len(self.defaults['common_layers'])):
+            if i == 0:
+                allowed_layers = ['Dense layer', 'Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM']
+            else:
+                previous_layer = self.params['common_layers'][i-1]['name']
+                if previous_layer in ('Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM'):
+                    allowed_layers = ['Dense layer', previous_layer]
+                elif previous_layer == 'Dense layer':
+                    allowed_layers = ['Dense layer']
+
+            if self.params_loaded and (i < len(self.defaults['common_layers'])) \
+                    and self.defaults['common_layers'][i]['name'] in allowed_layers:
                 default_args = default_layer_args
                 default_args.update(self.defaults['common_layers'][i]['args'])
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
@@ -153,15 +162,8 @@ class Train(Subcommand):
                 layer = {'name': 'Dense layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
+
             st.markdown(f'#### Layer {i + 1}')
-            if i == 0:
-                allowed_layers = ['Dense layer', 'Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM']
-            else:
-                previous_layer = self.params['common_layers'][i-1]['name']
-                if previous_layer in ('Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM'):
-                    allowed_layers = ['Dense layer', previous_layer]
-                elif previous_layer == 'Dense layer':
-                    allowed_layers = ['Dense layer']
             layer.update(dict(name=st.selectbox('Layer type', allowed_layers, index=default_i, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i, checkbox, default_args)
             st.markdown('---')

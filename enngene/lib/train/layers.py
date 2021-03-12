@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Dense, Dropout, Conv1D, GRU, LocallyConnecte
 class MyConv1D:
 
     @staticmethod
-    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None):
+    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None, **kwargs):
         x = Conv1D(filters=filters, kernel_size=kernel, padding='same')(x)
         x = LeakyReLU()(x)
         if batchnorm: x = BatchNormalization()(x)
@@ -17,7 +17,7 @@ class MyConv1D:
 class MyLocallyConnected1D:
 
     @staticmethod
-    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None):
+    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None, **kwargs):
         x = LocallyConnected1D(filters=filters, kernel_size=kernel, padding='valid')(x)
         x = LeakyReLU()(x)
         if batchnorm: x = BatchNormalization()(x)
@@ -29,7 +29,7 @@ class MyLocallyConnected1D:
 class MyDense:
 
     @staticmethod
-    def build(x, units=32, batchnorm=False, dropout=None):
+    def build(x, units=32, batchnorm=False, dropout=None, **kwargs):
         x = Dense(units)(x)
         x = LeakyReLU()(x)
         if batchnorm: x = BatchNormalization()(x)
@@ -40,7 +40,7 @@ class MyDense:
 class MyLSTM:
 
     @staticmethod
-    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None):
+    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None, **kwargs):
         if bidirect:
             x = Bidirectional(LSTM(units, return_sequences=return_seq))(x)
         else:
@@ -53,7 +53,7 @@ class MyLSTM:
 class MyGRU:
 
     @staticmethod
-    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None):
+    def build(x, units=32, bidirect=True, return_seq=False, batchnorm=False, dropout=None, **kwargs):
         if bidirect:
             x = Bidirectional(GRU(units, return_sequences=return_seq))(x)
         else:
