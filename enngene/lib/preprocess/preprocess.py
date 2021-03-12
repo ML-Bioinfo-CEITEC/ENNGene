@@ -139,7 +139,8 @@ class Preprocess(Subcommand):
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
                                                    self.params['klasses'], default_reduce)
         if self.params['reducelist']:
-            self.params['reduceratio'] = self.defaults['reduceratio']
+            default_ratio = {k: v for k, v in self.defaults['reduceratio'].items() if k in self.params['klasses']}
+            self.params['reduceratio'] = default_ratio
             for klass in self.params['reducelist']:
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
