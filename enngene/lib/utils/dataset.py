@@ -247,6 +247,10 @@ class Dataset:
                         sequence += line.strip()
                     else:
                         raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
+            # Save the last key value pair
+            if header and sequence:
+                new_row = pd.DataFrame([[header, sequence]])
+                df = df.append(new_row)
 
         df.columns = ['header', 'input_sequence']
         return df
