@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import numpy as np
 import os
 from pathlib import Path
 import shutil
@@ -245,6 +246,28 @@ class Subcommand:
         # FIXME
         # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
         self.log_plotted_metrics(aucs, avg_precisions, params)
+
+        return test_scores
+
+    @staticmethod
+    def get_klass(predicted, klasses):
+        #TODO give the user choice of the tresshold value? - would have to specify per each class, if the highest scoring class would be above its threshold, then we would call it, otherwise uncertain
+
+        # treshold = 0.98
+        # chosen = []
+        # for probs in predicted:
+        #     max_prob = np.amax(probs)
+        #     if max_prob > treshold:
+        #         not considering an option there would be two exactly same highest probabilities
+        # index = np.where(probs == max_prob)[0][0]
+        # value = klasses[index]
+        # else:
+        #     value = 'UNCERTAIN'
+        # chosen.append(value)
+
+        chosen = [klasses[np.argmax(probs)] for probs in predicted]
+
+        return chosen
 
     @staticmethod
     def log_eval_metrics(test_results, params):

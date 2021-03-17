@@ -182,26 +182,6 @@ class Predict(Subcommand):
         logger.info('Finished!')
 
     @staticmethod
-    def get_klass(predicted, klasses):
-        #TODO give the user choice of the tresshold value? - would have to specify per each class, if the highest scoring class would be above its threshold, then we would call it, otherwise uncertain
-
-        # treshold = 0.98
-        # chosen = []
-        # for probs in predicted:
-        #     max_prob = np.amax(probs)
-        #     if max_prob > treshold:
-        #         not considering an option there would be two exactly same highest probabilities
-                # index = np.where(probs == max_prob)[0][0]
-                # value = klasses[index]
-            # else:
-            #     value = 'UNCERTAIN'
-            # chosen.append(value)
-
-        chosen = [klasses[np.argmax(probs)] for probs in predicted]
-
-        return chosen
-
-    @staticmethod
     def default_params():
         return {
             'model_source': 'from_app',

@@ -86,11 +86,15 @@ class Evaluate(Subcommand):
 
         status.text('Evaluating model...')
         model = tf.keras.models.load_model(self.params['model_file'])
-        self.evaluate_model(encoded_labels, model, eval_x, eval_y, self.params, self.params['eval_dir'])
+        predicted = self.evaluate_model(encoded_labels, model, eval_x, eval_y, self.params, self.params['eval_dir'])
+
+        for i, klass in enumerate(self.params['klasses']):
+            dataset.df[klass] = [y[i] for y in predicted]
+        dataset.df['highest scoring class'] = self.get_klass(predicted, self.params['klasses'])
 
         status.text('Exporting results...')
         result_file = os.path.join(self.params['eval_dir'], 'results.tsv')
-        ignore = ['name', 'score'] + self.params['branches']
+        ignore = self.params['branches']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
 
         header = self.eval_header()
