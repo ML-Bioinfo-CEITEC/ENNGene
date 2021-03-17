@@ -40,6 +40,7 @@ def enngene():
 
     available_subcommands = {'Preprocessing': 'preprocess',
                              'Training': 'train',
+                             'Evaluation': 'evaluate',
                              'Prediction': 'predict'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(

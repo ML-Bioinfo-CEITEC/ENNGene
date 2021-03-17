@@ -10,9 +10,6 @@ import tensorflow as tf
 
 
 # TODO export the env when releasing, check pandas == 1.1.1
-
-from tensorflow import keras
-
 from . import ig
 from ..utils.dataset import Dataset
 from ..utils import sequence as seq
@@ -22,8 +19,9 @@ logger = logging.getLogger('root')
 
 
 class Predict(Subcommand):
-    # TODO add option to use blackbox file (already mapped and not bed) - instead add separate section to test a model on the blackbox dataset
-    # test module - either on already mapped blackbox dataset, or not encoded dataset, eg from different experiment to check transferbality of the results
+    SEQ_TYPES = {'BED file': 'bed',
+                 'FASTA file': 'fasta',
+                 'Text input': 'text'}
 
     def __init__(self):
         self.params = {'task': 'Predict'}
@@ -42,56 +40,7 @@ class Predict(Subcommand):
         self.model_options()
 
         st.markdown('## Sequences')
-        if 'cons' in self.params['branches']:
-            # to map to the conservation files we need the coordinates
-            self.params['seq_type'] = 'bed'
-            st.markdown('###### Note: Only BED files allowed when Conservation score branch is applied (the coordinates are necessary).')
-        else:
-            self.params['seq_type'] = self.SEQ_TYPES[st.radio(
-                'Select a source of the sequences for the prediction:',
-                list(self.SEQ_TYPES.keys()), index=self.get_dict_index(self.defaults['seq_type'], self.SEQ_TYPES))]
-
-        self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
-            'Choose a way to place the window upon the sequence:',
-            list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
-        if self.params['win_place'] == 'rand':
-            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                         value=self.defaults['winseed']))
-
-        self.references = {}
-        if self.params['seq_type'] == 'bed':
-            self.params['seq_source'] = st.text_input(
-                'Path to the BED file containing intervals to be classified', value=self.defaults['seq_source'])
-            self.validation_hash['is_bed'].append(self.params['seq_source'])
-            self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
-
-            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
-                self.params['fasta_ref'] = st.text_input('Path to the reference fasta file', value=self.defaults['fasta_ref'])
-                self.references.update({'seq': self.params['fasta_ref'], 'fold': self.params['fasta_ref']})
-                self.validation_hash['is_fasta'].append(self.params['fasta_ref'])
-            if 'cons' in self.params['branches']:
-                self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
-                                                        value=self.defaults['cons_dir'])
-                self.references.update({'cons': self.params['cons_dir']})
-                self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
-        elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
-            st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (may affect '
-                        'the prediction accuracy). Longer sequences will be cut to the length of the window.')
-            if self.params['seq_type'] == 'fasta':
-                self.params['seq_source'] = st.text_input(
-                    'Path to FASTA file containing sequences to be classified', value=self.defaults['seq_source'])
-                self.validation_hash['is_fasta'].append(self.params['seq_source'])
-            elif self.params['seq_type'] == 'text':
-                self.params['seq_source'] = st.text_area(
-                    'One or more sequences to be classified (each sequence on a new line)', value=self.defaults['seq_source'])
-                self.validation_hash['is_multiline_text'].append(self.params['seq_source'])
-        if 'fold' in self.params['branches']:
-            # currently used only as an option for RNAfold
-            max_cpu = os.cpu_count() or 1
-            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
-                                  min_value=1, max_value=max_cpu, value=max_cpu)
-        else:
-            self.ncpu = 1
+        self.sequence_options(self.SEQ_TYPES)
 
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
@@ -110,8 +59,9 @@ class Predict(Subcommand):
                                  f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         self.ensure_dir(self.params['predict_dir'])
 
-        prepared_file_path = os.path.join(self.params['predict_dir'], 'mapped.tsv')
+        prepared_file_path = os.path.join(self.params['predict_dir'], 'sequences.tsv')
         predict_x = []
+
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
                               win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
@@ -127,6 +77,7 @@ class Predict(Subcommand):
 
         dataset.sort_datapoints().map_to_branches(
             self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
+
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()
             predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
@@ -134,7 +85,7 @@ class Predict(Subcommand):
 
         status.text('Calculating predictions...')
 
-        model = keras.models.load_model(self.params['model_file'])
+        model = tf.keras.models.load_model(self.params['model_file'])
         predict_y = model.predict(
             predict_x,
             verbose=1)
@@ -208,7 +159,7 @@ class Predict(Subcommand):
                 previous_params = yaml.safe_load(file)
             if 'Train' in previous_params.keys():
                 # Parameters missing in older versions of the code
-                novel_params = {}
+                novel_params = {'auc': None, 'avg_precision': None}
                 parameters = previous_params['Train']
                 parameters.update(novel_params)
                 header += f"{self.train_header()}"

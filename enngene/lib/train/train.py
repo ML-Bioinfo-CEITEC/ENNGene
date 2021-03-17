@@ -18,7 +18,6 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
-from ..utils import eval_plots
 from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
@@ -298,28 +297,14 @@ class Train(Subcommand):
         except:
             logger.warning('Did not exported model plot due to an error.')
 
-        # Evaluate
-        status.text('Testing the network...')
-        test_results = self.test(model, self.params['batch_size'], test_x, test_y)
-        test_scores = model.predict(test_x, verbose=1)
-
-        self.log_eval_metrics(test_results, self.params)
-
-        # Plot evaluation metric
-        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
-        self.ensure_dir(eval_plot_dir)
-        categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
-
-        aucs = eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
-        avg_precisions = eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
-        # FIXME
-        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
-
-        self.log_plotted_metrics(aucs, avg_precisions, self.params)
-
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
             json_file.write(model_json)
+
+        status.text('Evaluating model...')
+        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
+        self.ensure_dir(eval_plot_dir)
+        self.evaluate_model(encoded_labels, model, test_x, test_y, self.params, eval_plot_dir)
 
         # Prepare tsv row content
         header = self.train_header()
@@ -423,17 +408,6 @@ class Train(Subcommand):
         return history
 
     @staticmethod
-    def test(model, batch_size, test_x, test_y):
-        test_results = model.evaluate(
-            test_x,
-            test_y,
-            batch_size=batch_size,
-            verbose=1,
-            sample_weight=None)
-    
-        return test_results
-
-    @staticmethod
     def log_train_val_metrics(history, params):
         st.text('Final metric values:')
 
@@ -460,41 +434,6 @@ class Train(Subcommand):
                 f"Final achieved validation loss: {params['val_loss']} \n"
                 f"Final achieved validation accuracy: {params['val_acc']} \n")
                 # f"Final achieved validation AUC: {params['val_auc']} \n\n")
-
-    @staticmethod
-    def log_eval_metrics(test_results, params):
-        params['eval_loss'] = str(round(test_results[0], 4))
-        params['eval_acc'] = str(round(test_results[1], 4))
-
-        logger.info('Evaluation loss: ' + params['eval_loss'])
-        logger.info('Evaluation acc: ' + params['eval_acc'])
-
-        st.text(f"Evaluation loss: {params['eval_loss']} \n"
-                f"Evaluation accuracy: {params['eval_acc']} \n")
-
-    @staticmethod
-    def log_plotted_metrics(aucs, avg_precisions, params):
-        auc_cell = ''
-        for klass, auc in aucs.items():
-            auc_cell += f'{klass}: {auc}, '
-        params['auc'] = auc_cell.strip(', ')
-        ap_cell = ''
-        for klass, ap in avg_precisions.items():
-            ap_cell += f'{klass}: {ap}, '
-        params['avg_precision'] = ap_cell.strip(', ')
-
-        logger.info('AUC: ' + params['auc'])
-        logger.info('Average precision: ' + params['avg_precision'])
-
-        auc_rows = ''
-        for klass, auc in aucs.items():
-            auc_rows += f'{klass}: {auc}\n'
-        st.text(f'AUC \n{auc_rows}')
-
-        ap_rows = ''
-        for klass, ap in avg_precisions.items():
-            ap_rows += f'{klass}: {ap}\n'
-        st.text(f'Average precision \n{ap_rows}')
 
     @staticmethod
     def plot_training_metric(history, metric, title, out_dir):

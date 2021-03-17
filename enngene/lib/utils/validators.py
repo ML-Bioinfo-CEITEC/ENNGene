@@ -90,6 +90,14 @@ def is_fasta(file):
     return warning if invalid else None
 
 
+def is_blackbox(file):
+    # TODO also check it is not empty (only header)
+    invalid = False
+    warning = ''
+
+    return warning if invalid else None
+
+
 def is_wig_dir(folder):
     # Checks just one random (first found) wig file
     invalid = False

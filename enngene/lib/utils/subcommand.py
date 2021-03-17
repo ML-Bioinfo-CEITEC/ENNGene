@@ -6,6 +6,7 @@ import shutil
 import streamlit as st
 import yaml
 
+from . import eval_plots
 from . import validators
 from .exceptions import UserInputError
 from . import sequence as seq
@@ -19,9 +20,6 @@ class Subcommand:
     BRANCHES = {'Sequence': 'seq',
                 'Conservation score': 'cons',
                 'Secondary structure': 'fold'}
-    SEQ_TYPES = {'BED file': 'bed',
-                 'FASTA file': 'fasta',
-                 'Text input': 'text'}
     OPTIMIZERS = {'SGD': 'sgd',
                   'RMSprop': 'rmsprop',
                   'Adam': 'adam'}
@@ -69,6 +67,7 @@ class Subcommand:
         )
         st.markdown('---')
 
+    # Used by Evaluation and Prediction modules
     def model_options(self, blackbox=False, warning=None):
         missing_model = False
         missing_params = False
@@ -166,6 +165,121 @@ class Subcommand:
                                                                   list(self.BRANCHES.keys()))))
 
         self.validation_hash['is_model_file'].append(self.params['model_file'])
+
+    def sequence_options(self, seq_types):
+        if 'cons' in self.params['branches']:
+            # to map to the conservation files we need the coordinates
+            self.params['seq_type'] = 'bed'
+            st.markdown(
+                '###### Note: Only BED files allowed when Conservation score branch is applied (the coordinates are necessary).')
+        else:
+            self.params['seq_type'] = seq_types[st.radio(
+                'Select a source of the sequences:',
+                list(seq_types.keys()), index=self.get_dict_index(self.defaults['seq_type'], seq_types))]
+        self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
+            'Choose a way to place the window upon the sequence:',
+            list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
+        if self.params['win_place'] == 'rand':
+            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
+                                                         value=self.defaults['winseed']))
+        self.references = {}
+        if self.params['seq_type'] == 'bed':
+            self.params['seq_source'] = st.text_input(
+                'Path to the BED file containing intervals to be classified', value=self.defaults['seq_source'])
+            self.validation_hash['is_bed'].append(self.params['seq_source'])
+            self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
+
+            if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                self.params['fasta_ref'] = st.text_input('Path to the reference fasta file',
+                                                         value=self.defaults['fasta_ref'])
+                self.references.update({'seq': self.params['fasta_ref'], 'fold': self.params['fasta_ref']})
+                self.validation_hash['is_fasta'].append(self.params['fasta_ref'])
+            if 'cons' in self.params['branches']:
+                self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
+                                                        value=self.defaults['cons_dir'])
+                self.references.update({'cons': self.params['cons_dir']})
+                self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
+        elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
+            st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (may affect '
+                        'the prediction accuracy). Longer sequences will be cut to the length of the window.')
+            if self.params['seq_type'] == 'fasta':
+                self.params['seq_source'] = st.text_input(
+                    'Path to FASTA file containing sequences to be classified', value=self.defaults['seq_source'])
+                self.validation_hash['is_fasta'].append(self.params['seq_source'])
+            elif self.params['seq_type'] == 'text':
+                self.params['seq_source'] = st.text_area(
+                    'One or more sequences to be classified (each sequence on a new line)',
+                    value=self.defaults['seq_source'])
+                self.validation_hash['is_multiline_text'].append(self.params['seq_source'])
+        elif self.params['seq_type'] == 'blackbox':
+            self.params['seq_source'] = st.text_input(
+                'Path to the Blackbox dataset file exported from the Preprocess module', value=self.defaults['seq_source'])
+            self.validation_hash['is_blackbox'].append(self.params['seq_source'])
+
+        if 'fold' in self.params['branches']:
+            # currently used only as an option for RNAfold
+            max_cpu = os.cpu_count() or 1
+            self.ncpu = st.slider('Number of CPUs to be used for folding (max = all available CPUs on the machine).',
+                                  min_value=1, max_value=max_cpu, value=max_cpu)
+        else:
+            self.ncpu = 1
+
+    def evaluate_model(self, encoded_labels, model, test_x, test_y, params, out_dir):
+        # FIXME compare test and eval results, check y shape
+        print('X', len(test_x), test_x[0])
+        print('Y', len(test_y), test_y[0])
+        test_results = model.evaluate(
+            test_x,
+            test_y,
+            verbose=1,
+            sample_weight=None)
+        test_scores = model.predict(test_x, verbose=1)
+
+        self.log_eval_metrics(test_results, params)
+
+        # Plot evaluation metric
+
+        # categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
+        aucs = eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, out_dir)
+        avg_precisions = eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, out_dir)
+        # FIXME
+        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
+        self.log_plotted_metrics(aucs, avg_precisions, params)
+
+    @staticmethod
+    def log_eval_metrics(test_results, params):
+        params['eval_loss'] = str(round(test_results[0], 4))
+        params['eval_acc'] = str(round(test_results[1], 4))
+
+        logger.info('Evaluation loss: ' + params['eval_loss'])
+        logger.info('Evaluation acc: ' + params['eval_acc'])
+
+        st.text(f"Evaluation loss: {params['eval_loss']} \n"
+                f"Evaluation accuracy: {params['eval_acc']} \n")
+
+    @staticmethod
+    def log_plotted_metrics(aucs, avg_precisions, params):
+        auc_cell = ''
+        for klass, auc in aucs.items():
+            auc_cell += f'{klass}: {auc}, '
+        params['auc'] = auc_cell.strip(', ')
+        ap_cell = ''
+        for klass, ap in avg_precisions.items():
+            ap_cell += f'{klass}: {ap}, '
+        params['avg_precision'] = ap_cell.strip(', ')
+
+        logger.info('AUC: ' + params['auc'])
+        logger.info('Average precision: ' + params['avg_precision'])
+
+        auc_rows = ''
+        for klass, auc in aucs.items():
+            auc_rows += f'{klass}: {auc}\n'
+        st.text(f'AUC \n{auc_rows}')
+
+        ap_rows = ''
+        for klass, ap in avg_precisions.items():
+            ap_rows += f'{klass}: {ap}\n'
+        st.text(f'Average precision \n{ap_rows}')
 
     def validate_and_run(self, validation_hash):
         st.markdown('---')
@@ -329,6 +443,39 @@ class Subcommand:
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
                f"{params['common_layers']}\t"
+
+    @staticmethod
+    def eval_header():
+        return 'Evaluation directory\t' \
+               'Model file\t' \
+               'Evaluation branches\t' \
+               'Window\t' \
+               'Window placement\t' \
+               'Window seed\t' \
+               'No. classes\t' \
+               'Classes\t' \
+               'Sequence source type\t' \
+               'Sequence source\t' \
+               'Alphabet\t' \
+               'Strand\t' \
+               'Fasta ref.\t' \
+               'Conservation ref\t'
+
+    def eval_row(self, params):
+        return f"{os.path.basename(params['eval_dir'])}\t" \
+               f"{params['model_file']}\t" \
+               f"{params['branches']}\t" \
+               f"{params['win']}\t" \
+               f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
+               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
+               f"{params['no_klasses']}\t" \
+               f"{params['klasses']}\t" \
+               f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
+               f"{params['seq_source']}\t" \
+               f"{params['alphabet']}\t" \
+               f"{params['strand']}\t" \
+               f"{params['fasta_ref']}\t" \
+               f"{params['cons_dir']}\t"
 
     @staticmethod
     def predict_header():
