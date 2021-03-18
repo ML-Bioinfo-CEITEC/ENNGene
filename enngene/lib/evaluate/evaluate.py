@@ -82,6 +82,9 @@ class Evaluate(Subcommand):
         for branch in dataset.branches:
             branch_list = dataset.df[branch].to_list()
             eval_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
+        # Do not return data in an extra array if there's only one branch
+        if len(eval_x) == 1:
+            eval_x = eval_x[0]
         eval_y = dataset.labels(alphabet=encoded_labels)
 
         status.text('Evaluating model...')

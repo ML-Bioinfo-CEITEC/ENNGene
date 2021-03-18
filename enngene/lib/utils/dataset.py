@@ -7,7 +7,6 @@ import pandas as pd
 import re
 import streamlit as st
 import subprocess
-import sys
 import tempfile
 
 from functools import reduce
