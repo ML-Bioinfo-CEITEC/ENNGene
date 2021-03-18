@@ -104,12 +104,13 @@ class Dataset:
         self.category = category  # predict, or train, validation, test or blackbox for separated datasets
         self.df = df if df is not None else pd.DataFrame()
 
+        evaluation = category == 'eval'
         if bed_file:
             input_type = 'bed'
-            self.df = self.read_in_bed(bed_file)
+            self.df = self.read_in_bed(bed_file, evaluation)
         elif fasta_file:
             input_type = 'fasta'
-            self.df = self.read_in_fasta(fasta_file)
+            self.df = self.read_in_fasta(fasta_file, evaluation)
         elif text_input:
             input_type = 'fasta'
             self.df = self.read_in_text(text_input)
@@ -117,18 +118,25 @@ class Dataset:
         if win:
             self.df = Dataset.apply_window(self.df, win, win_place, winseed, input_type)
 
-    def read_in_bed(self, bed_file):
+    def read_in_bed(self, bed_file, evaluation=False):
         df = pd.read_csv(bed_file, sep='\t', header=None)
 
-        if len(df.columns) == 3:
-            df.columns = ['chrom_name', 'seq_start', 'seq_end']
+        if len(df.columns) == 3 or (evaluation and len(df.columns) == 4):
+            if evaluation:
+                df.columns = ['klass', 'chrom_name', 'seq_start', 'seq_end']
+            else:
+                df.columns = ['chrom_name', 'seq_start', 'seq_end']
             df['strand_sign'] = '+'; df['name'] = ''; df['score'] = np.nan
         elif len(df.columns) >= 6:
-            df = df[[0, 1, 2, 3, 4, 5]]
-            df.columns = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
+            if evaluation:
+                df = df[[0, 1, 2, 3, 4, 5, 6]]
+                df.columns = ['klass', 'chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
+            else:
+                df = df[[0, 1, 2, 3, 4, 5]]
+                df.columns = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
         else:
             raise UserInputError('Invalid format of a .bed file.')
-        if self.klass:
+        if self.klass and not evaluation:
             df['klass'] = self.klass
 
         # def check_valid(row):
@@ -228,7 +236,7 @@ class Dataset:
         return self
 
     @staticmethod
-    def read_in_fasta(fasta_file):
+    def read_in_fasta(fasta_file, evaluation=False):
         df = pd.DataFrame()
 
         with open(fasta_file, 'r') as file:
@@ -238,9 +246,14 @@ class Dataset:
                 if '>' in line:
                     # Save finished previous key value pair (unless it's the first iteration)
                     if header:
-                        new_row = pd.DataFrame([[header, sequence]])
+                        new_row = pd.DataFrame([[header, sequence, klass]]) if evaluation else pd.DataFrame([[header, sequence]])
                         df = df.append(new_row)
-                    header = line.strip().strip('>')
+                    if evaluation:
+                        parts = line.strip().strip('>').split()
+                        klass = parts[-1]
+                        header = ''.join(parts[0:-1])
+                    else:
+                        header = line.strip().strip('>')
                     sequence = ""
                 else:
                     if header:
@@ -249,10 +262,13 @@ class Dataset:
                         raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
             # Save the last key value pair
             if header and sequence:
-                new_row = pd.DataFrame([[header, sequence]])
+                new_row = pd.DataFrame([[header, sequence, klass]]) if evaluation else pd.DataFrame([[header, sequence]])
                 df = df.append(new_row)
 
-        df.columns = ['header', 'input_sequence']
+        if evaluation:
+            df.columns = ['header', 'input_sequence', 'klass']
+        else:
+            df.columns = ['header', 'input_sequence']
         return df
 
     @staticmethod
