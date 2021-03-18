@@ -5,9 +5,11 @@ import os
 from pathlib import Path
 import shutil
 import streamlit as st
+import tensorflow as tf
 import yaml
 
 from . import eval_plots
+from . import ig
 from . import validators
 from .exceptions import UserInputError
 from . import sequence as seq
@@ -358,6 +360,48 @@ class Subcommand:
     def get_dict_key(value, dictionary):
         index = Subcommand.get_dict_index(value, dictionary)
         return list(dictionary.keys())[index]
+
+    @staticmethod
+    def calculate_ig(dataset, model, predict_x, win, klasses):
+        raw_sequence = dataset.df['input_seq']
+        # set baseline, win parameter in yaml and num 5, num of sequence
+        baseline = tf.zeros(shape=(win, 5))
+        visualisations = []
+        # need to transform to right shape:
+        predict_x_np = np.array(predict_x[0])
+        # take each prediction, unprocessed data and count IG
+        for sample, letter_sequence in zip(predict_x_np, raw_sequence):
+            # return tensor of shape: (window width(sequence length), encoded base shape)
+            sample = tf.convert_to_tensor(sample, dtype=tf.float32)
+
+            # contain significance of each base in sequence
+            ig_attribution = ig.integrated_gradients(model, baseline, sample)
+
+            # choose attribution for specific encoded base
+            attrs = ig.choose_validation_points(ig_attribution, win, 5)
+
+            # return HTML code with colored bases
+            visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
+            visualisations.append(visualisation)
+        dataset.df['Integrated Gradients Visualisation'] = visualisations
+        # Show ten best predictions per class in the application window
+        st.markdown('---')
+        st.markdown('### Integrated Gradients Visualisation')
+        st.markdown('Below are ten sequences with highest predicted score per each class. \n'
+                    'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
+                    'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
+                    'On the other hand, the blue color means low level of attribution.')
+        best = dataset.df[klasses + ['Integrated Gradients Visualisation']]
+        for klass in klasses:
+            st.markdown(f'#### {klass}')
+            best.sort_values(by=klass, ascending=False, inplace=True)
+            best_ten = best[:10] if (len(best) >= 10) else best
+
+            def visualize(row):
+                st.markdown(f"{row['Integrated Gradients Visualisation']}", unsafe_allow_html=True)
+                return row
+
+            best_ten.apply(visualize, axis=1)
 
     @staticmethod
     def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):

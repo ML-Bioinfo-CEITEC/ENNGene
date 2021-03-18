@@ -8,7 +8,6 @@ import tensorflow as tf
 
 
 # TODO export the env when releasing, check pandas == 1.1.1
-from . import ig
 from ..utils.dataset import Dataset
 from ..utils.subcommand import Subcommand
 
@@ -87,63 +86,20 @@ class Predict(Subcommand):
             predict_x,
             verbose=1)
 
-        status.text('Calculating Integrated Gradients... \n'
-                    'Note: This is rather slow process, it may take a while.')
-        logger.info('Calculating Integrated Gradients...')
         for i, klass in enumerate(self.params['klasses']):
             dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
+        status.text('Calculating Integrated Gradients... \n'
+                    'Note: This is rather slow process, it may take a while.')
+        logger.info('Calculating Integrated Gradients...')
+
         placeholder = st.empty()
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
             status.text('Calculating Integrated Gradients...')
-            raw_sequence = dataset.df['input_seq']
+            self.calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'])
 
-            # set baseline, win parameter in yaml and num 5, num of sequence
-            baseline = tf.zeros(shape=(self.params['win'], 5))
-
-            visualisations = []
-            # need to transform to right shape:
-            predict_x_np = np.array(predict_x[0])
-
-            # take each prediction, unprocessed data and count IG
-            for sample, letter_sequence in zip(predict_x_np, raw_sequence):
-
-                # return tensor of shape: (window width(sequence length), encoded base shape)
-                sample = tf.convert_to_tensor(sample, dtype=tf.float32)
-
-                # contain significance of each base in sequence
-                ig_attribution = ig.integrated_gradients(model, baseline, sample)
-
-                # choose attribution for specific encoded base
-                attrs = ig.choose_validation_points(ig_attribution, self.params['win'], 5)
-
-                # return HTML code with colored bases
-                visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
-                visualisations.append(visualisation)
-
-            dataset.df['Integrated Gradients Visualisation'] = visualisations
-
-            # Show ten best predictions per class in the application window
-            st.markdown('---')
-            st.markdown('### Integrated Gradients Visualisation')
-            st.markdown('Below are ten sequences with highest predicted score per each class. \n'
-                        'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
-                        'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
-                        'On the other hand, the blue color means low level of attribution.')
-
-            best = dataset.df[self.params['klasses']+['Integrated Gradients Visualisation']]
-            for klass in self.params['klasses']:
-                st.markdown(f'#### {klass}')
-                best.sort_values(by=klass, ascending=False, inplace=True)
-                best_ten = best[:10] if (len(best) >= 10) else best
-
-                def visualize(row):
-                    st.markdown(f"{row['Integrated Gradients Visualisation']}", unsafe_allow_html=True)
-                    return row
-                best_ten.apply(visualize, axis=1)
-
-        status.text('Exporting results...')
+        placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
         ignore = ['name', 'score'] + self.params['branches']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)

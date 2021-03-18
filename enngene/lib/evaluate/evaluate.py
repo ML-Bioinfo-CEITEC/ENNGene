@@ -41,7 +41,12 @@ class Evaluate(Subcommand):
         st.markdown('## Sequences')
         self.sequence_options(self.SEQ_TYPES, evaluation=True)
 
-        # TODO IG?
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
+            self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
+            if self.params['ig']:
+                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
+                st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
+                            'it may take several minutes up to few hours (depending on the number of sequences).')
 
         self.validate_and_run(self.validation_hash)
 
@@ -94,7 +99,16 @@ class Evaluate(Subcommand):
             dataset.df[klass] = [y[i] for y in predicted]
         dataset.df['highest scoring class'] = self.get_klass(predicted, self.params['klasses'])
 
-        status.text('Exporting results...')
+        status.text('Calculating Integrated Gradients... \n'
+                    'Note: This is rather slow process, it may take a while.')
+        logger.info('Calculating Integrated Gradients...')
+
+        placeholder = st.empty()
+        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
+            status.text('Calculating Integrated Gradients...')
+            self.calculate_ig(dataset, model, eval_x, self.params['win'], self.params['klasses'])
+
+        placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['eval_dir'], 'results.tsv')
         ignore = self.params['branches']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
@@ -125,7 +139,7 @@ class Evaluate(Subcommand):
                 header += '\n'
                 row += '\n'
 
-        self.finalize_run(logger, self.params['eval_dir'], self.params, header, row, status, self.previous_param_file)
+        self.finalize_run(logger, self.params['eval_dir'], self.params, header, row, placeholder, self.previous_param_file)
         status.text('Finished!')
         logger.info('Finished!')
 
