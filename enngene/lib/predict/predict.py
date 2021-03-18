@@ -37,7 +37,7 @@ class Predict(Subcommand):
         self.model_options()
 
         st.markdown('## Sequences')
-        self.sequence_options(self.SEQ_TYPES)
+        self.sequence_options(self.SEQ_TYPES, evaluation=False)
 
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])

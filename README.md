@@ -246,8 +246,9 @@ You can monitor the progress on the chart indicating metric and loss function va
 
 Resulting model and other files are exported to the 'training' subfolder in the selected `output folder`. 
 
-#### 3 Prediction
-In the last module, a trained model can be used to classify novel, unseen data. 
+#### 3 Evaluation & Prediction
+In the last two modules, a trained model can be evaluated on sequences with a know class or used to classify novel, unseen data.
+As the parameters for the two modules are mostly overlapping, they will be covered in this section together.
 Sequences provided to be classified are preprocessed similar to the first module for the purpose of the CNN. 
 
 ##### Model
@@ -269,9 +270,11 @@ When selected this option, you must provide:
 ##### Sequences
 
 You can provide the input sequences you wish to classify in following formats:
- * BED file
- * FASTA file
- * Text input - Paste one sequence per line.
+ * `BED file` - When used for Evaluation, a column containing class information must be inserted at the beginning of the file.
+   I.e. the first column of the file must contain the name of the class per each sequence. Class names must correspond to those used when training the model.
+ * `FASTA file` - When used for Evaluation, a klass name must be provided as a last part of the header, separated by a space. E.g. '>chr16:655478-655578 FUS_positives'.  
+ * `Text input` - Available for Prediction. Paste one sequence per line.
+ * `Blackbox dataset` - Available for Evaluation. Provide a path to the blackbox dataset file exported by the Preprocess module.
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
 

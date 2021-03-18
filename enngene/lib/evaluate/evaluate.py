@@ -39,7 +39,7 @@ class Evaluate(Subcommand):
 
         # TODO add option to use already prepared file ? (sequences.tsv)
         st.markdown('## Sequences')
-        self.sequence_options(self.SEQ_TYPES)
+        self.sequence_options(self.SEQ_TYPES, evaluation=True)
 
         # TODO IG?
 
@@ -63,7 +63,6 @@ class Evaluate(Subcommand):
 
         prepared_file_path = os.path.join(self.params['eval_dir'], 'sequences.tsv')
 
-        # TODO ensure klass information is in the original file
         if self.params['seq_type'] == 'bed' or self.params['seq_type'] == 'fasta':
             if self.params['seq_type'] == 'bed':
                 dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='eval',

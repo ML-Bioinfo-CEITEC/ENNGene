@@ -167,7 +167,7 @@ class Subcommand:
 
         self.validation_hash['is_model_file'].append(self.params['model_file'])
 
-    def sequence_options(self, seq_types):
+    def sequence_options(self, seq_types, evaluation):
         if 'cons' in self.params['branches']:
             # to map to the conservation files we need the coordinates
             self.params['seq_type'] = 'bed'
@@ -187,6 +187,10 @@ class Subcommand:
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
                 'Path to the BED file containing intervals to be classified', value=self.defaults['seq_source'])
+            if evaluation:
+                st.markdown(
+                    '###### Note: The first (extra) column of the file must contain the name of the class per each sequence. '
+                    'Class names must correspond to those used when training the model.')
             self.validation_hash['is_bed'].append(self.params['seq_source'])
             self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
 
@@ -200,13 +204,19 @@ class Subcommand:
                                                         value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
+
         elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
             st.markdown('###### WARNING: Sequences shorter than the window size will be padded with Ns (may affect '
                         'the prediction accuracy). Longer sequences will be cut to the length of the window.')
             if self.params['seq_type'] == 'fasta':
                 self.params['seq_source'] = st.text_input(
                     'Path to FASTA file containing sequences to be classified', value=self.defaults['seq_source'])
+                if evaluation:
+                    st.markdown(
+                        "###### Note: The class name must be provided as a last part of the header, separated by a space. E.g. '>chr16:655478-655578 FUS_positives'. "
+                        'Class names must correspond to those used when training the model.')
                 self.validation_hash['is_fasta'].append(self.params['seq_source'])
+
             elif self.params['seq_type'] == 'text':
                 self.params['seq_source'] = st.text_area(
                     'One or more sequences to be classified (each sequence on a new line)',
