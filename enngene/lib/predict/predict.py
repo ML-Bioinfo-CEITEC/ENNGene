@@ -39,6 +39,7 @@ class Predict(Subcommand):
         self.sequence_options(self.SEQ_TYPES, evaluation=False)
 
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
+            st.markdown('')
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
             if self.params['ig']:
                 st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
