@@ -227,6 +227,10 @@ class Subcommand:
         elif self.params['seq_type'] == 'blackbox':
             self.params['seq_source'] = st.text_input(
                 'Path to the Blackbox dataset file exported from the Preprocess module', value=self.defaults['seq_source'])
+            st.markdown(
+                '###### Note: Dataset should come from the same data as those used for training the model, '
+                'or the parameters must match at least (e.g. class names, window size, branches...).')
+
             self.validation_hash['is_blackbox'].append(self.params['seq_source'])
 
         if 'fold' in self.params['branches']:

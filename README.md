@@ -275,6 +275,7 @@ You can provide the input sequences you wish to classify in following formats:
  * `FASTA file` - When used for Evaluation, a klass name must be provided as a last part of the header, separated by a space. E.g. '>chr16:655478-655578 FUS_positives'.  
  * `Text input` - Available for Prediction. Paste one sequence per line.
  * `Blackbox dataset` - Available for Evaluation. Provide a path to the blackbox dataset file exported by the Preprocess module.
+Dataset should come from the same data as those used for training the model, or the parameters must match at least (e.g. class names, window size, branches...).  
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
 

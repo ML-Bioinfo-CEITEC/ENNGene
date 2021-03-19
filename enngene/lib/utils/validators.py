@@ -95,9 +95,9 @@ def is_blackbox(file_path):
     invalid = False
     try:
         dataset = Dataset.load_from_file(file_path)
-        category = dataset.category
+        # category = dataset.category
         base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
-        if category != 'blackbox' or not all(col in dataset.df.columns for col in base_columns):
+        if not all(col in dataset.df.columns for col in base_columns):  # or category != 'blackbox'
             invalid = True
             warning = 'Given file does not seem like valid blackbox dataset. Please check the file.'
         if int(subprocess.check_output(['wc', '-l', file_path]).split()[0]) <= 1:
@@ -105,7 +105,7 @@ def is_blackbox(file_path):
             warning = 'Given blackbox dataset file seems to be empty.'
     except Exception:
         invalid = True
-        warning = 'Sorry, could not parse given blackbox file. Please check the file.'
+        warning = 'Sorry, could not parse given dataset file. Please check the file.'
 
     return warning if invalid else None
 
