@@ -54,6 +54,11 @@ class Subcommand:
                                 logger.exception(f'{err.__class__.__name__}: {err}')
                                 raise UserInputError('An error occurred while processing given yaml file.')
                             if self.__class__.__name__ in user_params.keys():
+                                # For v <= 1.0.1 the numbers were saved separately in a dict TODO remove eventually
+                                if self.__class__.__name__ == 'Train' and \
+                                        'no_branches_layers' in user_params['Train'].keys() and \
+                                        type(user_params['Train']['no_branches_layers']) == dict:
+                                    user_params['Train']['no_branches_layers'] = max(list(user_params['Train']['no_branches_layers'].values()))
                                 self.defaults.update(user_params[self.__class__.__name__])
                                 self.params_loaded = True
                             else:
@@ -519,7 +524,7 @@ class Subcommand:
                f"{params['lr']}\t" \
                f"{self.get_dict_key(params['lr_optim'], self.LR_OPTIMS) if params['lr_optim'] else '-'}\t" \
                f"{params['epochs']}\t" \
-               f"{[params['no_branches_layers'][branch] for branch in params['no_branches_layers'].keys() if branch in params['branches']]}\t" \
+               f"{params['no_branches_layers']}\t" \
                f"{params['branches_layers']}\t" \
                f"{params['no_common_layers']}\t" \
                f"{params['common_layers']}\t"

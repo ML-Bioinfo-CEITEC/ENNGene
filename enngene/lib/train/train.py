@@ -111,14 +111,15 @@ class Train(Subcommand):
         default_layer_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32, 'bidirect': True}
 
         st.markdown('## Network Architecture')
+
+        self.params['no_branches_layers'] = st.number_input(
+            'Number of layers in the branches:', min_value=0, value=self.defaults['no_branches_layers'], key=f'branches_no')
         self.params['branches_layers'] = self.defaults['branches_layers']
+
         for i, branch in enumerate(self.params['branches']):
             st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
-            self.params['no_branches_layers'][branch] = st.number_input(
-                'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
-
-            self.params['branches_layers'][branch] = self.defaults['branches_layers'][branch][0:self.params['no_branches_layers'][branch]]
-            for i in range(self.params['no_branches_layers'][branch]):
+            self.params['branches_layers'][branch] = self.defaults['branches_layers'][branch][0:self.params['no_branches_layers']]
+            for i in range(self.params['no_branches_layers']):
                 if self.params_loaded and (i < len(self.defaults['branches_layers'][branch])):
                     default_args = default_layer_args
                     default_args.update(self.defaults['branches_layers'][branch][i]['args'])
@@ -480,7 +481,7 @@ class Train(Subcommand):
                 'input_folder': '',
                 'lr': 0.005,
                 'lr_optim': 'fixed',
-                'no_branches_layers': {'seq': 1, 'fold': 1, 'cons': 1},
+                'no_branches_layers': 1,
                 'no_common_layers': 1,
                 'optimizer': 'sgd',
                 'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output'),
