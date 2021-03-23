@@ -116,6 +116,8 @@ class Train(Subcommand):
             st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
             self.params['no_branches_layers'][branch] = st.number_input(
                 'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
+
+            self.params['branches_layers'][branch] = self.defaults['branches_layers'][branch][0:self.params['no_branches_layers'][branch]]
             for i in range(self.params['no_branches_layers'][branch]):
                 if self.params_loaded and (i < len(self.defaults['branches_layers'][branch])):
                     default_args = default_layer_args
