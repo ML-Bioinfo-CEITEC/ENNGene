@@ -250,20 +250,19 @@ class Subcommand:
             test_y,
             verbose=1,
             sample_weight=None)
-        test_scores = model.predict(test_x, verbose=1)
+        y_pred = model.predict(test_x, verbose=1)
 
         self.log_eval_metrics(test_results, params)
 
-        # Plot evaluation metric
-
+        # Plot evaluation metrics
         # categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
-        aucs = eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, out_dir)
-        avg_precisions = eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, out_dir)
+        aucs = eval_plots.plot_multiclass_roc_curve(test_y, y_pred, encoded_labels, out_dir)
+        avg_precisions = eval_plots.plot_multiclass_prec_recall_curve(test_y, y_pred, encoded_labels, out_dir)
         # FIXME
-        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
+        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(y_pred, axis=1), categorical_labels, out_dir)
         self.log_plotted_metrics(aucs, avg_precisions, params)
 
-        return test_scores
+        return y_pred
 
     @staticmethod
     def get_klass(predicted, klasses):
