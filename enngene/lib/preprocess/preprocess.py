@@ -127,11 +127,8 @@ class Preprocess(Subcommand):
 
                 if self.params['full_dataset_file']:
                     try:
-                        self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
-                        self.merged_dataset = Dataset.load_from_file(self.params['full_dataset_file'])
-                        for klass in self.params['klasses']:
-                            count = len(self.merged_dataset.df[(self.merged_dataset.df['klass'] == klass)])
-                            self.klass_sizes.update({klass: count})
+                        self.params['klasses'], self.params['valid_chromosomes'], self.params['branches'], self.klass_sizes = \
+                            Dataset.load_and_cache(self.params['full_dataset_file'])
                     except Exception:
                         raise UserInputError('The file with mapped dataset does not exist or is not valid, sorry.')
 
@@ -222,10 +219,12 @@ class Preprocess(Subcommand):
 
         if self.params['use_mapped']:
             status.text('Reading in already mapped file with all the samples...')
+            merged_dataset = Dataset.load_from_file(self.params['full_dataset_file'])
+            # FIXME copied file is broken
             shutil.copyfile(self.params['full_dataset_file'], full_data_file_path)
             # Keep only selected branches
-            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
-            self.merged_dataset.df = self.merged_dataset.df[cols]
+            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input_seq'] + self.params['branches']
+            merged_dataset.df = merged_dataset.df[cols]
         else:
             # Accept one file per class and create one Dataset per each
             initial_datasets = set()
@@ -241,7 +240,7 @@ class Preprocess(Subcommand):
                             win_place=self.params['win_place'], winseed=self.params['winseed']))
 
             # Merging data from all klasses to map them more efficiently all together at once
-            self.merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
+            merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
             if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and \
                     type(self.references['seq']) != dict and not self.params['alphabet']:
@@ -252,13 +251,13 @@ class Preprocess(Subcommand):
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
                 f"Mapping all intervals from to {len(self.params['branches'])} branch(es) and exporting...")
-            self.merged_dataset.sort_datapoints().map_to_branches(
+            merged_dataset.sort_datapoints().map_to_branches(
                 self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, status, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
         for klass in self.params['klasses']:
-            df = self.merged_dataset.df[self.merged_dataset.df['klass'] == klass]
+            df = merged_dataset.df[merged_dataset.df['klass'] == klass]
             mapped_datasets.add(Dataset(klass=klass, branches=self.params['branches'], df=df))
 
         split_datasets = set()

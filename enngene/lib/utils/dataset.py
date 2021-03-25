@@ -28,7 +28,11 @@ class Dataset:
             full_dataset = cls.load_from_file(file_path)
             klasses = list(full_dataset.df['klass'].unique())
             valid_chromosomes = list(full_dataset.df['chrom_name'].unique())
-        return klasses, valid_chromosomes
+            klass_sizes = {}
+            for klass in klasses:
+                count = len(full_dataset.df[(full_dataset.df['klass'] == klass)])
+                klass_sizes.update({klass: count})
+        return klasses, valid_chromosomes, full_dataset.branches, klass_sizes
 
     @classmethod
     def load_from_file(cls, file_path):
