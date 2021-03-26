@@ -247,9 +247,6 @@ class Subcommand:
             self.ncpu = 1
 
     def evaluate_model(self, encoded_labels, model, test_x, test_y, params, out_dir):
-        # FIXME compare test and eval results, check y shape
-        print('X', len(test_x), test_x[0])
-        print('Y', len(test_y), test_y[0])
         test_results = model.evaluate(
             test_x,
             test_y,
