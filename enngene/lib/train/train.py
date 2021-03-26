@@ -198,7 +198,7 @@ class Train(Subcommand):
         return layer
 
     @staticmethod
-    def parse_data(dataset_files, branches, alphabet):
+    def parse_data(dataset_files, branches, encoding):
         dictionary = {}
         for file in dataset_files:
             dataset = Dataset.load_from_file(file)
@@ -217,7 +217,7 @@ class Train(Subcommand):
                 values = values[0]
 
             dictionary[dataset.category].update({'values': values})
-            dictionary[dataset.category].update({'labels': dataset.labels(alphabet=alphabet)})
+            dictionary[dataset.category].update({'labels': dataset.labels(encoding=encoding)})
 
         return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
@@ -247,7 +247,8 @@ class Train(Subcommand):
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
                 klasses = previous_params['Preprocess']['klasses']
-                encoded_labels = seq.onehot_encode_alphabet(klasses)
+                klass_alphabet = {klass: i for i, klass in enumerate(klasses)}
+                encoded_labels = seq.onehot_encode_alphabet(klass_alphabet)
         else:
             raise UserInputError('Could not read class labels from parameters.yaml file).')
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], encoded_labels)

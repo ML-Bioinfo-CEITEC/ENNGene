@@ -117,7 +117,6 @@ class Subcommand:
                             user_params = yaml.safe_load(file)
                         try:
                             training_params['win'] = user_params['Preprocess']['win']
-                            training_params['alphabet'] = user_params['Preprocess']['alphabet']
                             klasses = user_params['Preprocess']['klasses']
                             training_params['no_klasses'] = len(klasses)
                             training_params['klasses'] = klasses
@@ -127,7 +126,6 @@ class Subcommand:
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
                         if not training_params['win'] \
-                                or not training_params['alphabet'] \
                                 or training_params['no_klasses'] == 0 or len(training_params['klasses']) == 0 \
                                 or len(training_params['klasses']) != training_params['no_klasses'] \
                                 or len(training_params['branches']) == 0:
@@ -137,7 +135,6 @@ class Subcommand:
                         else:
                             st.markdown('###### Parameters read from given folder:\n'
                                         f"* Window size: {training_params['win']}\n"
-                                        f"* Alphabet: {training_params['alphabet']}\n"
                                         f"* No. of classes: {training_params['no_klasses']}\n"
                                         f"* Class labels: {', '.join(training_params['klasses'])}\n"
                                         f"* Branches: {', '.join([self.get_dict_key(b, self.BRANCHES) for b in training_params['branches']])}")
@@ -155,9 +152,6 @@ class Subcommand:
                 st.markdown('##### **WARNING:** Parameters window size, branches, and number of classes must be the same as when used for training the given model.')
                 self.params['win'] = int(
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
-                self.params['alphabet'] = st.selectbox('Alphabet:',
-                                                       list(seq.ALPHABETS.keys()),
-                                                       index=list(seq.ALPHABETS.keys()).index(self.defaults['alphabet']))
                 self.params['no_klasses'] = int(st.number_input('Number of classes used for training', min_value=2,
                                                                 value=self.defaults['no_klasses']))
                 st.markdown('##### **WARNING:** Make sure the class order is the same as when training the model.')
@@ -442,7 +436,6 @@ class Subcommand:
     def preprocess_header():
         return 'Preprocess directory\t' \
                'Preprocess branches\t' \
-               'Alphabet\t' \
                'Strand\t' \
                'Window\t' \
                'Window placement\t' \
@@ -464,7 +457,6 @@ class Subcommand:
     def preprocess_row(self, params):
         return f"{os.path.basename(params['datasets_dir'])}\t" \
                f"{[self.get_dict_key(b, self.BRANCHES) for b in params['branches']]}\t" \
-               f"{params['alphabet'] if 'seq' in params['branches'] else '-'}\t" \
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \
                f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
@@ -538,7 +530,6 @@ class Subcommand:
                'Classes\t' \
                'Sequence source type\t' \
                'Sequence source\t' \
-               'Alphabet\t' \
                'Strand\t' \
                'Fasta ref.\t' \
                'Conservation ref\t'
@@ -554,7 +545,6 @@ class Subcommand:
                f"{params['klasses']}\t" \
                f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
                f"{params['seq_source']}\t" \
-               f"{params['alphabet']}\t" \
                f"{params['strand']}\t" \
                f"{params['fasta_ref']}\t" \
                f"{params['cons_dir']}\t"
@@ -571,7 +561,6 @@ class Subcommand:
                'Classes\t' \
                'Sequence source type\t' \
                'Sequence source\t' \
-               'Alphabet\t' \
                'Strand\t' \
                'Fasta ref.\t' \
                'Conservation ref\t'
@@ -587,7 +576,6 @@ class Subcommand:
                f"{params['klasses']}\t" \
                f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
                f"{params['seq_source']}\t" \
-               f"{params['alphabet']}\t" \
                f"{params['strand']}\t" \
                f"{params['fasta_ref']}\t" \
                f"{params['cons_dir']}\t"

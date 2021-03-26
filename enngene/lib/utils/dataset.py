@@ -163,16 +163,15 @@ class Dataset:
         self.df = self.df[:last]
         return self
 
-    def labels(self, alphabet=None):
+    def labels(self, encoding=None):
         labels = self.df['klass']
-        if alphabet:
-            encoded_labels = [seq.translate(item, alphabet) for item in labels]
+        if encoding:
+            encoded_labels = [seq.translate(item, encoding) for item in labels]
             return np.array(encoded_labels)
         else:
             return np.array(labels)
 
-    def map_to_branches(self, references, alphabet, strand, outfile_path, status, predict=False, ncpu=1):
-        dna = alphabet == 'DNA'
+    def map_to_branches(self, references, strand, outfile_path, status, predict=False, ncpu=1):
         mapped = False
         # map seq branch first so that we can replace the df without loosing anny information
         self.branches.sort(key=lambda x: (x != 'seq', x != 'fold'))
@@ -202,11 +201,11 @@ class Dataset:
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
                 seq_branch = 'seq' in self.branches
-                self.df = self.fold_branch(self.df, key_cols, seq_branch, ncpu, dna=dna)
+                self.df = self.fold_branch(self.df, key_cols, seq_branch, ncpu)
 
         if 'seq' in self.branches:
             # encode it at the end, so that it can be used for folding before that
-            encoding = seq.onehot_encode_alphabet(seq.ALPHABETS[alphabet])
+            encoding = seq.onehot_encode_alphabet(seq.ALPHABET)
             self.encode_col('seq', encoding)
 
         self.df.dropna(subset=self.branches, inplace=True)
@@ -520,7 +519,7 @@ class Dataset:
         return [score + new_score, current_header, parsed_line]
 
     @staticmethod
-    def fold_branch(df, key_cols, seq_branch=True, ncpu=1, dna=True):
+    def fold_branch(df, key_cols, seq_branch=True, ncpu=1):
         tmp_dir = tempfile.gettempdir()
         original_length = df.shape[0]
         has_klass = 'klass' in df.columns
@@ -529,11 +528,8 @@ class Dataset:
 
         out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
         out_file = open(out_path, 'w+')
-        if dna:
-            subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
-        else:
-            subprocess.run(['RNAfold', '--verbose', '--noPS', '--noconv', f'--jobs={ncpu}', fasta_file], stdout=out_file,
-                           check=True)
+
+        subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
 
         folded_df = pd.read_csv(out_path, header=None, sep='\t')
         folded_df.reset_index(inplace=True, drop=True)  # ensure ordered index
@@ -547,7 +543,7 @@ class Dataset:
 
         folded_len = (len(folded_df) / 3)
         folded_df.columns = ['output']
-        fold_encoding = seq.onehot_encode_alphabet(['.', '|', 'x', '<', '>', '(', ')'])
+        fold_encoding = seq.onehot_encode_alphabet({'.': 0, '|': 1, 'x': 2, '<': 3, '>': 4, '(': 5, ')': 6})
 
         def parse_folding(row):
             folding = row['output']

@@ -73,7 +73,7 @@ class Predict(Subcommand):
                                   win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
 
         dataset.sort_datapoints().map_to_branches(
-            self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
+            self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
 
         for branch in self.params['branches']:
             branch_list = dataset.df[branch].to_list()
@@ -147,7 +147,6 @@ class Predict(Subcommand):
             'klasses': [],
             'seq_type': 'bed',
             'seq_source': '',
-            'alphabet': 'DNA',
             'strand': True,
             'fasta_ref': '',
             'cons_dir': '',

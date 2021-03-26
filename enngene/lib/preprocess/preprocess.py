@@ -172,8 +172,7 @@ class Preprocess(Subcommand):
 
                 if self.params['fasta']:
                     try:
-                        self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
-                        self.params['alphabet'] = seq.define_alphabet(alphabet)
+                        self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
                     except Exception:
                         raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
 
@@ -242,17 +241,11 @@ class Preprocess(Subcommand):
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
 
-            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and \
-                    type(self.references['seq']) != dict and not self.params['alphabet']:
-                status.text('Checking reference fasta file...')
-                _, alphabet = seq.parse_fasta_reference(self.references['seq'])
-                self.params['alphabet'] = seq.define_alphabet(alphabet)
-
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
                 f"Mapping all intervals from to {len(self.params['branches'])} branch(es) and exporting...")
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, status, self.ncpu)
+                self.references, self.params['strand'], full_data_file_path, status, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
@@ -293,8 +286,7 @@ class Preprocess(Subcommand):
 
     @staticmethod
     def default_params():
-        return {'alphabet': None,
-                'branches': [],
+        return {'branches': [],
                 'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
                 'cons_dir': '',
                 'fasta': '',

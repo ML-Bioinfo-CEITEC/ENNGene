@@ -59,7 +59,8 @@ class Evaluate(Subcommand):
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
                 klasses = previous_params['Preprocess']['klasses']
-                encoded_labels = seq.onehot_encode_alphabet(klasses)
+                klass_alphabet = {klass: i for i, klass in enumerate(klasses)}
+                encoded_labels = seq.onehot_encode_alphabet(klass_alphabet)
         else:
             raise UserInputError('Could not read class labels from parameters.yaml file).')
 
@@ -78,7 +79,7 @@ class Evaluate(Subcommand):
                 dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='eval',
                                       win=self.params['win'], win_place=self.params['win_place'], winseed=self.params['winseed'])
             dataset.sort_datapoints().map_to_branches(
-                self.references, self.params['alphabet'], self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
+                self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
         elif self.params['seq_type'] == 'blackbox':
             dataset = Dataset.load_from_file(self.params['seq_source'])
             pass
@@ -90,7 +91,7 @@ class Evaluate(Subcommand):
         # Do not return data in an extra array if there's only one branch
         if len(eval_x) == 1:
             eval_x = eval_x[0]
-        eval_y = dataset.labels(alphabet=encoded_labels)
+        eval_y = dataset.labels(encoding=encoded_labels)
 
         status.text('Evaluating model...')
         model = tf.keras.models.load_model(self.params['model_file'])
@@ -156,7 +157,6 @@ class Evaluate(Subcommand):
             'klasses': [],
             'seq_type': 'bed',
             'seq_source': '',
-            'alphabet': 'DNA',
             'strand': True,
             'fasta_ref': '',
             'cons_dir': '',
