@@ -142,9 +142,11 @@ class Preprocess(Subcommand):
             default_ratio = {k: v for k, v in self.defaults['reduceratio'].items() if k in self.params['klasses']}
             self.params['reduceratio'] = default_ratio
             for klass in self.params['reducelist']:
+                if klass not in self.params['reduceratio'].keys():
+                    self.params['reduceratio'][klass] = 0.5
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
-                    min_value=0.00001, value=0.01, format='%.5f'))})
+                    min_value=0.00001, value=default_ratio[klass], format='%.2f'))})
             st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories may end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
