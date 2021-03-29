@@ -1,11 +1,13 @@
 import datetime
 import logging
 import os
+import re
 import shutil
 import streamlit as st
 import subprocess
 
 from ..utils.dataset import Dataset
+from ..utils import file_utils as f
 from ..utils.exceptions import UserInputError
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
@@ -160,27 +162,42 @@ class Preprocess(Subcommand):
             'Choose a way to split datasets into train, test, validation and blackbox categories:',
             list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
+            chr_ready = False
             if self.params['use_mapped']:
-                if not self.params['full_dataset_file']:
-                    st.markdown('(The mapped file must be provided first to infer available chromosomes.)')
-            else:
-                if 'seq' in self.references.keys():
-                    self.params['fasta'] = self.references['seq']
-                    if not self.params['fasta']:
-                        st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
+                if self.params['full_dataset_file']:
+                    chr_ready = True
                 else:
-                    st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
-                    self.params['fasta'] = st.text_input('Path to the reference fasta file')
+                    st.markdown('**The mapped file must be provided first to infer available chromosomes.**')
+            else:
+                if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                    if self.params['fasta']:
+                        try:
+                            self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
+                            chr_ready = True
+                        except Exception:
+                            raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
+                    else:
+                        st.markdown('**Fasta file with reference genome must be provided to infer available chromosomes.**')
+                elif 'cons' in self.params['branches']:
+                    st.markdown('###### WARNING: When conservation score branch selected only, the split is done based on separate wig files provided. '
+                                'Note that to be able to do that, the wig files must contain the chromosome name in the exact same form as your bed files and must not contain dots within the chromosome name.')
+                    if self.params['cons_dir']:
+                        chrom_files = f.list_files_in_dir(self.params['cons_dir'], 'wig')
+                        chromosomes = []
+                        for file in chrom_files:
+                            match = re.search(r'.*\.*.*(chr[^.]*)\..*', os.path.basename(file))
+                            if match and match.group(1):
+                                chromosomes.append(match.group(1))
+                        self.params['valid_chromosomes'] = list(set(chromosomes))
+                        chr_ready = True
+                    else:
+                        st.markdown('**Folder with conservation score (wig) files must be provided to infer available chromosomes.**')
+                else:
+                    st.markdown('**Please choose at least one branch, and provide necessary reference files to infer available chromosomes.**')
 
-                if self.params['fasta']:
-                    try:
-                        self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
-                    except Exception:
-                        raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
-
-            if self.params['fasta']:
+            if chr_ready:
                 if self.params['valid_chromosomes']:
-                    if not self.params['use_mapped']:
+                    if self.params['fasta'] and not self.params['use_mapped']:
                         st.markdown("##### WARNING: While selecting the chromosomes, you may ignore the yellow warning box, \
                                     and continue selecting even while it's present, as long as you work within one selectbox "
                                     "(e.g. you can select multiple chromosomes within training dataset, but than "
