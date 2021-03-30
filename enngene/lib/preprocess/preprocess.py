@@ -79,10 +79,6 @@ class Preprocess(Subcommand):
             self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
                 'Choose a way to place the window upon the sequence:',
                 list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
-            if self.params['win_place'] == 'rand':
-                self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                             value=self.defaults['winseed']))
-
             st.markdown('## Input Coordinate Files')
 
             warning = st.empty()
@@ -152,8 +148,6 @@ class Preprocess(Subcommand):
             st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories may end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
-            self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
-                                                        value=self.defaults['reduceseed']))
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
@@ -221,8 +215,6 @@ class Preprocess(Subcommand):
                 value=self.defaults['split_ratio'])
             self.validation_hash['is_ratio'].append(self.params['split_ratio'])
             st.markdown('###### Note: If you do not want to use the blackbox dataset (for later evaluation), you can just set it\'s size to 0.')
-            self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a dataset',
-                                                            value=self.defaults['split_seed']))
 
         self.validate_and_run(self.validation_hash)
 
@@ -255,7 +247,7 @@ class Preprocess(Subcommand):
 
                 initial_datasets.add(
                     Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'],
-                            win_place=self.params['win_place'], winseed=self.params['winseed']))
+                            win_place=self.params['win_place']))
 
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
@@ -278,13 +270,13 @@ class Preprocess(Subcommand):
             if self.params['reducelist'] and (dataset.klass in self.params['reducelist']):
                 status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
                 ratio = self.params['reduceratio'][dataset.klass]
-                dataset.reduce(ratio, seed=self.params['reduceseed'])
+                dataset.reduce(ratio)
 
             # Split datasets into train, validation, test and blackbox datasets
             if self.params['split'] == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.params['chromosomes'])
             elif self.params['split'] == 'rand':
-                split_subdatasets = Dataset.split_random(dataset, self.params['split_ratio'], self.params['split_seed'])
+                split_subdatasets = Dataset.split_random(dataset, self.params['split_ratio'])
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
@@ -315,14 +307,11 @@ class Preprocess(Subcommand):
                 'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output'),
                 'reducelist': [],
                 'reduceratio': {},
-                'reduceseed': 112,
                 'split': 'rand',
                 'split_ratio': '7:1:1:1',
-                'split_seed': 89,
                 'strand': True,
                 'use_mapped': False,
                 'valid_chromosomes': [],
                 'win': 100,
                 'win_place': 'rand',
-                'winseed': 42
                 }

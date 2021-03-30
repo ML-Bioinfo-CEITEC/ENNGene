@@ -1,10 +1,13 @@
 import base64
 from datetime import datetime
-from PIL import Image
+import numpy as np
 import streamlit as st  # TODO outside try-except, add check if installed
 import logging
 import os
+import random as py_rand
+
 import tempfile
+import tensorflow as tf
 
 from lib.utils.exceptions import MyException
 
@@ -63,6 +66,10 @@ def enngene():
     st.sidebar.markdown('---')
 
     logger.debug(f'ENNGene started with the following subcommand: {subcommand}')
+
+    np.random.seed(89)
+    py_rand.seed(123)
+    tf.random.set_seed(456)
 
     module_path = f'lib.{subcommand}.{subcommand}'
     subcommand_class = ''.join(x.title() for x in subcommand.split('_'))

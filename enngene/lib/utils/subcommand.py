@@ -12,7 +12,6 @@ from . import eval_plots
 from . import ig
 from . import validators
 from .exceptions import UserInputError
-from . import sequence as seq
 
 logger = logging.getLogger('root')
 
@@ -181,9 +180,6 @@ class Subcommand:
         self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
             'Choose a way to place the window upon the sequence:',
             list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
-        if self.params['win_place'] == 'rand':
-            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                         value=self.defaults['winseed']))
         self.references = {}
         if self.params['seq_type'] == 'bed':
             self.params['seq_source'] = st.text_input(
@@ -439,14 +435,11 @@ class Subcommand:
                'Strand\t' \
                'Window\t' \
                'Window placement\t' \
-               'Window seed\t' \
                'Split\t' \
                'Split ratio\t' \
-               'Split seed\t' \
                'Chromosomes\t' \
                'Reduced classes\t' \
                'Reduce ratio\t' \
-               'Reduce seed\t' \
                'Use mapped\t' \
                'Input files\t' \
                'Classes\t' \
@@ -460,14 +453,11 @@ class Subcommand:
                f"{'Yes' if (params['strand'] and 'seq' in params['branches']) else ('No' if 'seq' in params['branches'] else '-')}\t" \
                f"{params['win']}\t" \
                f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
-               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
                f"{'Random' if params['split'] == 'rand' else 'By chromosomes'}\t" \
                f"{params['split_ratio'] if params['split'] == 'rand' else '-'}\t" \
-               f"{params['split_seed'] if params['split'] == 'rand' else '-'}\t" \
                f"{params['chromosomes'] if params['split'] == 'by_chr' else '-'}\t" \
                f"{params['reducelist'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{params['reduceratio'] if len(params['reducelist']) != 0 else '-'}\t" \
-               f"{params['reduceseed'] if len(params['reducelist']) != 0 else '-'}\t" \
                f"{'Yes' if params['use_mapped'] else 'No'}\t" \
                f"{params['input_files']}\t" \
                f"{params['klasses']}\t" \
@@ -525,7 +515,6 @@ class Subcommand:
                'Evaluation branches\t' \
                'Window\t' \
                'Window placement\t' \
-               'Window seed\t' \
                'No. classes\t' \
                'Classes\t' \
                'Sequence source type\t' \
@@ -540,7 +529,6 @@ class Subcommand:
                f"{params['branches']}\t" \
                f"{params['win']}\t" \
                f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
-               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
                f"{params['no_klasses']}\t" \
                f"{params['klasses']}\t" \
                f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \
@@ -556,7 +544,6 @@ class Subcommand:
                'Predict branches\t' \
                'Window\t' \
                'Window placement\t' \
-               'Window seed\t' \
                'No. classes\t' \
                'Classes\t' \
                'Sequence source type\t' \
@@ -571,7 +558,6 @@ class Subcommand:
                f"{params['branches']}\t" \
                f"{params['win']}\t" \
                f"{self.get_dict_key(params['win_place'], self.WIN_PLACEMENT)}\t" \
-               f"{params['winseed'] if params['win_place'] == 'rand' else '-'}\t" \
                f"{params['no_klasses']}\t" \
                f"{params['klasses']}\t" \
                f"{self.get_dict_key(params['seq_type'], self.SEQ_TYPES)}\t" \

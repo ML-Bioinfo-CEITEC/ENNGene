@@ -47,6 +47,8 @@ class Train(Subcommand):
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
 
         if self.params['input_folder']:
+            if not os.path.isdir(self.params['input_folder']):
+                raise UserInputError('Given folder does not seem to exist.')
             note = ''
             previous_param_files = [f for f in os.listdir(self.params['input_folder']) if (f == 'parameters.yaml') and
                                     (os.path.isfile(os.path.join(self.params['input_folder'], f)))]
@@ -219,6 +221,7 @@ class Train(Subcommand):
             dictionary[dataset.category].update({'values': values})
             dictionary[dataset.category].update({'labels': dataset.labels(encoding=encoding)})
 
+        print(dictionary.keys())
         return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
 

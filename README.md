@@ -105,8 +105,6 @@ Both is done by randomly placing a window of selected size on the original seque
  * Randomized 
  * Centered
 
-`Seed` Parameter used for the reproducibility of the semi-random window placement.
-
 `Path to the reference fasta file` File containing reference genome/transcriptome. 
 Required when Sequence or Secondary structure branch is selected.
 
@@ -131,8 +129,6 @@ A hint showing a number of rows in the original input file is displayed at the e
 If you split the dataset by chromosomes after reducing its size, make sure all the classes in all the categories (train, test, etc.) 
 contain at least some data, as some small chromosomes might get fully removed.*
 
-`Seed` Parameter used for the reproducibility of the semi-random dataset size reduction.
-
 ##### Data Split
 Supplied data must be split into training, validation and testing datasets.
 
@@ -142,8 +138,6 @@ If you train multiple models on the same datasets, you might want to keep a 'bla
 `Random` Data are split into the categories randomly across the chromosomes, based on the given ratio.
 
 `Target ratio` Defines the ratio of the number of samples between the categories. Required format: train:validation:test:blackbox.
-
-`Seed` Parameter used for the reproducibility of the semi-random data split.
 
 `By chromosomes` Specific chromosomes might be selected for each category.
 To use this option, a fasta file with reference genome/transcriptome must be provided (the same one required for the sequence and secondary structure branches).
@@ -202,7 +196,7 @@ The model will stop training if the validation loss does not decrease for more t
 The last section determines the network architecture.
 You may define architecture for each of the selected branches separately, as well as for the common part of the network following the branches' concatenation.
 
-`Number of layers` First set a number of layers per each part (branch or common part of the network).
+`Number of layers` First set a number of layers per each part (branches or common part of the network).
 
 `Layer type` Types available for the branches: 
  * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
@@ -282,8 +276,6 @@ Dataset should come from the same data as those used for training the model, or 
 `Window placement` Choose a way to place the window upon the sequence:
 * Randomized
 * Centered
-
-`Seed` Parameter used for the reproducibility of the semi-random window placement.
 
 `BED file` When providing the sequences via an interval file, following must be specified:
  * `Path to the BED file containing intervals to be classified`

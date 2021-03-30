@@ -54,13 +54,12 @@ class Dataset:
         return split_datasets
 
     @classmethod
-    def split_random(cls, dataset, ratio, seed):
+    def split_random(cls, dataset, ratio):
         # so far the categories are fixed, not sure if there would be need for custom categories
         ratio_list = ratio.split(':')
         ratio_list = [float(x) for x in ratio_list]
         dataset_size = dataset.df.shape[0]
         total = sum(ratio_list)
-        np.random.seed(seed)
         np.random.shuffle(dataset.df.values)
         split_datasets = set()
 
@@ -100,7 +99,7 @@ class Dataset:
 
         return merged_datasets
 
-    def __init__(self, klass=None, branches=None, category=None, win=None, win_place=None, winseed=None,
+    def __init__(self, klass=None, branches=None, category=None, win=None, win_place=None,
                  bed_file=None, fasta_file=None, text_input=None, df=None):
         self.branches = branches  # list of seq, cons or fold branches
         self.klass = klass  # e.g. positive or negative
@@ -119,7 +118,7 @@ class Dataset:
             self.df = self.read_in_text(text_input)
 
         if win:
-            self.df = Dataset.apply_window(self.df, win, win_place, winseed, input_type)
+            self.df = Dataset.apply_window(self.df, win, win_place, input_type)
 
     def read_in_bed(self, bed_file, evaluation=False):
         df = pd.read_csv(bed_file, sep='\t', header=None)
@@ -148,8 +147,7 @@ class Dataset:
 
         return df
 
-    def reduce(self, ratio, seed):
-        np.random.seed(seed)
+    def reduce(self, ratio):
         np.random.shuffle(self.df.values)
         if ratio <= 1:
             # handle as a ratio
@@ -646,10 +644,7 @@ class Dataset:
         return path_to_fasta
 
     @staticmethod
-    def apply_window(df, window_size, win_place='rand', window_seed=64, type='bed'):
-        if win_place == 'rand':
-            np.random.seed(window_seed)
-
+    def apply_window(df, window_size, win_place='rand', type='bed'):
         def bed_window(row):
             length = row['seq_end'] - row['seq_start']
             if length > window_size:
