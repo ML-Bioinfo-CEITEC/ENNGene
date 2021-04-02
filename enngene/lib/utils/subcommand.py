@@ -360,7 +360,7 @@ class Subcommand:
     def calculate_ig(dataset, model, predict_x, win, klasses):
         raw_sequence = dataset.df['input_seq']
         # set baseline, win parameter in yaml and num 5, num of sequence
-        baseline = tf.zeros(shape=(win, 5))
+        baseline = tf.zeros(shape=(win, 4))
         visualisations = []
         # need to transform to right shape:
         predict_x_np = np.array(predict_x[0])
@@ -373,7 +373,7 @@ class Subcommand:
             ig_attribution = ig.integrated_gradients(model, baseline, sample)
 
             # choose attribution for specific encoded base
-            attrs = ig.choose_validation_points(ig_attribution, win, 5)
+            attrs = ig.choose_validation_points(ig_attribution, win, 4)
 
             # return HTML code with colored bases
             visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
