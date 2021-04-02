@@ -80,6 +80,9 @@ class Predict(Subcommand):
             predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
             # TODO check effectiveness of the to_list on larger dataset
 
+        if len(predict_x) == 1:
+            predict_x = predict_x[0]
+
         status.text('Calculating predictions...')
 
         model = tf.keras.models.load_model(self.params['model_file'])

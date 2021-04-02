@@ -363,7 +363,7 @@ class Subcommand:
         baseline = tf.zeros(shape=(win, 4))
         visualisations = []
         # need to transform to right shape:
-        predict_x_np = np.array(predict_x[0])
+        predict_x_np = np.array(predict_x)
         # take each prediction, unprocessed data and count IG
         for sample, letter_sequence in zip(predict_x_np, raw_sequence):
             # return tensor of shape: (window width(sequence length), encoded base shape)
@@ -378,6 +378,7 @@ class Subcommand:
             # return HTML code with colored bases
             visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
             visualisations.append(visualisation)
+
         dataset.df['Integrated Gradients Visualisation'] = visualisations
         # Show ten best predictions per class in the application window
         st.markdown('---')
