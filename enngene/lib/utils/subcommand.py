@@ -42,10 +42,10 @@ class Subcommand:
             folder = st.text_input('Folder from the previous run of the task (must contain the parameters.yaml file)')
             if folder:
                 if os.path.isdir(folder):
-                    param_file = os.path.join(folder,
-                                              ([file for file in os.listdir(folder) if (file == 'parameters.yaml') and
-                                                (os.path.isfile(os.path.join(folder, file)))][0]))
-                    if param_file:
+                    param_files = [file for file in os.listdir(folder) if (file == 'parameters.yaml') and
+                                   (os.path.isfile(os.path.join(folder, file)))]
+                    if len(param_files) >= 1 and os.path.isfile(os.path.join(folder, param_files[0])):
+                        param_file = os.path.join(folder, param_files[0])
                         with open(param_file, 'r') as file:
                             try:
                                 user_params = yaml.safe_load(file)
