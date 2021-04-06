@@ -200,14 +200,14 @@ You may define architecture for each of the selected branches separately, as wel
 
 `Layer type` Types available for the branches: 
  * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
- * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
+ <!-- * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)--> 
  
  Types available for the connected part of the neural network:
  * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
- * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
  * [LSTM](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM)
  * [GRU](https://www.tensorflow.org/api_docs/python/tf/keras/layers/GRU)  
  * [Dense layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense)
+<!--* [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)-->
 
 Different types of layers are not combinable. 
 E.g. when LSTM layer is chosen, it can be followed either by another LSTM layer, or a Dense layer only.
@@ -222,7 +222,7 @@ Common options are:
  * `Batch normalization` Applies [batch normalization](https://arxiv.org/abs/1502.03167) for the layer if checked.
  * `Dropout rate` Select a [dropout](https://jmlr.org/papers/v15/srivastava14a.html) rate. 
 
-Options available for Convolution and Locally connected 1D layers:
+Options available for Convolutional layers:  <!-- and Locally connected 1D layers:-->
 * `Number of filters` The number of output filters in the convolution.
 * `Kernel size` Specifies the length of the 1D convolutional window.
 

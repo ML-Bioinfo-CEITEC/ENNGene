@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Dense, Dropout, Conv1D, GRU, LocallyConnected1D, MaxPooling1D, BatchNormalization, \
+from tensorflow.keras.layers import Dense, Dropout, Conv1D, GRU, MaxPooling1D, BatchNormalization, \
     LeakyReLU, LSTM, Bidirectional
 
 
@@ -13,18 +13,18 @@ class MyConv1D:
         if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
         return x
 
-
-class MyLocallyConnected1D:
-
-    @staticmethod
-    def build(x, filters=40, kernel=4, batchnorm=False, dropout=None, **kwargs):
-        x = LocallyConnected1D(filters=filters, kernel_size=kernel, padding='valid')(x)
-        x = LeakyReLU()(x)
-        if batchnorm: x = BatchNormalization()(x)
-        x = MaxPooling1D(pool_size=2, padding='same')(x)
-        if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
-        return x
-
+#
+# class MyLocallyConnected1D:
+#
+#     @staticmethod
+#     def build(x, filters=40, kernel=4, batchnorm=False, dropout=None, **kwargs):
+#         x = LocallyConnected1D(filters=filters, kernel_size=kernel, padding='valid')(x)
+#         x = LeakyReLU()(x)
+#         if batchnorm: x = BatchNormalization()(x)
+#         x = MaxPooling1D(pool_size=2, padding='same')(x)
+#         if dropout: x = Dropout(rate=dropout, noise_shape=None, seed=None)(x)
+#         return x
+#
 
 class MyDense:
 
@@ -64,12 +64,12 @@ class MyGRU:
 
 
 LAYERS = {'Convolution layer': MyConv1D,
-          'Locally Connected 1D layer': MyLocallyConnected1D,
+          # 'Locally Connected 1D layer': MyLocallyConnected1D,
           'Dense layer': MyDense,
           'GRU': MyGRU,
           'LSTM': MyLSTM}
-BRANCH_LAYERS = {'Convolution layer': MyConv1D,
-                 'Locally Connected 1D layer': MyLocallyConnected1D}
+BRANCH_LAYERS = {'Convolution layer': MyConv1D}
+                 # 'Locally Connected 1D layer': MyLocallyConnected1D}
 COMMON_LAYERS = {'Dense layer': MyDense,
                  'GRU': MyGRU,
                  'LSTM': MyLSTM}

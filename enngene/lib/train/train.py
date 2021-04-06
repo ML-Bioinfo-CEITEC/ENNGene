@@ -147,10 +147,10 @@ class Train(Subcommand):
             'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
         for i in range(self.params['no_common_layers']):
             if i == 0:
-                allowed_layers = ['Dense layer', 'Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM']
+                allowed_layers = ['Dense layer', 'Convolution layer', 'GRU', 'LSTM']  # 'Locally Connected 1D layer',
             else:
                 previous_layer = self.params['common_layers'][i-1]['name']
-                if previous_layer in ('Convolution layer', 'Locally Connected 1D layer', 'GRU', 'LSTM'):
+                if previous_layer in ('Convolution layer', 'GRU', 'LSTM'):  # 'Locally Connected 1D layer',
                     allowed_layers = ['Dense layer', previous_layer]
                 elif previous_layer == 'Dense layer':
                     allowed_layers = ['Dense layer']
