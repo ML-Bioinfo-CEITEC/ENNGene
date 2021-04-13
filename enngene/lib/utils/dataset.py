@@ -38,7 +38,7 @@ class Dataset:
     def load_from_file(cls, file_path):
         name = os.path.basename(file_path).replace('.tsv.zip', '')
         df = pd.read_csv(file_path, sep='\t', header=0)
-        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input_seq']]
+        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input_sequence']]
         category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
 
         return cls(branches=branches, category=category, df=df)
@@ -348,7 +348,7 @@ class Dataset:
             reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
             new_df = new_df[reordered_cols]
 
-        if predict: new_df['input_seq'] = new_df[branch]
+        if predict: new_df['input_sequence'] = new_df[branch]
         new_df.reset_index(inplace=True, drop=True)
         return new_df
 

@@ -358,7 +358,7 @@ class Subcommand:
 
     @staticmethod
     def calculate_ig(dataset, model, predict_x, win, klasses):
-        raw_sequence = dataset.df['input_seq']
+        raw_sequence = dataset.df['input_sequence']
         # set baseline, win parameter in yaml and num 5, num of sequence
         baseline = tf.zeros(shape=(win, 4))
         visualisations = []
