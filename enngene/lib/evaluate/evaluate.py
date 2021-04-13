@@ -75,10 +75,11 @@ class Evaluate(Subcommand):
                 dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='eval',
                                   win=self.params['win'], win_place=self.params['win_place'])
                 status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
+                dataset.sort_datapoints()
             elif self.params['seq_type'] == 'fasta':
                 dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='eval',
                                       win=self.params['win'], win_place=self.params['win_place'])
-            dataset.sort_datapoints().map_to_branches(
+            dataset.map_to_branches(
                 self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
         elif self.params['seq_type'] == 'blackbox':
             dataset = Dataset.load_from_file(self.params['seq_source'])
