@@ -1,0 +1,256 @@
+#@title Licensed under the Apache License, Version 2.0
+#https://www.apache.org/licenses/LICENSE-2.0
+
+import tensorflow as tf
+import numpy as np
+
+import logging
+logger = logging.getLogger('root')
+
+
+def generate_path_inputs(baseline_seq, baseline_fold, input_seq, input_fold, alphas):
+    """
+    Generate interpolated 'images' along a linear path at alpha intervals between a baseline tensor
+
+    baseline: 2D, shape: (win, width)
+    input_seq: preprocessed sample, shape: (win, width)
+    input_fold: preprocessed sample, shape: (win, width)
+    alphas: list of steps in interpolated image ,shape: (alphas_len)
+
+
+    return: shape [(alphas_len, win, width), (alphas_len, win, width2),]
+    """
+    # Expand dimensions for vectorized computation of interpolations.
+    alphas_x = alphas[:, tf.newaxis, tf.newaxis]
+    
+    baseline_x_seq = tf.expand_dims(baseline_seq, axis=0)
+    baseline_x_fold = tf.expand_dims(baseline_fold, axis=0)
+    
+    input_x_seq = tf.expand_dims(input_seq, axis=0)
+    input_x_fold = tf.expand_dims(input_fold, axis=0)
+    
+    delta_seq = input_x_seq - baseline_x_seq
+    delta_fold = input_x_fold - baseline_x_fold
+    path_inputs = (
+        baseline_x_fold + alphas_x * delta_fold,
+        baseline_x_seq + alphas_x * delta_seq
+    )
+
+    return path_inputs
+
+
+def compute_gradients(model, path_inputs):
+    """
+    compute dependency of each field on whole result, compared to interpolated 'images'
+
+    :param model: trained model
+    :param path_inputs: interpolated tensors, shape: (alphas_len, win, width)
+    :return: shape: (alphas_len, win, width)
+    """
+    with tf.GradientTape() as tape:
+        tape.watch(path_inputs)
+        predictions = model(path_inputs)
+
+        outputs = []
+        for envelope in predictions:
+            outputs.append(envelope[0])
+        outputs = tf.convert_to_tensor(outputs, dtype=tf.float32)
+
+    gradients = tape.gradient(outputs, path_inputs)
+    return gradients
+
+
+def generate_alphas(m_steps=50, method='riemann_trapezoidal'):
+    """
+    Args:
+    m_steps(Tensor): A 0D tensor of an int corresponding to the number of linear
+    interpolation steps for computing an approximate integral. Default is 50.
+    method(str): A string representing the integral approximation method. The
+       following methods are implemented:
+      - riemann_trapezoidal(default)
+      - riemann_left
+      - riemann_midpoint
+      - riemann_right
+    Returns:
+      alphas(Tensor): A 1D tensor of uniformly spaced floats with the shape
+      (m_steps,).
+      """
+    m_steps_float = tf.cast(m_steps, float)
+
+    if method == 'riemann_trapezoidal':
+        alphas = tf.linspace(0.0, 1.0, m_steps+1)
+    elif method == 'riemann_left':
+        alphas = tf.linspace(0.0, 1.0 - (1.0 / m_steps_float), m_steps)
+    elif method == 'riemann_midpoint':
+        alphas = tf.linspace(1.0 / (2.0 * m_steps_float), 1.0 - 1.0 / (2.0 * m_steps_float), m_steps)
+    elif method == 'riemann_right':
+        alphas = tf.linspace(1.0 / m_steps_float, 1.0, m_steps)
+    else:
+        raise AssertionError("Provided Riemann approximation method is not valid.")
+
+    return alphas
+
+
+def integral_approximation(gradients, method='riemann_trapezoidal'):
+    """Compute numerical approximation of integral from gradients.
+    Args:
+    gradients(Tensor): A 4D tensor of floats with the shape
+    (m_steps, img_height, img_width, 3).
+    method(str): A string representing the integral approximation method. The
+    following methods are implemented:
+    - riemann_trapezoidal(default)
+    - riemann_left
+    - riemann_midpoint
+    - riemann_right
+    Returns:
+    integrated_gradients(Tensor): A 3D tensor of floats with the shape
+    (img_height, img_width, 3).
+    """
+    if method == 'riemann_trapezoidal':
+        grads = (gradients[:-1] + gradients[1:]) / tf.constant(2.0)
+    elif method == 'riemann_left':
+        grads = gradients
+    elif method == 'riemann_midpoint':
+        grads = gradients
+    elif method == 'riemann_right':
+        grads = gradients
+    else:
+        raise AssertionError("Provided Riemann approximation method is not valid.")
+
+    # Average integration approximation.
+    integrated_gradients = tf.math.reduce_mean(grads, axis=0)
+
+    return integrated_gradients
+
+
+def integrated_gradients(model, baseline, input_seq, input_fold, m_steps=50, method='riemann_trapezoidal',
+                         batch_size=32):
+    """
+    Args:
+      model(keras.Model): A trained model to generate predictions and inspect.
+      baseline(Tensor): 2D, shape: (win, width)
+      input(Tensor): preprocessed sample, shape: (win, width)
+      m_steps(Tensor): A 0D tensor of an integer corresponding to the number of
+        linear interpolation steps for computing an approximate integral.
+      method(str): A string representing the integral approximation method. The
+        following methods are implemented:
+        - riemann_trapezoidal(default)
+        - riemann_left
+        - riemann_midpoint
+        - riemann_right
+      batch_size(Tensor): A 0D tensor of an integer corresponding to a batch
+        size for alpha to scale computation and prevent OOM errors. Note: needs to
+        be tf.int64 and shoud be < m_steps. Default value is 32.
+    Returns:
+      integrated_gradients(Tensor): A 2D tensor of floats with the same
+        shape as the input tensor.
+    """
+
+    # 1. Generate alphas.LT1
+    alphas = generate_alphas(m_steps=m_steps,
+                             method=method)
+
+    # Initialize TensorArray outside loop to collect gradients. Note: this data structure
+    gradient_batches_seq = tf.TensorArray(tf.float32, size=m_steps + 1)
+    gradient_batches_fold = tf.TensorArray(tf.float32, size=m_steps + 1)
+
+
+    baseline_seq, baseline_fold  = baseline
+    
+    logger.info("Baseline seq shape %s", baseline_seq.shape)
+    logger.info("Baseline fold shape %s", baseline_fold.shape)
+
+
+    # Iterate alphas range and batch computation for speed, memory efficiency, and scaling to larger m_steps.
+    for alpha in tf.range(0, len(alphas), batch_size):
+        from_ = alpha
+        to = tf.minimum(from_ + batch_size, len(alphas))
+        alpha_batch = alphas[from_:to]
+
+        # 2. Generate interpolated inputs between baseline and input.
+        interpolated_path_input_batch = generate_path_inputs(baseline_seq=baseline_seq,
+                                                             baseline_fold=baseline_fold,
+                                                             input_seq=input_seq,
+                                                             input_fold=input_fold,
+                                                             alphas=alpha_batch)
+
+        # 3. Compute gradients between model outputs and interpolated inputs.
+        gradient_batch = compute_gradients(model=model,
+                                           path_inputs=interpolated_path_input_batch)
+        
+        logger.info(map(lambda x: x. shape, gradient_batch))
+        gradient_batch = sorted(gradient_batch, key=lambda x: x.shape[-1]) # sort so seq goes first then fold
+        
+        logger.info(map(lambda x: x. shape, gradient_batch))
+
+        # Write batch indices and gradients to TensorArray.
+        gradient_batches_seq = gradient_batches_seq.scatter(tf.range(from_, to), gradient_batch[0])
+        gradient_batches_fold = gradient_batches_fold.scatter(tf.range(from_, to), gradient_batch[1])
+
+    # Stack path gradients together row-wise into single tensor.
+    total_gradients_seq = gradient_batches_seq.stack()
+    total_gradients_fold = gradient_batches_fold.stack()
+
+    # 4. Integral approximation through averaging gradients.
+    avg_gradients_seq = integral_approximation(gradients=total_gradients_seq,
+                                           method=method)
+    avg_gradients_fold = integral_approximation(gradients=total_gradients_fold,
+                                        method=method)
+
+    # 5. Scale integrated gradients with respect to input.
+    integrated_gradients_seq = (input_seq - baseline_seq) * avg_gradients_seq
+    integrated_gradients_fold = (input_fold - baseline_fold) * avg_gradients_fold
+    
+
+    return integrated_gradients_seq, integrated_gradients_fold
+
+def _absmax(a, axis=None):
+    amax = np.max(a, axis)
+    amin = np.min(a, axis)
+    return np.where(-amin > amax, amin, amax)
+
+def choose_validation_points(integrated_gradients):
+    """
+    Args:
+          integrated_gradients(Tensor): A 2D tensor of floats with shape (window_size, width_of_sequence_encoded).
+          window_size: int, length of sequence, num of bases
+          width: int, width of encoded base
+    Return: List of attributes for highlighting DNA string sequence
+    """
+    return _absmax(integrated_gradients, axis=1)
+
+
+def visualize_token_attrs(sequence, attrs):
+    """
+    Visualize attributions for given set of tokens.
+    Args:
+    - tokens: An array of tokens
+    - attrs: An array of attributions, of same size as 'tokens',
+      with attrs[i] being the attribution to tokens[i]
+
+    Returns:
+    - visualization: HTML text with colorful representation of DNA sequence
+        build on model prediction
+    """
+
+    def get_color(attr):
+        if attr > 0:
+            red = int(128 * attr) + 127
+            green = 128 - int(64 * attr)
+            blue = 128 - int(64 * attr)
+        else:
+            red = 128 + int(64 * attr)
+            green = 128 + int(64 * attr)
+            blue = int(-128 * attr) + 127
+
+        return red, green, blue
+
+    # normalize attributions for visualization.
+    bound = max(abs(max(attrs)), abs(min(attrs)))
+    attrs = attrs / bound
+    html_text = []
+    for i, tok in enumerate(sequence):
+        r, g, b = get_color(attrs[i])
+        html_text.append("<span style='font-weight:bold;color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
+
+    return "".join(html_text)

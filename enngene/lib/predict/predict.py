@@ -38,11 +38,12 @@ class Predict(Subcommand):
         st.markdown('## Sequences')
         self.sequence_options(self.SEQ_TYPES, evaluation=False)
 
-        if len(self.params['branches']) == 1 and self.params['branches'][0] in {'seq', 'fold'}:
+        if (len(self.params['branches']) == 1 and self.params['branches'][0] in {'seq', 'fold'}) or \
+        (len(self.params['branches']) == 2 and {'seq', 'fold'} == set(self.params['branches'])):
             st.markdown('')
             self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
             if self.params['ig']:
-                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence or a fold branch.')
+                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence or a fold branch or two-branch models with both sequence and fold branch.')
                 st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
                             'it may take several minutes up to few hours (depending on the number of sequences).')
 
@@ -91,6 +92,10 @@ class Predict(Subcommand):
         if len(self.params['branches']) == 1 and self.params['branches'][0] in {'seq', 'fold'} and self.params['ig']:
             status.text('Calculating Integrated Gradients...')
             self.calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'], self.params['branches'][0])
+
+        elif len(self.params['branches']) == 2 and {'seq', 'fold'} == set(self.params['branches']) and self.params['ig']:
+            status.text('Calculating Bi-Integrated Gradients...')
+            self.bi_calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
