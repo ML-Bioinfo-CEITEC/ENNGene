@@ -415,64 +415,66 @@ class Subcommand:
             best_ten.apply(visualize, axis=1)
             
     @staticmethod
-    def bi_calculate_ig(dataset, model, predict_x, win, klasses):
+    def bi_calculate_ig(dataset, model, predict_x, win, klasses, branches):
+        if not isinstance(predict_x, list):
+            logger.info(predict_x.shape)
+            logger.info("predict_x is not a list")
+            predict_x = (np.array(predict_x),)
+                
         
-        # Input order
-        # 0 - fold
-        # 1 - seq
         
-        raw_sequence = dataset.df['input_seq']
-        raw_fold = (Subcommand.reverse_fold(x) for x in predict_x[0])
+        # raw_sequence = dataset.df['input_seq']
+        # raw_fold = (Subcommand.reverse_fold(x) for x in predict_x[0])
         
-        # set baseline, win parameter in yaml and num 5, num of sequence
-        baseline = sorted([tf.zeros(shape=(win, x.shape[-1])) for x in predict_x], key=lambda x: x.shape[-1])
-        visualisations_seq = []
-        visualisations_fold = []
-        
-        # need to transform to right shape:
-        predict_x_seq_np = np.array(predict_x[1])
-        predict_x_fold_np = np.array(predict_x[0])
-        # take each prediction, unprocessed data and count IG
-        for seq_sample, fold_sample, letter_sequence, fold_sequence in zip(predict_x_seq_np, predict_x_fold_np, raw_sequence, raw_fold):
-            # return tensor of shape: (window width(sequence length), encoded base shape)
-            seq_sample = tf.convert_to_tensor(seq_sample, dtype=tf.float32)
-            fold_sample = tf.convert_to_tensor(fold_sample, dtype=tf.float32)
+        # baseline of zeros in equal shape as inputs
+        baselines = [tf.zeros(shape=x[0].shape) for x in predict_x]
 
+        # take each prediction, unprocessed data and count IG
+        for inputs in zip((*predict_x)): 
+            # ^ decompress a list of 3 lists into a single list of tuples
+            # e. g. [[a,b], [c,d]] becomes [(a,c), (b,d)], [[a, b, c]] becomes [(a,), (b,), (c,)]
+            
+            # return tensor of shape: (window width(sequence length), encoded base shape)
+            inputs = [tf.convert_to_tensor(inp, dtype=tf.float32) for inp in inputs]
+            
             # contain significance of each base in sequence
-            ig_attribution_seq, ig_attribution_fold = bi_ig.integrated_gradients(model, baseline, seq_sample, fold_sample)
+            ig_attributions = bi_ig.integrated_gradients(model, baselines, inputs)
 
             # choose attribution for specific encoded base
-            attrs_seq = bi_ig.choose_validation_points(ig_attribution_seq)
-            attrs_fold = bi_ig.choose_validation_points(ig_attribution_fold)
-
-            # return HTML code with colored bases
-            visualisation_seq = bi_ig.visualize_token_attrs(letter_sequence, attrs_seq)
-            visualisation_fold = bi_ig.visualize_token_attrs(fold_sequence, attrs_fold)
+            selected_ig_attibutions = bi_ig.choose_validation_points(ig_attributions)
+            logger.info("Selected")
+            logger.info(selected_ig_attibutions)
             
-            visualisations_seq.append(visualisation_seq)
-            visualisations_fold.append(visualisation_fold)
+        # TODO visualisations
+        
+        # # return HTML code with colored bases
+        # visualisation_seq = bi_ig.visualize_token_attrs(letter_sequence, attrs_seq)
+        # visualisation_fold = bi_ig.visualize_token_attrs(fold_sequence, attrs_fold)
+        
+        # visualisations_seq.append(visualisation_seq)
+        # visualisations_fold.append(visualisation_fold)
 
-        dataset.df['Integrated Gradients Visualisation Seq'] = visualisations_seq
-        dataset.df['Integrated Gradients Visualisation Fold'] = visualisations_fold
-        # Show ten best predictions per class in the application window
-        st.markdown('---')
-        st.markdown('### Integrated Gradients Visualisation')
-        st.markdown('Below are ten sequences with highest predicted score per each class. \n'
-                    'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
-                    'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
-                    'On the other hand, the blue color means low level of attribution.')
-        best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold']]
-        for klass in klasses:
-            st.markdown(f'#### {klass}')
-            best.sort_values(by=klass, ascending=False, inplace=True)
-            best_ten = best[:10] if (len(best) >= 10) else best
+        # dataset.df['Integrated Gradients Visualisation Seq'] = visualisations_seq
+        # dataset.df['Integrated Gradients Visualisation Fold'] = visualisations_fold
+        # # Show ten best predictions per class in the application window
+        # st.markdown('---')
+        # st.markdown('### Integrated Gradients Visualisation')
+        # st.markdown('Below are ten sequences with highest predicted score per each class. \n'
+        #             'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
+        #             'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
+        #             'On the other hand, the blue color means low level of attribution.')
+        # best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold']]
+        # for klass in klasses:
+        #     st.markdown(f'#### {klass}')
+        #     best.sort_values(by=klass, ascending=False, inplace=True)
+        #     best_ten = best[:10] if (len(best) >= 10) else best
 
-            def visualize(row):
-                st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
-                st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
-                return row
+        #     def visualize(row):
+        #         st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
+        #         st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
+        #         return row
 
-            best_ten.apply(visualize, axis=1)
+        #     best_ten.apply(visualize, axis=1)
 
     @staticmethod
     def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):
