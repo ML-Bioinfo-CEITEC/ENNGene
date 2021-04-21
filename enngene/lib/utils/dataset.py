@@ -172,9 +172,9 @@ class Dataset:
     def map_to_branches(self, references, strand, outfile_path, status, predict=False, ncpu=1):
         mapped = False
         # map seq branch first so that we can replace the df without loosing anny information
-        self.branches.sort(key=lambda x: (x != 'seq', x != 'fold'))
+        branches = sorted(self.branches, key=lambda x: (x != 'seq', x != 'fold'))
 
-        for branch in self.branches:
+        for branch in branches:
             if branch == 'seq':
                 if 'input_sequence' in self.df.columns:
                     self.df['seq'] = self.df['input_sequence']
@@ -198,15 +198,15 @@ class Dataset:
                         self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
                     key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
-                seq_branch = 'seq' in self.branches
+                seq_branch = 'seq' in branches
                 self.df = self.fold_branch(self.df, key_cols, seq_branch, ncpu)
 
-        if 'seq' in self.branches:
+        if 'seq' in branches:
             # encode it at the end, so that it can be used for folding before that
             encoding = seq.onehot_encode_alphabet(seq.ALPHABET)
             self.encode_col('seq', encoding)
 
-        self.df.dropna(subset=self.branches, inplace=True)
+        self.df.dropna(subset=branches, inplace=True)
         self.save_to_file(outfile_path, ignore_cols=['name', 'score'], do_zip=True)
         return self
 
