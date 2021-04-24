@@ -38,14 +38,11 @@ class Predict(Subcommand):
         st.markdown('## Sequences')
         self.sequence_options(self.SEQ_TYPES, evaluation=False)
 
-        if (len(self.params['branches']) == 1 and self.params['branches'][0] in {'seq', 'fold'}) or \
-        (len(self.params['branches']) == 2 and {'seq', 'fold'} == set(self.params['branches'])):
-            st.markdown('')
-            self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
-            if self.params['ig']:
-                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence or a fold branch or two-branch models with both sequence and fold branch.')
-                st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
-                            'it may take several minutes up to few hours (depending on the number of sequences).')
+        st.markdown('')
+        self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
+        if self.params['ig']:
+            st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
+                        'it may take several minutes up to few hours (depending on the number of sequences).')
 
         self.validate_and_run(self.validation_hash)
 
@@ -75,8 +72,12 @@ class Predict(Subcommand):
         dataset.map_to_branches(
             self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
 
-        predict_x = dataset.encode_branches(dataset, self.params['branches'])
+        for branch in self.params['branches']:
+            branch_list = dataset.df[branch].to_list()
+            predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
+            # TODO check effectiveness of the to_list on larger dataset
 
+        
         status.text('Calculating predictions...')
 
         model = tf.keras.models.load_model(self.params['model_file'])
@@ -89,13 +90,10 @@ class Predict(Subcommand):
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
         placeholder = st.empty()
-        if len(self.params['branches']) == 1 and self.params['branches'][0] in {'seq', 'fold'} and self.params['ig']:
-            status.text('Calculating Integrated Gradients...')
-            self.calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'], self.params['branches'][0])
 
-        elif len(self.params['branches']) == 2 and {'seq', 'fold'} == set(self.params['branches']) and self.params['ig']:
-            status.text('Calculating Bi-Integrated Gradients...')
-            self.bi_calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'])
+        if self.params['ig']:
+            status.text('Calculating Integrated Gradients...')
+            self.bi_calculate_ig(dataset, model, predict_x, self.params['klasses'], self.params['branches'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')

@@ -415,7 +415,16 @@ class Subcommand:
             best_ten.apply(visualize, axis=1)
             
     @staticmethod
-    def bi_calculate_ig(dataset, model, predict_x, win, klasses, branches):
+    def bi_calculate_ig(dataset, model, predict_x, klasses, branches):
+        raws = []
+        for i, branch in enumerate(branches):
+            if branch == "seq":
+                raws.append(dataset.df['input_sequence'])
+            elif branch == "fold":
+                raws.append((Subcommand.reverse_fold(x) for x in predict_x[i]))
+            else:
+                pass
+        
         if not isinstance(predict_x, list):
             logger.info(predict_x.shape)
             logger.info("predict_x is not a list")
@@ -429,9 +438,11 @@ class Subcommand:
         # baseline of zeros in equal shape as inputs
         baselines = [tf.zeros(shape=x[0].shape) for x in predict_x]
 
+        visualisations = { branch: [] for branch in branches}
+
         # take each prediction, unprocessed data and count IG
-        for inputs in zip((*predict_x)): 
-            # ^ decompress a list of 3 lists into a single list of tuples
+        for inputs, raw in zip(zip((*predict_x)), zip((*raws))): 
+            # zip((*predict_x)) decompress a list of n lists into a single list of tuples
             # e. g. [[a,b], [c,d]] becomes [(a,c), (b,d)], [[a, b, c]] becomes [(a,), (b,), (c,)]
             
             # return tensor of shape: (window width(sequence length), encoded base shape)
@@ -442,39 +453,36 @@ class Subcommand:
 
             # choose attribution for specific encoded base
             selected_ig_attibutions = bi_ig.choose_validation_points(ig_attributions)
-            logger.info("Selected")
-            logger.info(selected_ig_attibutions)
             
-        # TODO visualisations
-        
-        # # return HTML code with colored bases
-        # visualisation_seq = bi_ig.visualize_token_attrs(letter_sequence, attrs_seq)
-        # visualisation_fold = bi_ig.visualize_token_attrs(fold_sequence, attrs_fold)
-        
-        # visualisations_seq.append(visualisation_seq)
-        # visualisations_fold.append(visualisation_fold)
+            for branch, data, ig in zip(branches, raw, selected_ig_attibutions):
+               
+                if branch in {"seq", "fold"}:
+                    visualisation = bi_ig.visualize_token_attrs(data, ig)
+                else:
+                    visualisation = None # todo
+                visualisations[branch].append(visualisation)
 
-        # dataset.df['Integrated Gradients Visualisation Seq'] = visualisations_seq
-        # dataset.df['Integrated Gradients Visualisation Fold'] = visualisations_fold
-        # # Show ten best predictions per class in the application window
-        # st.markdown('---')
-        # st.markdown('### Integrated Gradients Visualisation')
-        # st.markdown('Below are ten sequences with highest predicted score per each class. \n'
-        #             'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
-        #             'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
-        #             'On the other hand, the blue color means low level of attribution.')
-        # best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold']]
-        # for klass in klasses:
-        #     st.markdown(f'#### {klass}')
-        #     best.sort_values(by=klass, ascending=False, inplace=True)
-        #     best_ten = best[:10] if (len(best) >= 10) else best
+        dataset.df['Integrated Gradients Visualisation Seq'] = visualisations['seq']
+        dataset.df['Integrated Gradients Visualisation Fold'] = visualisations['fold']
+        # Show ten best predictions per class in the application window
+        st.markdown('---')
+        st.markdown('### Integrated Gradients Visualisation')
+        st.markdown('Below are ten sequences with highest predicted score per each class. \n'
+                    'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
+                    'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
+                    'On the other hand, the blue color means low level of attribution.')
+        best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold']]
+        for klass in klasses:
+            st.markdown(f'#### {klass}')
+            best.sort_values(by=klass, ascending=False, inplace=True)
+            best_ten = best[:10] if (len(best) >= 10) else best
 
-        #     def visualize(row):
-        #         st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
-        #         st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
-        #         return row
+            def visualize(row):
+                st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
+                st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
+                return row
 
-        #     best_ten.apply(visualize, axis=1)
+            best_ten.apply(visualize, axis=1)
 
     @staticmethod
     def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):
