@@ -85,13 +85,7 @@ class Evaluate(Subcommand):
             dataset = Dataset.load_from_file(self.params['seq_source'])
             pass
 
-        eval_x = []
-        for branch in dataset.branches:
-            branch_list = dataset.df[branch].to_list()
-            eval_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
-        # Do not return data in an extra array if there's only one branch
-        if len(eval_x) == 1:
-            eval_x = eval_x[0]
+        eval_x = dataset.encode_branches(dataset, self.params['branches'])
         eval_y = dataset.labels(encoding=encoded_labels)
 
         status.text('Evaluating model...')
@@ -102,18 +96,16 @@ class Evaluate(Subcommand):
             dataset.df[klass] = [y[i] for y in predicted]
         dataset.df['highest scoring class'] = self.get_klass(predicted, self.params['klasses'])
 
-        status.text('Calculating Integrated Gradients... \n'
-                    'Note: This is rather slow process, it may take a while.')
-        logger.info('Calculating Integrated Gradients...')
-
         placeholder = st.empty()
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
-            status.text('Calculating Integrated Gradients...')
+            status.text('Calculating Integrated Gradients... \n'
+                        'Note: This is rather slow process, it may take a while.')
+            logger.info('Calculating Integrated Gradients...')
             self.calculate_ig(dataset, model, eval_x, self.params['win'], self.params['klasses'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['eval_dir'], 'results.tsv')
-        ignore = self.params['branches']
+        ignore = ['seq_encoded', 'fold_encoded', 'seq', 'fold', 'cons']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
 
         header = self.eval_header()

@@ -8,6 +8,7 @@ from .exceptions import UserInputError
 # TODO allow option custom, to be specified by text input
 # TODO add amino acid alphabet - in that case disable cons and fold i guess
 ALPHABET = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'U': 3}
+FOLDING = {'.': 0, '|': 1, 'x': 2, '<': 3, '>': 4, '(': 5, ')': 6}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)

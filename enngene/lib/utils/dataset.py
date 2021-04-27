@@ -38,7 +38,7 @@ class Dataset:
     def load_from_file(cls, file_path):
         name = os.path.basename(file_path).replace('.tsv.zip', '')
         df = pd.read_csv(file_path, sep='\t', header=0)
-        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input_sequence']]
+        branches = [col for col in df.columns if col not in ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']]
         category = name if (name in ['train', 'test', 'validation', 'blackbox']) else None
 
         return cls(branches=branches, category=category, df=df)
@@ -176,35 +176,25 @@ class Dataset:
 
         for branch in branches:
             if branch == 'seq':
-                if 'input_sequence' in self.df.columns:
-                    self.df['seq'] = self.df['input_sequence']
-                else:
+                if 'seq' not in self.df.columns:
                     status.text(f'Mapping intervals to the fasta reference...')
                     self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
-                    mapped = True
+                mapped = True
             elif branch == 'cons':
                 status.text(f'Mapping intervals to the wig reference... \n'
                             f'Note: This is rather slow process, it may take a while.')
                 self.df = Dataset.map_to_wig(branch, self.df, references[branch])
             elif branch == 'fold':
                 status.text(f'Folding the sequences...')
-                if 'input_sequence' in self.df.columns:
-                    self.df['fold'] = self.df['input_sequence']
-                    key_cols = ['input_sequence']
+                if mapped:
+                    self.df['fold'] = self.df['seq']  # already finished above
                 else:
-                    if mapped:
-                        self.df['fold'] = self.df['seq']  # already finished above
-                    else:
-                        self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
-                    key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
+                    self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
+                # TODO for prediction/evaluation key_cols = seq pravdepodobne
+                key_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign']
 
                 seq_branch = 'seq' in branches
                 self.df = self.fold_branch(self.df, key_cols, seq_branch, ncpu)
-
-        if 'seq' in branches:
-            # encode it at the end, so that it can be used for folding before that
-            encoding = seq.onehot_encode_alphabet(seq.ALPHABET)
-            self.encode_col('seq', encoding)
 
         self.df.dropna(subset=branches, inplace=True)
         self.save_to_file(outfile_path, ignore_cols=['name', 'score'], do_zip=True)
@@ -225,15 +215,43 @@ class Dataset:
             zipped.close()
             os.remove(outfile_path)
 
-    def encode_col(self, col, encoding):
+    def encode_col(self, col, new_col, encoding):
         def map(row):
             sequence = row[col]
             encoded = Dataset.encode_sequence(sequence, encoding)
-            row[col] = self.sequence_to_string(encoded)
+            row[new_col] = encoded
             return row
 
         self.df = self.df.apply(map, axis=1)
         return self
+
+    @staticmethod
+    def encode_branches(dataset, branches):
+        old_values = '|' in dataset.df[branches[0]][0]
+        values = []
+        if old_values:  # TODO remove eventually
+            for branch in branches:
+                value = []
+                for string in dataset.df[branch]:
+                    value.append(dataset.sequence_from_string(string))
+                values.append(np.array(value))
+        else:
+            for branch in branches:
+                if branch in ['seq', 'fold']:
+                    alphabet = seq.ALPHABET if branch == 'seq' else seq.FOLDING
+                    branch_encoding = seq.onehot_encode_alphabet(alphabet)
+                    dataset.encode_col(branch, f'{branch}_encoded', branch_encoding)
+                    np_col = [np.array(value) for value in dataset.df[f'{branch}_encoded']]
+                    values.append(np.array(np_col))
+                elif branch == 'cons':
+                    dataset.df[branch] = dataset.df.apply(lambda x: [float(n) for n in x[branch].split(',')], axis=1)
+                    np_col = [np.array([np.array([float(v)]) for v in value]) for value in dataset.df[branch].to_list()]
+                    values.append(np.array(np_col))
+        # Do not return data in an extra array if there's only one branch
+        if len(values) == 1:
+            values = values[0]
+
+        return values
 
     @staticmethod
     def read_in_fasta(fasta_file, evaluation=False):
@@ -266,16 +284,16 @@ class Dataset:
                 df = df.append(new_row)
 
         if evaluation:
-            df.columns = ['header', 'input_sequence', 'klass']
+            df.columns = ['header', 'seq', 'klass']
         else:
-            df.columns = ['header', 'input_sequence']
+            df.columns = ['header', 'seq']
         return df
 
     @staticmethod
     def read_in_text(text):
         df = pd.DataFrame()
         seq_series = pd.Series(text.strip().split('\n'))
-        df['input_sequence'] = seq_series
+        df['seq'] = seq_series
         return df
 
     @staticmethod
@@ -348,7 +366,6 @@ class Dataset:
             reordered_cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', branch]
             new_df = new_df[reordered_cols]
 
-        if predict: new_df['input_sequence'] = new_df[branch]
         new_df.reset_index(inplace=True, drop=True)
         return new_df
 
@@ -356,22 +373,6 @@ class Dataset:
     def encode_sequence(sequence, encoding):
         new_sequence = [seq.translate(item, encoding) for item in sequence]
         return new_sequence
-
-    @staticmethod
-    def sequence_to_string(seq_list):
-        #  temporary solution, as pandas can not save lists nor ndarrays into values
-        string = ""
-        for e in seq_list:
-            if (type(e) == np.ndarray) or (type(e) == list):
-                substring = ""
-                for ee in e:
-                    substring += str(ee) + ','
-                substring = substring.strip(',')
-                substring += '|'
-                string += substring
-            else:
-                string += str(e) + '|'
-        return string.strip('|').strip(',')
 
     @staticmethod
     def sequence_from_string(string):
@@ -455,7 +456,8 @@ class Dataset:
 
             if score and len(score) == (row['seq_end'] - row['seq_start']):
                 # Score may be fully or partially missing if the coordinates are not part of the reference
-                df.loc[i, branch] = Dataset.sequence_to_string(score)
+                str_score = [str(num) for num in score]
+                df.loc[i, branch] = ','.join(str_score)
 
         unmapped = df[branch].isna().sum()
         logger.info(f'Conservation score: mapped {round(((len(df)-unmapped)/len(df)*100), 1)}% of the intervals ({(len(df)-unmapped)} out of {len(df)}).')
@@ -541,16 +543,12 @@ class Dataset:
 
         folded_len = (len(folded_df) / 3)
         folded_df.columns = ['output']
-        fold_encoding = seq.onehot_encode_alphabet({'.': 0, '|': 1, 'x': 2, '<': 3, '>': 4, '(': 5, ')': 6})
 
         def parse_folding(row):
             folding = row['output']
-            value = []
             # line format: '.... (0.00)'
-            part1 = folding.split(' ')[0].strip()
-            for char in part1:
-                value.append(seq.translate(char, fold_encoding))
-            row['fold'] = Dataset.sequence_to_string(value)
+            value = folding.split(' ')[0].strip()
+            row['fold'] = value
             return row
 
         def parse_all(row):
@@ -567,12 +565,9 @@ class Dataset:
             row['seq'] = row['seq'].replace('U', 'T')
 
             folding = row['fold']
-            value = []
             # line format: '.... (0.00)'
-            part1 = folding.split(' ')[0].strip()
-            for char in part1:
-                value.append(seq.translate(char, fold_encoding))
-            row['fold'] = Dataset.sequence_to_string(value)
+            value = folding.split(' ')[0].strip()
+            row['fold'] = value
             return row
 
         # The order should remain the same as long as --unordered is not set to True
@@ -672,7 +667,7 @@ class Dataset:
             return row
 
         def fasta_window(row):
-            sequence = row['input_sequence']
+            sequence = row['seq']
             length = len(sequence)
             if length > window_size:
                 above = length - window_size
@@ -685,7 +680,7 @@ class Dataset:
             else:
                 new_sequence = sequence
 
-            row['input_sequence'] = new_sequence
+            row['seq'] = new_sequence
             return row
 
         if type == 'bed':

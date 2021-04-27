@@ -233,7 +233,7 @@ class Preprocess(Subcommand):
             # FIXME copied file is broken
             shutil.copyfile(self.params['full_dataset_file'], full_data_file_path)
             # Keep only selected branches
-            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass', 'input_sequence'] + self.params['branches']
+            cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
             merged_dataset.df = merged_dataset.df[cols]
         else:
             # Accept one file per class and create one Dataset per each

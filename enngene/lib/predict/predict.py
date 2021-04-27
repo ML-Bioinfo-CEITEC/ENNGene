@@ -57,7 +57,6 @@ class Predict(Subcommand):
         self.ensure_dir(self.params['predict_dir'])
 
         prepared_file_path = os.path.join(self.params['predict_dir'], 'sequences.tsv')
-        predict_x = []
 
         if self.params['seq_type'] == 'bed':
             dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
@@ -75,13 +74,7 @@ class Predict(Subcommand):
         dataset.map_to_branches(
             self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
 
-        for branch in self.params['branches']:
-            branch_list = dataset.df[branch].to_list()
-            predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
-            # TODO check effectiveness of the to_list on larger dataset
-
-        if len(predict_x) == 1:
-            predict_x = predict_x[0]
+        predict_x = dataset.encode_branches(dataset, self.params['branches'])
 
         status.text('Calculating predictions...')
 
@@ -94,18 +87,16 @@ class Predict(Subcommand):
             dataset.df[klass] = [y[i] for y in predict_y]
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
-        status.text('Calculating Integrated Gradients... \n'
-                    'Note: This is rather slow process, it may take a while.')
-        logger.info('Calculating Integrated Gradients...')
-
         placeholder = st.empty()
         if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
-            status.text('Calculating Integrated Gradients...')
+            status.text('Calculating Integrated Gradients... \n'
+                        'Note: This is rather slow process, it may take a while.')
+            logger.info('Calculating Integrated Gradients...')
             self.calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
-        ignore = ['name', 'score'] + self.params['branches']
+        ignore = ['name', 'score', 'klass', 'seq_encoded', 'fold_encoded', 'seq', 'fold', 'cons']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
 
         header = self.predict_header()

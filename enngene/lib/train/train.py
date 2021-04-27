@@ -200,28 +200,17 @@ class Train(Subcommand):
         return layer
 
     @staticmethod
-    def parse_data(dataset_files, branches, encoding):
+    def parse_data(dataset_files, branches, label_encoding):
         dictionary = {}
         for file in dataset_files:
             dataset = Dataset.load_from_file(file)
+            if dataset.category == 'blackbox': continue
             dictionary.update({dataset.category: {}})
-            values = []
-            for branch in branches:
-                # can not use apply, as it returns wrong object with different shape
-                # (because pandas dataframes and series are not able to store arrays as values)
-                value = []
-                for string in dataset.df[branch]:
-                    value.append(dataset.sequence_from_string(string))
-                values.append(np.array(value))
 
-            # Do not return data in an extra array if there's only one branch
-            if len(values) == 1:
-                values = values[0]
-
+            values = dataset.encode_branches(dataset, branches)
             dictionary[dataset.category].update({'values': values})
-            dictionary[dataset.category].update({'labels': dataset.labels(encoding=encoding)})
+            dictionary[dataset.category].update({'labels': dataset.labels(encoding=label_encoding)})
 
-        print(dictionary.keys())
         return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
 
