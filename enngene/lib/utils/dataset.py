@@ -202,6 +202,7 @@ class Dataset:
 
     def sort_datapoints(self):
         self.df = self.df.sort_values(by=['chrom_name', 'seq_start'])
+        self.df.reset_index(drop=True, inplace=True)
         return self
 
     def save_to_file(self, outfile_path, do_zip=False, ignore_cols=None):
