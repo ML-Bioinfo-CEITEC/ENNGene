@@ -72,7 +72,9 @@ def parse_wig_header(line):
         key, value = part.split('=')
         if key == 'chrom':
             header.update({key: value})
-        elif key in ['span', 'start', 'step']:
+        elif key == 'start':
+            header.update({key: int(value) - 1})
+        elif key in ['span', 'step']:
             header.update({key: int(value)})
 
     return header
@@ -82,7 +84,7 @@ def parse_wig_line(line, header):
     parsed_line = {}
     if header['file_type'] == 'variableStep':
         parts = line.split()
-        start = parts[0]
+        start = int(parts[0]) - 1
         value = float(parts[1])
         for i in range(header['span']):
             coord = start + i
