@@ -1,16 +1,7 @@
 # module containing methods for file handling
 import gzip
 import os
-import sys
 from zipfile import ZipFile
-
-
-def filehandle_for(filename):
-    if filename == "-":
-        filehandle = sys.stdin
-    else:
-        filehandle = open(filename)
-    return filehandle
 
 
 def list_files_in_dir(path, extension='*'):
