@@ -3,6 +3,8 @@ import logging
 import numpy as np
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
 import shutil
 import streamlit as st
 import tensorflow as tf
@@ -423,7 +425,7 @@ class Subcommand:
             elif branch == "fold":
                 raws.append((Subcommand.reverse_fold(x) for x in predict_x[i]))
             else:
-                pass
+                raws.append(predict_x[i])
         
         if not isinstance(predict_x, list):
             logger.info(predict_x.shape)
@@ -455,15 +457,16 @@ class Subcommand:
             selected_ig_attibutions = bi_ig.choose_validation_points(ig_attributions)
             
             for branch, data, ig in zip(branches, raw, selected_ig_attibutions):
-               
+                print(branch)
                 if branch in {"seq", "fold"}:
                     visualisation = bi_ig.visualize_token_attrs(data, ig)
-                else:
-                    visualisation = None # todo
+                elif branch == "cons":
+                    visualisation = (data, ig)
                 visualisations[branch].append(visualisation)
 
         dataset.df['Integrated Gradients Visualisation Seq'] = visualisations['seq']
         dataset.df['Integrated Gradients Visualisation Fold'] = visualisations['fold']
+        dataset.df['Integrated Gradients Visualisation Cons'] = visualisations['cons']
         # Show ten best predictions per class in the application window
         st.markdown('---')
         st.markdown('### Integrated Gradients Visualisation')
@@ -471,7 +474,7 @@ class Subcommand:
                     'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
                     'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
                     'On the other hand, the blue color means low level of attribution.')
-        best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold']]
+        best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold', 'Integrated Gradients Visualisation Cons']]
         for klass in klasses:
             st.markdown(f'#### {klass}')
             best.sort_values(by=klass, ascending=False, inplace=True)
@@ -480,6 +483,24 @@ class Subcommand:
             def visualize(row):
                 st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
                 st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
+                fig = plt.figure()
+                
+                
+                
+                g_y = np.array(row['Integrated Gradients Visualisation Cons'][0])
+                g_y = g_y.reshape(g_y.shape[0])
+                g_x = list(range(len(g_y)))
+                g_hue = row['Integrated Gradients Visualisation Cons'][1]
+
+                g = sns.scatterplot(
+                    x=g_x,
+                    y=g_y,
+                    hue=g_hue,
+                    palette=sns.color_palette("coolwarm", as_cmap=True)
+                ) 
+                plt.legend([],[], frameon=False)
+                st.pyplot(fig)
+
                 return row
 
             best_ten.apply(visualize, axis=1)
