@@ -3,6 +3,9 @@
 
 import tensorflow as tf
 import numpy as np
+import matplotlib as mpl
+import matplotlib.cm as cm
+
 
 import logging
 logger = logging.getLogger('bi-ig')
@@ -196,7 +199,7 @@ def choose_validation_points(integrated_gradients_list):
     return [_absmax(x) for x in integrated_gradients_list]
 
 
-def visualize_token_attrs(sequence, attrs):
+def visualize_token_attrs(sequence, attrs, _min, _max):
     """
     Visualize attributions for given set of tokens.
     Args:
@@ -208,25 +211,15 @@ def visualize_token_attrs(sequence, attrs):
     - visualization: HTML text with colorful representation of DNA sequence
         build on model prediction
     """
-
-    def get_color(attr):
-        if attr > 0:
-            red = int(128 * attr) + 127
-            green = 128 - int(64 * attr)
-            blue = 128 - int(64 * attr)
-        else:
-            red = 128 + int(64 * attr)
-            green = 128 + int(64 * attr)
-            blue = int(-128 * attr) + 127
-
-        return red, green, blue
-
-    # normalize attributions for visualization.
-    bound = max(abs(max(attrs)), abs(min(attrs)))
-    attrs = attrs / bound
+    norm = mpl.colors.Normalize(vmin=_min, vmax=_max)
+    cmap = cm.Reds
+    m = cm.ScalarMappable(norm=norm, cmap=cmap)
+    
     html_text = []
+    
     for i, tok in enumerate(sequence):
-        r, g, b = get_color(attrs[i])
+        r, g, b, _ = m.to_rgba(attrs[i]) # ignore alpha
+        r, g, b = 255*r, 255*g, 255*b # rescale
         html_text.append("<span style='font-weight:bold;background-color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
 
 

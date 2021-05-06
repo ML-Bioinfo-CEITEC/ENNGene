@@ -72,10 +72,7 @@ class Predict(Subcommand):
         dataset.map_to_branches(
             self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
 
-        for branch in self.params['branches']:
-            branch_list = dataset.df[branch].to_list()
-            predict_x.append(np.array([Dataset.sequence_from_string(seq_str) for seq_str in branch_list]))
-            # TODO check effectiveness of the to_list on larger dataset
+        predict_x = dataset.encode_branches(dataset, self.params['branches'])
 
         status.text('Calculating predictions...')
 
