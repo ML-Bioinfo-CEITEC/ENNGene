@@ -287,9 +287,9 @@ Dataset should come from the same data as those used for training the model, or 
 *Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
-`Calculate Integrated Gradients` [Integrated Gradients](https://arxiv.org/abs/1703.01365) are available only for one-branched models with a sequence branch only.
+`Calculate Integrated Gradients` [Integrated Gradients](https://arxiv.org/abs/1703.01365) are available for calculation.
 Ten highest scoring sequences per each class are printed at the bottom of the application.
-The html code for each sequence is also exported for future use as the last column of the results.tsv file.
+The gradient values for each sequence are also exported for future use as last columns of the results.tsv file.
 Note that calculating the integrated gradients is a time-consuming process, it may take several minutes up to few hours (depending on the number of sequences).
 
 Sequence visualization can be used for auxiliary evaluation and debugging of the model.  

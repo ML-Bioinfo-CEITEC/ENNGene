@@ -3,8 +3,12 @@ import logging
 import numpy as np
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import shutil
 import streamlit as st
+import streamlit.components.v1 as stcomponents
 import tensorflow as tf
 import yaml
 
@@ -362,30 +366,102 @@ class Subcommand:
         index = Subcommand.get_dict_index(value, dictionary)
         return list(dictionary.keys())[index]
 
-    @staticmethod
-    def calculate_ig(dataset, model, predict_x, win, klasses):
-        raw_sequence = dataset.df['seq']
-        # set baseline, win parameter in yaml and num 5, num of sequence
-        baseline = tf.zeros(shape=(win, 4))
-        visualisations = []
-        # need to transform to right shape:
-        predict_x_np = np.array(predict_x)
-        # take each prediction, unprocessed data and count IG
-        for sample, letter_sequence in zip(predict_x_np, raw_sequence):
-            # return tensor of shape: (window width(sequence length), encoded base shape)
-            sample = tf.convert_to_tensor(sample, dtype=tf.float32)
 
+    @staticmethod
+    def consToSymbol(cons):
+        cons = np.round((cons / 0.5) + 5)
+        if cons > 9:
+            return "+ "
+        elif cons < 0:
+            return "- "
+        else:
+            return str(int(cons)) + " "
+    
+    
+    @staticmethod
+    def visualizeSpecifier(branches):
+        def visualize(row):
+            _max = -np.inf
+            _min = np.inf
+            
+            for branch in branches:
+                _max = max(_max, row[branch + "_ig"].max()) 
+                _min = min(_max, row[branch + "_ig"].min())
+                
+            
+            visualisation = {
+                branch: ig.visualize_token_attrs(row[branch], row[branch+"_ig"], _min, _max) for branch in branches
+            }
+            
+            sub_viz = []
+            sequence_len = len(row[branches[0]]) # just get sequence length, should be equal across all branches
+            max_text_len = len(str(sequence_len)) + 1
+            
+            
+            for sequence_pos in range(sequence_len//25):
+                start = str(sequence_pos*25) 
+                end = str((sequence_pos+1)*25) 
+                
+                sub_viz.append("<div style='font-family: monospace, monospace'>")
+                
+                # funky sort to ensure seq -> fold -> cons order
+                for i_branch, branch in enumerate(sorted(branches)[::-1]):
+                    if i_branch == 0:
+                        sub_viz.append(start + '<span style="opacity:0;">' + (max_text_len-len(start))*"_" +'</span>')
+                        sub_viz.extend(visualisation[branch][sequence_pos*25:(sequence_pos+1)*25])
+                        sub_viz.append( '<span style="opacity:0;">' + (max_text_len-len(end))*"_" +'</span>' + end)
+                    else:
+                        sub_viz.append('<span style="opacity:0;">' + max_text_len*"_" +'</span>')
+                        sub_viz.extend(visualisation[branch][sequence_pos*25:(sequence_pos+1)*25])
+                        sub_viz.append('<span style="opacity:0;">' + max_text_len*"_" +'</span>')
+                        
+                    sub_viz.append(" " + branch)                    
+                    sub_viz.append("<br>")
+                
+                sub_viz.append("</div>")
+                sub_viz.append("<br>")
+                
+                if sequence_pos > 0 and sequence_pos % 2 == 1:
+                    stcomponents.html("".join(sub_viz))
+                    sub_viz = []
+            
+            st.markdown("<hr>", unsafe_allow_html=True)
+            
+            return row
+        return visualize
+    
+    @staticmethod
+    def calculate_ig(dataset, model, predict_x, klasses, branches):
+        if not isinstance(predict_x, list):
+            logger.info("predict_x is not a list, wrapping in an array")
+            predict_x = (np.array(predict_x),)
+                
+        
+        # baseline of zeros in equal shape as inputs
+        baselines = [tf.zeros(shape=x[0].shape) for x in predict_x]
+
+        ig_per_branch = { branch: [] for branch in branches }
+
+        # take each prediction, unprocessed data and count IG
+        for inputs in zip((*predict_x)): 
+            # zip((*predict_x)) decompress a list of n lists into a single list of tuples
+            # e. g. [[a,b], [c,d]] becomes [(a,c), (b,d)] ; [[a, b, c]] becomes [(a,), (b,), (c,)]
+            
+            # return tensor of shape: (window width(sequence length), encoded base shape)
+            inputs = [tf.convert_to_tensor(_input, dtype=tf.float32) for _input in inputs]
+            
             # contain significance of each base in sequence
-            ig_attribution = ig.integrated_gradients(model, baseline, sample)
+            ig_atributions = ig.integrated_gradients(model, baselines, inputs)
 
             # choose attribution for specific encoded base
-            attrs = ig.choose_validation_points(ig_attribution, win, 4)
-
-            # return HTML code with colored bases
-            visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
-            visualisations.append(visualisation)
-
-        dataset.df['Integrated Gradients Visualisation'] = visualisations
+            selected_ig_atributions = ig.choose_validation_points(ig_atributions)
+            
+            for branch, ig_atribution in zip(branches, selected_ig_atributions):
+                ig_per_branch[branch].append(ig_atribution)
+    
+        for branch in branches:
+            dataset.df[branch + "_ig"] = ig_per_branch[branch]
+            
         # Show ten best predictions per class in the application window
         st.markdown('---')
         st.markdown('### Integrated Gradients Visualisation')
@@ -393,17 +469,20 @@ class Subcommand:
                     'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
                     'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
                     'On the other hand, the blue color means low level of attribution.')
-        best = dataset.df[klasses + ['Integrated Gradients Visualisation']]
+        best = dataset.df[klasses + [branch+'_ig' for branch in branches] + branches]
+        if 'cons' in branches:
+            best['cons'] = [[Subcommand.consToSymbol(cons_score) for cons_score in cons_row] for cons_row in best['cons']]
+        
+        
         for klass in klasses:
             st.markdown(f'#### {klass}')
-            best.sort_values(by=klass, ascending=False, inplace=True)
-            best_ten = best[:10] if (len(best) >= 10) else best
+            local_best = best.sort_values(by=klass, ascending=False, inplace=False)
+            best_ten = local_best[:10] if (len(best) >= 10) else best
 
-            def visualize(row):
-                st.markdown(f"{row['Integrated Gradients Visualisation']}", unsafe_allow_html=True)
-                return row
-
-            best_ten.apply(visualize, axis=1)
+            visualize = Subcommand.visualizeSpecifier(branches)
+            
+            for _, row in best_ten.iterrows():
+                visualize(row)
 
     @staticmethod
     def finalize_run(logger, out_dir, user_params, csv_header, csv_row, placeholder=None, previous_param_file=None):
