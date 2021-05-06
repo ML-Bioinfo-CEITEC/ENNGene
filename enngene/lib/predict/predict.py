@@ -38,13 +38,11 @@ class Predict(Subcommand):
         st.markdown('## Sequences')
         self.sequence_options(self.SEQ_TYPES, evaluation=False)
 
-        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq':
-            st.markdown('')
-            self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
-            if self.params['ig']:
-                st.markdown('###### Note: Integrated Gradients are available only for one-branched models with a sequence branch.')
-                st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
-                            'it may take several minutes up to few hours (depending on the number of sequences).')
+        st.markdown('')
+        self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
+        if self.params['ig']:
+            st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
+                        'it may take several minutes up to few hours (depending on the number of sequences).')
 
         self.validate_and_run(self.validation_hash)
 
@@ -88,11 +86,10 @@ class Predict(Subcommand):
         dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
 
         placeholder = st.empty()
-        if len(self.params['branches']) == 1 and self.params['branches'][0] == 'seq' and self.params['ig']:
-            status.text('Calculating Integrated Gradients... \n'
-                        'Note: This is rather slow process, it may take a while.')
-            logger.info('Calculating Integrated Gradients...')
-            self.calculate_ig(dataset, model, predict_x, self.params['win'], self.params['klasses'])
+
+        if self.params['ig']:
+            status.text('Calculating Integrated Gradients...')
+            self.calculate_ig(dataset, model, predict_x, self.params['klasses'], self.params['branches'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
