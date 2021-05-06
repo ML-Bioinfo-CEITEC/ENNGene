@@ -2,17 +2,18 @@
 #https://www.apache.org/licenses/LICENSE-2.0
 
 import tensorflow as tf
+import numpy as np
 
 def generate_path_inputs(baseline, input, alphas):
     """
     Generate interpolated 'images' along a linear path at alpha intervals between a baseline tensor
 
-    baseline: 2D, shape: (200, 4)
-    input: preprocessed sample, shape: (200, 4)
-    alphas: list of steps in interpolated image ,shape: (21)
+    baseline: 2D, shape: (win, width)
+    input: preprocessed sample, shape: (win, width)
+    alphas: list of steps in interpolated image ,shape: (alphas_len)
 
 
-    return: shape (21, 200, 4)
+    return: shape (alphas_len, win, width)
     """
     # Expand dimensions for vectorized computation of interpolations.
     alphas_x = alphas[:, tf.newaxis, tf.newaxis]
@@ -29,8 +30,8 @@ def compute_gradients(model, path_inputs):
     compute dependency of each field on whole result, compared to interpolated 'images'
 
     :param model: trained model
-    :param path_inputs: interpolated tensors, shape: (21, 200, 4)
-    :return: shape: (21, 200, 4)
+    :param path_inputs: interpolated tensors, shape: (alphas_len, win, width)
+    :return: shape: (alphas_len, win, width)
     """
     with tf.GradientTape() as tape:
         tape.watch(path_inputs)
@@ -113,8 +114,8 @@ def integrated_gradients(model, baseline, input, m_steps=50, method='riemann_tra
     """
     Args:
       model(keras.Model): A trained model to generate predictions and inspect.
-      baseline(Tensor): 2D, shape: (200, 4)
-      input(Tensor): preprocessed sample, shape: (200, 4)
+      baseline(Tensor): 2D, shape: (win, width)
+      input(Tensor): preprocessed sample, shape: (win, width)
       m_steps(Tensor): A 0D tensor of an integer corresponding to the number of
         linear interpolation steps for computing an approximate integral.
       method(str): A string representing the integral approximation method. The
@@ -168,7 +169,12 @@ def integrated_gradients(model, baseline, input, m_steps=50, method='riemann_tra
 
     return integrated_gradients
 
-def choose_validation_points(integrated_gradients, window_size, width):
+def _absmax(a, axis=None):
+    amax = np.max(a, axis)
+    amin = np.min(a, axis)
+    return np.where(-amin > amax, amin, amax)
+
+def choose_validation_points(integrated_gradients):
     """
     Args:
           integrated_gradients(Tensor): A 2D tensor of floats with shape (window_size, width_of_sequence_encoded).
@@ -176,13 +182,7 @@ def choose_validation_points(integrated_gradients, window_size, width):
           width: int, width of encoded base
     Return: List of attributes for highlighting DNA string sequence
     """
-    attr = []
-    for i in range(window_size):
-        for j in range(width):
-            if integrated_gradients[i][j].numpy() == 0:
-                continue
-            attr.append(integrated_gradients[i][j].numpy())
-    return attr
+    return _absmax(integrated_gradients, axis=1)
 
 
 def visualize_token_attrs(sequence, attrs):
@@ -213,9 +213,9 @@ def visualize_token_attrs(sequence, attrs):
     # normalize attributions for visualization.
     bound = max(abs(max(attrs)), abs(min(attrs)))
     attrs = attrs / bound
-    html_text = ""
+    html_text = []
     for i, tok in enumerate(sequence):
         r, g, b = get_color(attrs[i])
-        html_text += "<span style='font-weight:bold;color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok)
+        html_text.append("<span style='font-weight:bold;color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
 
-    return html_text
+    return "".join(html_text)

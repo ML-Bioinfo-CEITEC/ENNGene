@@ -10,6 +10,7 @@ import yaml
 
 from . import eval_plots
 from . import ig
+from . import bi_ig
 from . import validators
 from .exceptions import UserInputError
 
@@ -356,11 +357,25 @@ class Subcommand:
         index = Subcommand.get_dict_index(value, dictionary)
         return list(dictionary.keys())[index]
 
+
+
+    anti_map = {0: '.', 1: '|', 2: 'x', 3: '<', 4: '>', 5: '(', 6: ')'}
+    
     @staticmethod
-    def calculate_ig(dataset, model, predict_x, win, klasses):
-        raw_sequence = dataset.df['seq']
+    def reverse_fold(sequence):
+        # TODO make this more elegant, move it somewhere else
+        return ''.join(map(lambda x: Subcommand.anti_map.get(x, '?'), iter(np.argmax(sequence, axis=1))))
+        
+    @staticmethod
+    def calculate_ig(dataset, model, predict_x, win, klasses, branch):
+        if branch == 'seq':
+            raw_sequence = dataset.df['input_sequence']
+        elif branch == 'fold':
+            raw_sequence = (Subcommand.reverse_fold(x) for x in predict_x)
+        width = predict_x.shape[-1] # set width equal to input
+        
         # set baseline, win parameter in yaml and num 5, num of sequence
-        baseline = tf.zeros(shape=(win, 4))
+        baseline = tf.zeros(shape=(win, width))
         visualisations = []
         # need to transform to right shape:
         predict_x_np = np.array(predict_x)
@@ -373,7 +388,7 @@ class Subcommand:
             ig_attribution = ig.integrated_gradients(model, baseline, sample)
 
             # choose attribution for specific encoded base
-            attrs = ig.choose_validation_points(ig_attribution, win, 4)
+            attrs = ig.choose_validation_points(ig_attribution)
 
             # return HTML code with colored bases
             visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
