@@ -225,7 +225,6 @@ def visualize_token_attrs(sequence, attrs):
     bound = max(abs(max(attrs)), abs(min(attrs)))
     attrs = attrs / bound
     html_text = []
-    html_text.append("<div style='font-family: monospace, monospace'>")
     for i, tok in enumerate(sequence):
         r, g, b = get_color(attrs[i])
         html_text.append("<span style='font-weight:bold;background-color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
@@ -233,4 +232,4 @@ def visualize_token_attrs(sequence, attrs):
 
     html_text.append("</div><br>")
     
-    return "".join(html_text)
+    return html_text

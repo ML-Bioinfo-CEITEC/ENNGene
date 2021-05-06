@@ -5,8 +5,10 @@ import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 import shutil
 import streamlit as st
+import streamlit.components.v1 as stcomponents
 import tensorflow as tf
 import yaml
 
@@ -457,12 +459,13 @@ class Subcommand:
             selected_ig_attibutions = bi_ig.choose_validation_points(ig_attributions)
             
             for branch, data, ig in zip(branches, raw, selected_ig_attibutions):
-                print(branch)
                 if branch in {"seq", "fold"}:
                     visualisation = bi_ig.visualize_token_attrs(data, ig)
                 elif branch == "cons":
-                    visualisation = (data, ig)
+                    visualisation = bi_ig.visualize_token_attrs("0"*100, ig)
+
                 visualisations[branch].append(visualisation)
+                    
 
         dataset.df['Integrated Gradients Visualisation Seq'] = visualisations['seq']
         dataset.df['Integrated Gradients Visualisation Fold'] = visualisations['fold']
@@ -477,29 +480,88 @@ class Subcommand:
         best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold', 'Integrated Gradients Visualisation Cons']]
         for klass in klasses:
             st.markdown(f'#### {klass}')
-            best.sort_values(by=klass, ascending=False, inplace=True)
-            best_ten = best[:10] if (len(best) >= 10) else best
+            local_best = best.sort_values(by=klass, ascending=False, inplace=False)
+            best_ten = local_best[:10] if (len(best) >= 10) else best
 
             def visualize(row):
-                st.markdown(f"{row['Integrated Gradients Visualisation Seq']}", unsafe_allow_html=True)
-                st.markdown(f"{row['Integrated Gradients Visualisation Fold']}", unsafe_allow_html=True)
-                fig = plt.figure()
+                for i in range(4):
+                    sub_viz = []
+                    start = str(i*25) + " "
+                    end = '<span style="opacity:0;">_</span>' + str((i+1)*25) 
+                    
+                    sub_viz.append("<div style='font-family: monospace, monospace'>")
+                    
+                    sub_viz.append(start)
+                    sub_viz.extend(row['Integrated Gradients Visualisation Seq'][i*25:(i+1)*25])
+                    sub_viz.append(end)
+                    
+                    sub_viz.append("<br>")
+                    
+                    sub_viz.append('<span style="opacity:0;">' + len(start)*"_" +'</span>')
+                    sub_viz.extend(row['Integrated Gradients Visualisation Fold'][i*25:(i+1)*25])
+                    sub_viz.append('<span style="opacity:0;">' + len(end)*"_" +'</span>')
+                    
+                    
+                    sub_viz.append("<br>")  
+                    
+                    sub_viz.append('<span style="opacity:0;">' + len(start)*"_" +'</span>')
+                    sub_viz.extend(row['Integrated Gradients Visualisation Cons'][i*25:(i+1)*25])
+                    sub_viz.append('<span style="opacity:0;">' + len(end)*"_" +'</span>')
+                    
+                    sub_viz.append("</div><br>")
+                    sub_viz.append("<hr>")
+                    
+                    stcomponents.html("".join(sub_viz))
+                    
+        
                 
-                
-                
-                g_y = np.array(row['Integrated Gradients Visualisation Cons'][0])
-                g_y = g_y.reshape(g_y.shape[0])
-                g_x = list(range(len(g_y)))
-                g_hue = row['Integrated Gradients Visualisation Cons'][1]
+                # Old plot
+                # fig = plt.figure()
+                # g_y = np.array(row['Integrated Gradients Visualisation Cons'][0])
+                # g_y = g_y.reshape(g_y.shape[0])
+                # g_x = list(range(len(g_y)))
+                # g_hue = row['Integrated Gradients Visualisation Cons'][1]
 
-                g = sns.scatterplot(
-                    x=g_x,
-                    y=g_y,
-                    hue=g_hue,
-                    palette=sns.color_palette("coolwarm", as_cmap=True)
-                ) 
-                plt.legend([],[], frameon=False)
-                st.pyplot(fig)
+                # g = sns.scatterplot(
+                #     x=g_x,
+                #     y=g_y,
+                #     hue=g_hue,
+                #     palette=sns.color_palette("coolwarm", as_cmap=True)
+                # ) 
+                # plt.legend([],[], frameon=False)
+                # st.pyplot(fig)
+                
+
+                # # rowplot
+                # a = pd.DataFrame({'val': row['Integrated Gradients Visualisation Seq']})
+                # a['type'] = 1                
+        
+                # b = pd.DataFrame({'val':row['Integrated Gradients Visualisation Fold']})
+                # b['type'] = 0
+                
+                # c = pd.DataFrame({'val': row['Integrated Gradients Visualisation Cons']})
+                # c['type'] = -1
+                
+                
+                # df = pd.concat((a, b, c))
+                # df.to_csv('test.csv')
+                
+                # fig = plt.figure()
+                # # multiplot 
+                # # for g_y in (
+                # #     row['Integrated Gradients Visualisation Seq'], 
+                # #     row['Integrated Gradients Visualisation Seq'], 
+                # #     row['Integrated Gradients Visualisation Seq']
+                # # ):
+                # #     g_x = [x for x in range(len(g_y))]
+                # #     g = sns.scatterplot(
+                # #         y=g_y,
+                # #         x=g_x
+                # #     )
+                # g = sns.scatterplot(y='type', x=df.index, hue='val', marker="s", palette=sns.color_palette("coolwarm", as_cmap=True), data=df)
+                # g.set(ylim=(-1.5, 1.5))
+                # plt.legend([],[], frameon=False)
+                # st.pyplot(fig)
 
                 return row
 
