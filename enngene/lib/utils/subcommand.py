@@ -3,13 +3,18 @@ import logging
 import numpy as np
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import shutil
 import streamlit as st
+import streamlit.components.v1 as stcomponents
 import tensorflow as tf
 import yaml
 
 from . import eval_plots
 from . import ig
+from . import bi_ig
 from . import validators
 from .exceptions import UserInputError
 
@@ -356,11 +361,25 @@ class Subcommand:
         index = Subcommand.get_dict_index(value, dictionary)
         return list(dictionary.keys())[index]
 
+
+
+    anti_map = {0: '.', 1: '|', 2: 'x', 3: '<', 4: '>', 5: '(', 6: ')'}
+    
     @staticmethod
-    def calculate_ig(dataset, model, predict_x, win, klasses):
-        raw_sequence = dataset.df['seq']
+    def reverse_fold(sequence):
+        # TODO make this more elegant, move it somewhere else
+        return ''.join(map(lambda x: Subcommand.anti_map.get(x, '?'), iter(np.argmax(sequence, axis=1))))
+        
+    @staticmethod
+    def calculate_ig(dataset, model, predict_x, win, klasses, branch):
+        if branch == 'seq':
+            raw_sequence = dataset.df['input_sequence']
+        elif branch == 'fold':
+            raw_sequence = (Subcommand.reverse_fold(x) for x in predict_x)
+        width = predict_x.shape[-1] # set width equal to input
+        
         # set baseline, win parameter in yaml and num 5, num of sequence
-        baseline = tf.zeros(shape=(win, 4))
+        baseline = tf.zeros(shape=(win, width))
         visualisations = []
         # need to transform to right shape:
         predict_x_np = np.array(predict_x)
@@ -373,7 +392,7 @@ class Subcommand:
             ig_attribution = ig.integrated_gradients(model, baseline, sample)
 
             # choose attribution for specific encoded base
-            attrs = ig.choose_validation_points(ig_attribution, win, 4)
+            attrs = ig.choose_validation_points(ig_attribution)
 
             # return HTML code with colored bases
             visualisation = ig.visualize_token_attrs(letter_sequence, attrs)
@@ -395,6 +414,155 @@ class Subcommand:
 
             def visualize(row):
                 st.markdown(f"{row['Integrated Gradients Visualisation']}", unsafe_allow_html=True)
+                return row
+
+            best_ten.apply(visualize, axis=1)
+            
+    @staticmethod
+    def bi_calculate_ig(dataset, model, predict_x, klasses, branches):
+        raws = []
+        for i, branch in enumerate(branches):
+            if branch == "seq":
+                raws.append(dataset.df['input_sequence'])
+            elif branch == "fold":
+                raws.append((Subcommand.reverse_fold(x) for x in predict_x[i]))
+            else:
+                raws.append(predict_x[i])
+        
+        if not isinstance(predict_x, list):
+            logger.info(predict_x.shape)
+            logger.info("predict_x is not a list")
+            predict_x = (np.array(predict_x),)
+                
+        
+        
+        # raw_sequence = dataset.df['input_seq']
+        # raw_fold = (Subcommand.reverse_fold(x) for x in predict_x[0])
+        
+        # baseline of zeros in equal shape as inputs
+        baselines = [tf.zeros(shape=x[0].shape) for x in predict_x]
+
+        visualisations = { branch: [] for branch in branches}
+
+        # take each prediction, unprocessed data and count IG
+        for inputs, raw in zip(zip((*predict_x)), zip((*raws))): 
+            # zip((*predict_x)) decompress a list of n lists into a single list of tuples
+            # e. g. [[a,b], [c,d]] becomes [(a,c), (b,d)], [[a, b, c]] becomes [(a,), (b,), (c,)]
+            
+            # return tensor of shape: (window width(sequence length), encoded base shape)
+            inputs = [tf.convert_to_tensor(inp, dtype=tf.float32) for inp in inputs]
+            
+            # contain significance of each base in sequence
+            ig_attributions = bi_ig.integrated_gradients(model, baselines, inputs)
+
+            # choose attribution for specific encoded base
+            selected_ig_attibutions = bi_ig.choose_validation_points(ig_attributions)
+            
+            for branch, data, ig in zip(branches, raw, selected_ig_attibutions):
+                if branch in {"seq", "fold"}:
+                    visualisation = bi_ig.visualize_token_attrs(data, ig)
+                elif branch == "cons":
+                    visualisation = bi_ig.visualize_token_attrs("0"*100, ig)
+
+                visualisations[branch].append(visualisation)
+                    
+
+        dataset.df['Integrated Gradients Visualisation Seq'] = visualisations['seq']
+        dataset.df['Integrated Gradients Visualisation Fold'] = visualisations['fold']
+        dataset.df['Integrated Gradients Visualisation Cons'] = visualisations['cons']
+        # Show ten best predictions per class in the application window
+        st.markdown('---')
+        st.markdown('### Integrated Gradients Visualisation')
+        st.markdown('Below are ten sequences with highest predicted score per each class. \n'
+                    'You can find html visualisation code for all the sequences in the results.tsv file.\n\n'
+                    'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
+                    'On the other hand, the blue color means low level of attribution.')
+        best = dataset.df[klasses + ['Integrated Gradients Visualisation Seq', 'Integrated Gradients Visualisation Fold', 'Integrated Gradients Visualisation Cons']]
+        for klass in klasses:
+            st.markdown(f'#### {klass}')
+            local_best = best.sort_values(by=klass, ascending=False, inplace=False)
+            best_ten = local_best[:10] if (len(best) >= 10) else best
+
+            def visualize(row):
+                for i in range(4):
+                    sub_viz = []
+                    start = str(i*25) + " "
+                    end = '<span style="opacity:0;">_</span>' + str((i+1)*25) 
+                    
+                    sub_viz.append("<div style='font-family: monospace, monospace'>")
+                    
+                    sub_viz.append(start)
+                    sub_viz.extend(row['Integrated Gradients Visualisation Seq'][i*25:(i+1)*25])
+                    sub_viz.append(end)
+                    
+                    sub_viz.append("<br>")
+                    
+                    sub_viz.append('<span style="opacity:0;">' + len(start)*"_" +'</span>')
+                    sub_viz.extend(row['Integrated Gradients Visualisation Fold'][i*25:(i+1)*25])
+                    sub_viz.append('<span style="opacity:0;">' + len(end)*"_" +'</span>')
+                    
+                    
+                    sub_viz.append("<br>")  
+                    
+                    sub_viz.append('<span style="opacity:0;">' + len(start)*"_" +'</span>')
+                    sub_viz.extend(row['Integrated Gradients Visualisation Cons'][i*25:(i+1)*25])
+                    sub_viz.append('<span style="opacity:0;">' + len(end)*"_" +'</span>')
+                    
+                    sub_viz.append("</div><br>")
+                    sub_viz.append("<hr>")
+                    
+                    stcomponents.html("".join(sub_viz))
+                    
+        
+                
+                # Old plot
+                # fig = plt.figure()
+                # g_y = np.array(row['Integrated Gradients Visualisation Cons'][0])
+                # g_y = g_y.reshape(g_y.shape[0])
+                # g_x = list(range(len(g_y)))
+                # g_hue = row['Integrated Gradients Visualisation Cons'][1]
+
+                # g = sns.scatterplot(
+                #     x=g_x,
+                #     y=g_y,
+                #     hue=g_hue,
+                #     palette=sns.color_palette("coolwarm", as_cmap=True)
+                # ) 
+                # plt.legend([],[], frameon=False)
+                # st.pyplot(fig)
+                
+
+                # # rowplot
+                # a = pd.DataFrame({'val': row['Integrated Gradients Visualisation Seq']})
+                # a['type'] = 1                
+        
+                # b = pd.DataFrame({'val':row['Integrated Gradients Visualisation Fold']})
+                # b['type'] = 0
+                
+                # c = pd.DataFrame({'val': row['Integrated Gradients Visualisation Cons']})
+                # c['type'] = -1
+                
+                
+                # df = pd.concat((a, b, c))
+                # df.to_csv('test.csv')
+                
+                # fig = plt.figure()
+                # # multiplot 
+                # # for g_y in (
+                # #     row['Integrated Gradients Visualisation Seq'], 
+                # #     row['Integrated Gradients Visualisation Seq'], 
+                # #     row['Integrated Gradients Visualisation Seq']
+                # # ):
+                # #     g_x = [x for x in range(len(g_y))]
+                # #     g = sns.scatterplot(
+                # #         y=g_y,
+                # #         x=g_x
+                # #     )
+                # g = sns.scatterplot(y='type', x=df.index, hue='val', marker="s", palette=sns.color_palette("coolwarm", as_cmap=True), data=df)
+                # g.set(ylim=(-1.5, 1.5))
+                # plt.legend([],[], frameon=False)
+                # st.pyplot(fig)
+
                 return row
 
             best_ten.apply(visualize, axis=1)

@@ -4,25 +4,33 @@
 import tensorflow as tf
 import numpy as np
 
-def generate_path_inputs(baseline, input, alphas):
+import logging
+logger = logging.getLogger('bi-ig')
+
+
+def _expand_dims(x):
+    return tf.expand_dims(x, axis=0)
+
+def _get_path_calculator(alphas):
+    def _calculate_path(baseline, inp):
+        return baseline + alphas * (inp - baseline)
+    return _calculate_path
+
+def generate_path_inputs(baselines, inputs, path_calculator):
     """
     Generate interpolated 'images' along a linear path at alpha intervals between a baseline tensor
 
-    baseline: 2D, shape: (win, width)
-    input: preprocessed sample, shape: (win, width)
-    alphas: list of steps in interpolated image ,shape: (alphas_len)
+    baselines: 2D, shape: (win, width)
+    input_seq: preprocessed sample, shape: (win, width)
+    input_fold: preprocessed sample, shape: (win, width)
 
-
-    return: shape (alphas_len, win, width)
+    return: shape [(alphas_len, win, width), (alphas_len, win, width2),]
     """
-    # Expand dimensions for vectorized computation of interpolations.
-    alphas_x = alphas[:, tf.newaxis, tf.newaxis]
-    baseline_x = tf.expand_dims(baseline, axis=0)
-    input_x = tf.expand_dims(input, axis=0)
-    delta = input_x - baseline_x
-    path_inputs = baseline_x + alphas_x * delta
-
-    return path_inputs
+    
+    baselines = map(_expand_dims, baselines)
+    inputs = map(_expand_dims, inputs)
+      
+    return [path_calculator(base, inp) for base, inp in zip(baselines, inputs)]
 
 
 def compute_gradients(model, path_inputs):
@@ -109,13 +117,13 @@ def integral_approximation(gradients, method='riemann_trapezoidal'):
     return integrated_gradients
 
 
-def integrated_gradients(model, baseline, input, m_steps=50, method='riemann_trapezoidal',
-                         batch_size=32):
+def integrated_gradients(model, baselines, inputs, 
+                         m_steps=50, method='riemann_trapezoidal', batch_size=32):
     """
     Args:
       model(keras.Model): A trained model to generate predictions and inspect.
-      baseline(Tensor): 2D, shape: (win, width)
-      input(Tensor): preprocessed sample, shape: (win, width)
+      baselines(Tensor): List of 2D, shape: (win, width)
+      inputs(Tensor): List of preprocessed samples, shape: (win, width)
       m_steps(Tensor): A 0D tensor of an integer corresponding to the number of
         linear interpolation steps for computing an approximate integral.
       method(str): A string representing the integral approximation method. The
@@ -132,57 +140,60 @@ def integrated_gradients(model, baseline, input, m_steps=50, method='riemann_tra
         shape as the input tensor.
     """
 
-    # 1. Generate alphas.
+    # 1. Generate alphas.LT1
     alphas = generate_alphas(m_steps=m_steps,
                              method=method)
 
+
+
     # Initialize TensorArray outside loop to collect gradients. Note: this data structure
-    gradient_batches = tf.TensorArray(tf.float32, size=m_steps + 1)
+    gradient_batches = [tf.TensorArray(tf.float32, size=m_steps + 1) for _ in inputs]
 
     # Iterate alphas range and batch computation for speed, memory efficiency, and scaling to larger m_steps.
     for alpha in tf.range(0, len(alphas), batch_size):
         from_ = alpha
         to = tf.minimum(from_ + batch_size, len(alphas))
         alpha_batch = alphas[from_:to]
+        path_calculator = _get_path_calculator(alpha_batch[:, tf.newaxis, tf.newaxis])
+
 
         # 2. Generate interpolated inputs between baseline and input.
-        interpolated_path_input_batch = generate_path_inputs(baseline=baseline,
-                                                             input=input,
-                                                             alphas=alpha_batch)
+        interpolated_path_input_batch_list = generate_path_inputs(baselines, inputs, path_calculator)
+    
+        
 
         # 3. Compute gradients between model outputs and interpolated inputs.
-        gradient_batch = compute_gradients(model=model,
-                                           path_inputs=interpolated_path_input_batch)
+        new_batch_list = compute_gradients(model=model,
+                                             path_inputs=interpolated_path_input_batch_list)
+        
 
         # Write batch indices and gradients to TensorArray.
-        gradient_batches = gradient_batches.scatter(tf.range(from_, to), gradient_batch)
+        gradient_batches = [batches.scatter(tf.range(from_, to), new_batch) 
+                            for batches, new_batch in zip(gradient_batches, new_batch_list)]
 
     # Stack path gradients together row-wise into single tensor.
-    total_gradients = gradient_batches.stack()
-
+    gradient_batches = map(lambda gradient_batch: gradient_batch.stack(), gradient_batches)
+    
     # 4. Integral approximation through averaging gradients.
-    avg_gradients = integral_approximation(gradients=total_gradients,
-                                           method=method)
+    avg_gradients = map(lambda gradients: integral_approximation(gradients=gradients, method=method), gradient_batches)
 
     # 5. Scale integrated gradients with respect to input.
-    integrated_gradients = (input - baseline) * avg_gradients
+    return [(inp - baseline) * avg_gradient for inp, baseline, avg_gradient in zip(inputs, baselines, avg_gradients)]
 
-    return integrated_gradients
-
-def _absmax(a, axis=None):
+def _absmax(a, axis=1):
     amax = np.max(a, axis)
     amin = np.min(a, axis)
     return np.where(-amin > amax, amin, amax)
 
-def choose_validation_points(integrated_gradients):
+def choose_validation_points(integrated_gradients_list):
     """
     Args:
-          integrated_gradients(Tensor): A 2D tensor of floats with shape (window_size, width_of_sequence_encoded).
+          integrated_gradients_list(Tensor): A list of 2D tensor of floats with shape (window_size, width_of_sequence_encoded).
           window_size: int, length of sequence, num of bases
           width: int, width of encoded base
     Return: List of attributes for highlighting DNA string sequence
     """
-    return _absmax(integrated_gradients, axis=1)
+    return [_absmax(x) for x in integrated_gradients_list]
 
 
 def visualize_token_attrs(sequence, attrs):
@@ -216,6 +227,9 @@ def visualize_token_attrs(sequence, attrs):
     html_text = []
     for i, tok in enumerate(sequence):
         r, g, b = get_color(attrs[i])
-        html_text.append("<span style='font-weight:bold;color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
+        html_text.append("<span style='font-weight:bold;background-color:rgb(%d,%d,%d)'>%s </span>" % (r, g, b, tok))
 
-    return "".join(html_text)
+
+    html_text.append("</div><br>")
+    
+    return html_text
