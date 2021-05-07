@@ -98,7 +98,7 @@ class Preprocess(Subcommand):
                 self.params['input_files'][i] = file
 
                 if not file: continue
-                self.validation_hash['is_bed'].append(file)
+                self.validation_hash['is_bed'].append({'file': file, 'evaluation': False})
                 if os.path.isfile(file):
                     file_name = os.path.basename(file)
                     if any(ext in file_name for ext in self.allowed_extensions):

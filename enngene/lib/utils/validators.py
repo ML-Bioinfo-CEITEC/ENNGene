@@ -32,7 +32,7 @@ def uniq_klasses(klasses):
     return warning if any(klasses.count(element) > 1 for element in klasses) else None
 
 
-def is_bed(file):
+def is_bed(file, evaluation):
     invalid = False
 
     if len(file) == 0:
@@ -46,6 +46,8 @@ def is_bed(file):
                 except Exception:
                     invalid = True
                 cells = line.split('\t')
+                if evaluation:
+                    klass = cells.pop(0)
                 if len(cells) >= 3:
                     try:
                         int(cells[1])

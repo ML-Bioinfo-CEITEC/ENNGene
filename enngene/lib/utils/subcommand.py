@@ -169,10 +169,16 @@ class Subcommand:
 
     def sequence_options(self, seq_types, evaluation):
         if 'cons' in self.params['branches']:
-            # to map to the conservation files we need the coordinates
-            self.params['seq_type'] = 'bed'
-            st.markdown(
-                '###### Note: Only BED files allowed when Conservation score branch is applied (the coordinates are necessary).')
+            if evaluation:
+                seq_types = {'BED file': 'bed', 'Blackbox dataset': 'blackbox'}
+                self.params['seq_type'] = seq_types[st.radio(
+                    'Select a source of the sequences:',
+                    list(seq_types.keys()), index=self.get_dict_index(self.defaults['seq_type'], seq_types))]
+            else:
+                # to map to the conservation files we need the coordinates
+                self.params['seq_type'] = 'bed'
+                st.markdown(
+                    '###### Note: Only BED files allowed when Conservation score branch is applied (the coordinates are necessary).')
         else:
             self.params['seq_type'] = seq_types[st.radio(
                 'Select a source of the sequences:',
@@ -188,7 +194,7 @@ class Subcommand:
                 st.markdown(
                     '###### Note: The first (extra) column of the file must contain the name of the class per each sequence. '
                     'Class names must correspond to those used when training the model.')
-            self.validation_hash['is_bed'].append(self.params['seq_source'])
+            self.validation_hash['is_bed'].append({'file': self.params['seq_source'], 'evaluation': evaluation})
             self.params['strand'] = st.checkbox('Apply strand', self.defaults['strand'])
 
             if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
