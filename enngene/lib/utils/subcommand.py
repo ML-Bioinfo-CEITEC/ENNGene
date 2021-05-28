@@ -597,6 +597,10 @@ class Subcommand:
     @staticmethod
     def eval_header():
         return 'Evaluation directory\t' \
+               'Evaluation loss\t' \
+               'Evaluation accuracy\t' \
+               'AUC\t' \
+               'Average precision\t' \
                'Model file\t' \
                'Evaluation branches\t' \
                'Window\t' \
@@ -611,6 +615,10 @@ class Subcommand:
 
     def eval_row(self, params):
         return f"{os.path.basename(params['eval_dir'])}\t" \
+               f"{params['eval_loss']}\t" \
+               f"{params['eval_acc']}\t" \
+               f"{params['auc']}\t" \
+               f"{params['avg_precision']}\t" \
                f"{params['model_file']}\t" \
                f"{params['branches']}\t" \
                f"{params['win']}\t" \
