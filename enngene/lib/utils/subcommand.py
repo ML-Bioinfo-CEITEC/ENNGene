@@ -33,8 +33,8 @@ class Subcommand:
                  'LR scheduler': 'lr_scheduler',
                  # 'LR finder': 'lr_finder',
                  'One cycle policy': 'one_cycle'}
-    WIN_PLACEMENT = {'Randomized': 'rand',
-                     'Centered': 'center'}
+    WIN_PLACEMENT = {'Centered': 'center',
+                     'Randomized': 'rand'}
 
     def general_options(self):
         self.params_loaded = False

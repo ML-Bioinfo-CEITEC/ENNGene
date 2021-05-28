@@ -313,5 +313,5 @@ class Preprocess(Subcommand):
                 'use_mapped': False,
                 'valid_chromosomes': [],
                 'win': 100,
-                'win_place': 'rand',
+                'win_place': 'center',
                 }

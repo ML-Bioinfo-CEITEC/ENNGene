@@ -114,14 +114,14 @@ class Evaluate(Subcommand):
             if 'Train' in previous_params.keys():
                 # Parameters missing in older versions of the code
                 novel_params = {'auc': None, 'avg_precision': None}
-                parameters = previous_params['Train']
-                parameters.update(novel_params)
+                parameters = novel_params
+                parameters.update(previous_params['Train'])
                 header += f"{self.train_header()}"
                 row += f"{self.train_row(parameters)}"
                 if 'Preprocess' in previous_params.keys():
                     novel_params = {'win_place': 'rand'}  # It's always been 'random' for the previous versions
-                    parameters = previous_params['Preprocess']
-                    parameters.update(novel_params)
+                    parameters = novel_params
+                    parameters.update(previous_params['Preprocess'])
                     header += f'{self.preprocess_header()}\n'
                     row += f"{self.preprocess_row(parameters)}\n"
                 else:
@@ -150,7 +150,7 @@ class Evaluate(Subcommand):
             'strand': True,
             'fasta_ref': '',
             'cons_dir': '',
-            'win_place': 'rand',
+            'win_place': 'center',
             'ig': True,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }

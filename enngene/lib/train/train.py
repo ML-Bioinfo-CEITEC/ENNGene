@@ -308,8 +308,8 @@ class Train(Subcommand):
         if 'Preprocess' in previous_params.keys():
             # Parameters missing in older versions of the code
             novel_params = {'win_place': 'rand'}  # It's always been 'random' for the previous versions
-            parameters = previous_params['Preprocess']
-            parameters.update(novel_params)
+            parameters = novel_params
+            parameters.update(previous_params['Preprocess'])
             header += f'{self.preprocess_header()}\n'
             row += f"{self.preprocess_row(parameters)}\n"
         else:
