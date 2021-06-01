@@ -368,7 +368,7 @@ class Subcommand:
 
 
     @staticmethod
-    def consToSymbol(cons):
+    def cons_to_symbol(cons):
         cons = np.round((cons / 0.5) + 5)
         if cons > 9:
             return "+ "
@@ -379,8 +379,11 @@ class Subcommand:
     
     
     @staticmethod
-    def visualizeSpecifier(branches):
+    def visualize_specifier(branches):
+        LETTER_HEIGHT = 20
+               
         def visualize(row):
+            sub_viz = []
             _max = -np.inf
             _min = np.inf
             
@@ -393,12 +396,13 @@ class Subcommand:
                 branch: ig.visualize_token_attrs(row[branch], row[branch+"_ig"], _min, _max) for branch in branches
             }
             
-            sub_viz = []
             sequence_len = len(row[branches[0]]) # just get sequence length, should be equal across all branches
             max_text_len = len(str(sequence_len)) + 1
+        
+            display_rows_count = sequence_len//25
             
             
-            for sequence_pos in range(sequence_len//25):
+            for sequence_pos in range(display_rows_count):
                 start = str(sequence_pos*25) 
                 end = str((sequence_pos+1)*25) 
                 
@@ -421,13 +425,12 @@ class Subcommand:
                 sub_viz.append("</div>")
                 sub_viz.append("<br>")
                 
-                if sequence_pos > 0 and sequence_pos % 2 == 1:
-                    stcomponents.html("".join(sub_viz))
-                    sub_viz = []
             
-            st.markdown("<hr>", unsafe_allow_html=True)
-            
-            return row
+            sub_viz.append("<hr>")
+            stcomponents.html("".join(sub_viz), height=LETTER_HEIGHT*(len(branches)+1)*(display_rows_count))
+            sub_viz = []
+                
+        
         return visualize
     
     @staticmethod
@@ -471,15 +474,15 @@ class Subcommand:
                     'On the other hand, the blue color means low level of attribution.')
         best = dataset.df[klasses + [branch+'_ig' for branch in branches] + branches]
         if 'cons' in branches:
-            best['cons'] = [[Subcommand.consToSymbol(cons_score) for cons_score in cons_row] for cons_row in best['cons']]
+            best['cons'] = [[Subcommand.cons_to_symbol(cons_score) for cons_score in cons_row] for cons_row in best['cons']]
         
+        
+        visualize = Subcommand.visualize_specifier(branches)
         
         for klass in klasses:
             st.markdown(f'#### {klass}')
             local_best = best.sort_values(by=klass, ascending=False, inplace=False)
             best_ten = local_best[:10] if (len(best) >= 10) else best
-
-            visualize = Subcommand.visualizeSpecifier(branches)
             
             for _, row in best_ten.iterrows():
                 visualize(row)
