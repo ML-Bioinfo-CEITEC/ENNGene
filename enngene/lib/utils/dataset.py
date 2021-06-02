@@ -128,7 +128,9 @@ class Dataset:
                 df.columns = ['klass', 'chrom_name', 'seq_start', 'seq_end']
             else:
                 df.columns = ['chrom_name', 'seq_start', 'seq_end']
-            df['strand_sign'] = '+'; df['name'] = ''; df['score'] = np.nan
+            df['strand_sign'] = '.'; df['name'] = ''; df['score'] = np.nan
+            df[['seq_start', 'seq_end']] = df[['seq_start', 'seq_end']].astype(int)
+            df['chrom_name'] = df['chrom_name'].astype(str)
         elif len(df.columns) >= 6:
             if evaluation:
                 df = df[[0, 1, 2, 3, 4, 5, 6]]
@@ -136,10 +138,15 @@ class Dataset:
             else:
                 df = df[[0, 1, 2, 3, 4, 5]]
                 df.columns = ['chrom_name', 'seq_start', 'seq_end', 'name', 'score', 'strand_sign']
+            df[['seq_start', 'seq_end', 'score']] = df[['seq_start', 'seq_end', 'score']].astype(int, errors='ignore')
+            df[['chrom_name', 'name', 'strand_sign']] = df[['chrom_name', 'name', 'strand_sign']].astype(str, errors='ignore')
         else:
             raise UserInputError('Invalid format of a .bed file.')
         if self.klass and not evaluation:
             df['klass'] = self.klass
+
+        if evaluation:
+            df['klass'] = df['klass'].astype(str)
 
         # def check_valid(row):
         #     return row if seq.is_valid_chr(row['chrom_name']) else None
