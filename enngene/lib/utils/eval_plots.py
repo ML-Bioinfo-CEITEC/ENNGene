@@ -125,15 +125,15 @@ def plot_multiclass_roc_curve(test_y, y_pred, labels_dict, output_dir_path):
     tpr = dict()
     roc_auc = dict()
     roc_auc2 = dict()
-    keras_auc = tf.keras.metrics.AUC(num_thresholds=200, curve='ROC')
+    # keras_auc = tf.keras.metrics.AUC(num_thresholds=200, curve='ROC')
     klass_labels = list(labels_dict.keys())
     n_classes = len(klass_labels)
 
     for i in range(n_classes):
         fpr[i], tpr[i], _ = roc_curve(test_y[:, i], y_pred[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
-        keras_auc.update_state(test_y[:, i], y_pred[:, i])
-        roc_auc2[i] = keras_auc.result().numpy()
+        # keras_auc.update_state(test_y[:, i], y_pred[:, i])
+        # roc_auc2[i] = keras_auc.result().numpy()
         to_export = {'fpr': fpr[i], 'tpr': tpr[i]}
         pr_rec_df = pd.DataFrame.from_dict(to_export)
         pr_rec_df.to_csv(os.path.join(output_dir_path, f'fpr_tpr_{klass_labels[i]}.tsv'), sep='\t', index=False)
@@ -165,9 +165,10 @@ def plot_multiclass_roc_curve(test_y, y_pred, labels_dict, output_dir_path):
 
     aucs = {}
     for i in range(n_classes):
-        plt.plot(fpr[i], tpr[i], lw=3, label=f'ROC curve of {klass_labels[i]} (auc = {round(roc_auc[i], 4)}, keras auc = {round(roc_auc2[i], 4)})')
+        plt.plot(fpr[i], tpr[i], lw=3, label=f'ROC curve of {klass_labels[i]} (auc = {round(roc_auc[i], 4)})')
+                                             # f', keras auc = {round(roc_auc2[i], 4)})')
         aucs.update({klass_labels[i]: round(roc_auc[i], 4)})
-        aucs.update({f'{klass_labels[i]} KERAS': round(roc_auc2[i], 4)})
+        # aucs.update({f'{klass_labels[i]} KERAS': round(roc_auc2[i], 4)})
 
     plt.plot([0, 1], [0, 1], 'k--', lw=3, alpha=0.2)
     plt.xlim([-0.05, 1.0])
