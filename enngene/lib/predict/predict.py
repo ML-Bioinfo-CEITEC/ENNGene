@@ -41,8 +41,12 @@ class Predict(Subcommand):
         st.markdown('')
         self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
         if self.params['ig']:
+            self.params['smoothgrad'] = st.checkbox('Apply smootgrad method', self.defaults['smoothgrad'])
             st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
-                        'it may take several minutes up to few hours (depending on the number of sequences).')
+                        'it may take several minutes up to few hours (depending on the number of sequences).' + 
+                        'Smoothgrad increases time complexity of integrated gradients by a factor of 20.')
+
+
 
         self.validate_and_run(self.validation_hash)
 
@@ -89,7 +93,7 @@ class Predict(Subcommand):
 
         if self.params['ig']:
             status.text('Calculating Integrated Gradients...')
-            self.calculate_ig(dataset, model, predict_x, self.params['klasses'], self.params['branches'])
+            self.calculate_ig(dataset, model, eval_x, self.params['klasses'], self.params['branches'], self.params['smoothgrad'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
@@ -143,6 +147,7 @@ class Predict(Subcommand):
             'cons_dir': '',
             'win_place': 'center',
             'ig': True,
+            'smoothgrad': False,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }
 

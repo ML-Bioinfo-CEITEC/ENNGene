@@ -10,6 +10,7 @@ import shutil
 import streamlit as st
 import streamlit.components.v1 as stcomponents
 import tensorflow as tf
+from tqdm import tqdm
 import yaml
 
 from . import eval_plots
@@ -434,19 +435,20 @@ class Subcommand:
         return visualize
     
     @staticmethod
-    def calculate_ig(dataset, model, predict_x, klasses, branches):
+    def calculate_ig(dataset, model, predict_x, klasses, branches, use_smoothgrad=False):
         if not isinstance(predict_x, list):
             logger.info("predict_x is not a list, wrapping in an array")
             predict_x = (np.array(predict_x),)
-                
-        
+                        
         # baseline of zeros in equal shape as inputs
         baselines = [tf.zeros(shape=x[0].shape) for x in predict_x]
+        top_klasses = [klasses.index(klass) for klass in dataset.df['highest scoring class']]
 
         ig_per_branch = { branch: [] for branch in branches }
+      
 
         # take each prediction, unprocessed data and count IG
-        for inputs in zip(*predict_x): 
+        for inputs, target_class in tqdm(zip(zip(*predict_x), top_klasses), total=len(predict_x[0])): 
             # zip(*predict_x) decompress a list of n lists into a single list of tuples
             # e. g. [[a,b], [c,d]] becomes [(a,c), (b,d)] ; [[a, b, c]] becomes [(a,), (b,), (c,)]
             
@@ -454,14 +456,19 @@ class Subcommand:
             inputs = [tf.convert_to_tensor(_input, dtype=tf.float32) for _input in inputs]
             
             # contain significance of each base in sequence
-            ig_atributions = ig.integrated_gradients(model, baselines, inputs)
+            if use_smoothgrad:
+                ig_method = ig.smoothgrad
+            else:
+                ig_method = ig.compute_gradients
+            
+            ig_atributions = ig_method(model, baselines, inputs, target_class)
 
             # choose attribution for specific encoded base
             selected_ig_atributions = ig.choose_validation_points(ig_atributions)
             
             for branch, ig_atribution in zip(branches, selected_ig_atributions):
                 ig_per_branch[branch].append(ig_atribution)
-    
+
         for branch in branches:
             dataset.df[branch + "_ig"] = ig_per_branch[branch]
             
@@ -473,18 +480,16 @@ class Subcommand:
                     'The higher is the attribution of the sequence to the prediction, the more pronounced is its red color. '
                     'On the other hand, the blue color means low level of attribution.')
         best = dataset.df[klasses + [branch+'_ig' for branch in branches] + branches]
-        if 'cons' in branches:
-            best['cons'] = [[Subcommand.cons_to_symbol(cons_score) for cons_score in cons_row] for cons_row in best['cons']]
-        
-        
+
         visualize = Subcommand.visualize_specifier(branches)
         
         for klass in klasses:
             st.markdown(f'#### {klass}')
-            local_best = best.sort_values(by=klass, ascending=False, inplace=False)
-            best_ten = local_best[:10] if (len(best) >= 10) else best
+            best_ten = best.sort_values(by=klass, ascending=False, inplace=False)[:10]
             
-            for _, row in best_ten.iterrows():
+            for _, row in best_ten.iterrows():    
+                if 'cons' in branches:
+                    row['cons'] = [Subcommand.cons_to_symbol(cons_score) for cons_score in  row['cons']] 
                 visualize(row)
 
     @staticmethod
