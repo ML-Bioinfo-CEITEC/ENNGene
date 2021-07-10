@@ -165,6 +165,7 @@ dependencies:
     - testpath==0.4.4
     - toml==0.10.0
     - tornado==5.1.1
+    - tqdm==4.61.1
     - traitlets==4.3.3
     - tzlocal==2.0.0
     - update==0.0.1

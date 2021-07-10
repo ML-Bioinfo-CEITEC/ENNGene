@@ -1,14 +1,15 @@
 #@title Licensed under the Apache License, Version 2.0
 #https://www.apache.org/licenses/LICENSE-2.0
 
+from os import path
+from numpy.lib.function_base import diff
 import tensorflow as tf
 import numpy as np
 import matplotlib as mpl
 import matplotlib.cm as cm
 
-
 import logging
-logger = logging.getLogger('bi-ig')
+logger = logging.getLogger('ig')
 
 
 def _expand_dims(x):
@@ -19,7 +20,7 @@ def _get_path_calculator(alphas):
         return baseline + alphas * (inp - baseline)
     return _calculate_path
 
-def generate_path_inputs(baselines, inputs, path_calculator):
+def generate_path_inputs(baselines, inputs, alphas):
     """
     Generate interpolated 'images' along a linear path at alpha intervals between a baseline tensor
 
@@ -32,11 +33,14 @@ def generate_path_inputs(baselines, inputs, path_calculator):
     
     baselines = map(_expand_dims, baselines)
     inputs = map(_expand_dims, inputs)
-      
+    
+    path_calculator = _get_path_calculator(alphas)
+    
     return [path_calculator(base, inp) for base, inp in zip(baselines, inputs)]
 
 
-def compute_gradients(model, path_inputs):
+
+def compute_gradients(model, path_inputs, target_class=0):
     """
     compute dependency of each field on whole result, compared to interpolated 'images'
 
@@ -47,11 +51,10 @@ def compute_gradients(model, path_inputs):
     with tf.GradientTape() as tape:
         tape.watch(path_inputs)
         predictions = model(path_inputs)
-
-        outputs = []
-        for envelope in predictions:
-            outputs.append(envelope[0])
-        outputs = tf.convert_to_tensor(outputs, dtype=tf.float32)
+        outputs = tf.convert_to_tensor(
+            [envelope[target_class] for envelope in predictions], 
+            dtype=tf.float32
+        )
 
     gradients = tape.gradient(outputs, path_inputs)
     return gradients
@@ -120,8 +123,8 @@ def integral_approximation(gradients, method='riemann_trapezoidal'):
     return integrated_gradients
 
 
-def integrated_gradients(model, baselines, inputs, 
-                         m_steps=50, method='riemann_trapezoidal', batch_size=32):
+def integrated_gradients(model, baselines, inputs, target_class,
+                         m_steps=50, method='riemann_trapezoidal', batch_size=50):
     """
     Args:
       model(keras.Model): A trained model to generate predictions and inspect.
@@ -142,12 +145,7 @@ def integrated_gradients(model, baselines, inputs,
       integrated_gradients(Tensor): A 2D tensor of floats with the same
         shape as the input tensor.
     """
-
-    # 1. Generate alphas.LT1
-    alphas = generate_alphas(m_steps=m_steps,
-                             method=method)
-
-
+    alphas = generate_alphas(m_steps=m_steps, method=method)
 
     # Initialize TensorArray outside loop to collect gradients. Note: this data structure
     gradient_batches = [tf.TensorArray(tf.float32, size=m_steps + 1) for _ in inputs]
@@ -157,31 +155,51 @@ def integrated_gradients(model, baselines, inputs,
         from_ = alpha
         to = tf.minimum(from_ + batch_size, len(alphas))
         alpha_batch = alphas[from_:to]
-        path_calculator = _get_path_calculator(alpha_batch[:, tf.newaxis, tf.newaxis])
-
 
         # 2. Generate interpolated inputs between baseline and input.
-        interpolated_path_input_batch_list = generate_path_inputs(baselines, inputs, path_calculator)
-    
+        interpolated_path_input_batch_list = generate_path_inputs(baselines, inputs, alpha_batch[:, tf.newaxis, tf.newaxis])
         
 
         # 3. Compute gradients between model outputs and interpolated inputs.
-        new_batch_list = compute_gradients(model=model,
-                                             path_inputs=interpolated_path_input_batch_list)
+        new_batch_list = compute_gradients(
+            model=model,
+            path_inputs=interpolated_path_input_batch_list,
+            target_class=target_class
+        )
         
 
         # Write batch indices and gradients to TensorArray.
-        gradient_batches = [batches.scatter(tf.range(from_, to), new_batch) 
-                            for batches, new_batch in zip(gradient_batches, new_batch_list)]
+        gradient_batches = [branch.scatter(tf.range(from_, to), new_batch_to_branch) 
+                            for branch, new_batch_to_branch in zip(gradient_batches, new_batch_list)]
 
     # Stack path gradients together row-wise into single tensor.
-    gradient_batches = map(lambda gradient_batch: gradient_batch.stack(), gradient_batches)
-    
+    gradient_batches = [branch.stack() for branch in gradient_batches]
+
     # 4. Integral approximation through averaging gradients.
-    avg_gradients = map(lambda gradients: integral_approximation(gradients=gradients, method=method), gradient_batches)
+    avg_gradients = [integral_approximation(gradients=gradients, method=method) for gradients in gradient_batches]
+
+
 
     # 5. Scale integrated gradients with respect to input.
-    return [(inp - baseline) * avg_gradient for inp, baseline, avg_gradient in zip(inputs, baselines, avg_gradients)]
+    return [(input_ - baseline) * avg_gradient for input_, baseline, avg_gradient in zip(inputs, baselines, avg_gradients)]
+
+
+def smoothgrad(model, baselines, inputs, target_class,
+                         m_steps=50, method='riemann_trapezoidal', batch_size=50, 
+                         stddev=0.15, smoothing_repetitions=20):
+    
+    results = []
+    input_maxes = [np.max(_input) for _input in inputs]
+    input_mins = [np.min(_input) for _input in inputs]
+    gauss_bases = [max_ - min_ for max_, min_ in zip(input_maxes, input_mins)]    
+    
+    for _ in range(smoothing_repetitions):
+        stddev_list = [np.random.normal(scale=stddev*(gauss_base), size=input_.shape) for input_, gauss_base in zip(inputs, gauss_bases)]
+        inputs_plus_stddev = [sum(x) for x in zip(inputs, stddev_list)]
+        results.append(integrated_gradients(model, baselines, inputs_plus_stddev, target_class, m_steps, method, batch_size))
+        
+    
+    return [sum(i) / smoothing_repetitions for i in zip(*results)]
 
 def _absmax(a, axis=1):
     amax = np.max(a, axis)
@@ -199,7 +217,7 @@ def choose_validation_points(integrated_gradients_list):
     return [_absmax(x) for x in integrated_gradients_list]
 
 
-def visualize_token_attrs(sequence, attrs, _min, _max):
+def visualize_token_attrs(sequence, attrs, _min, _max, cmap=cm.coolwarm):
     """
     Visualize attributions for given set of tokens.
     Args:
@@ -212,7 +230,6 @@ def visualize_token_attrs(sequence, attrs, _min, _max):
         build on model prediction
     """
     norm = mpl.colors.Normalize(vmin=_min, vmax=_max)
-    cmap = cm.Reds
     m = cm.ScalarMappable(norm=norm, cmap=cmap)
     
     html_text = []
