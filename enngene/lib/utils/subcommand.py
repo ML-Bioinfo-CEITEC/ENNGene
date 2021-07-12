@@ -459,7 +459,7 @@ class Subcommand:
             if use_smoothgrad:
                 ig_method = ig.smoothgrad
             else:
-                ig_method = ig.compute_gradients
+                ig_method = ig.integrated_gradients
             
             ig_atributions = ig_method(model, baselines, inputs, target_class)
 
