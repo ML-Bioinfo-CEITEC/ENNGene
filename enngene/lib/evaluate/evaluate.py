@@ -44,9 +44,9 @@ class Evaluate(Subcommand):
         st.markdown('')
         self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
         if self.params['ig']:
-            self.params['smoothgrad'] = st.checkbox('Apply smootgrad method', self.defaults['smoothgrad'])
+            self.params['smoothgrad'] = st.checkbox('Apply smoothgrad method', self.defaults['smoothgrad'])
             st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
-                        'it may take several minutes up to few hours (depending on the number of sequences).' + 
+                        'it may take several minutes up to few hours (depending on the number of sequences). ' +
                         'Smoothgrad increases time complexity of integrated gradients by a factor of 20.')
 
 
