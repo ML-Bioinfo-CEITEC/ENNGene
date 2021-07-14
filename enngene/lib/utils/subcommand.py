@@ -152,7 +152,7 @@ class Subcommand:
             if not missing_params:
                 self.params['model_file'] = st.text_input('Path to the trained model (hdf5 file)',
                                                           value=self.defaults['model_file'])
-            if not blackbox and not missing_model:
+            if (self.params['model_source'] == 'custom' or missing_params) and not blackbox:
                 st.markdown('##### **WARNING:** Parameters window size, branches, and number of classes must be the same as when used for training the given model.')
                 self.params['win'] = int(
                     st.number_input('Window size used for training', min_value=3, value=self.defaults['win']))
