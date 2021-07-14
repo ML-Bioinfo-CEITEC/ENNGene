@@ -21,7 +21,7 @@ try:
             logger.removeHandler(file_handler)
 
     if not any(type(handler) == logging.FileHandler for handler in logger.handlers):
-        logfile_path = os.path.join(tempfile.gettempdir(), f'{datetime.now().strftime("%Y-%m-%d_%H:%M")}_app.log')
+        logfile_path = os.path.join(tempfile.gettempdir(), f'{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_app.log')
         file_handler = logging.FileHandler(logfile_path, mode='a')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)

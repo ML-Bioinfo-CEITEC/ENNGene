@@ -320,10 +320,10 @@ class Dataset:
             tmp_df['strand_sign'] = tmp_df['strand_sign'].replace(r'^\s*$', '+', regex=True)
         else:
             key_cols = ['chrom_name', 'seq_start', 'seq_end']
-        bed_file = Dataset.dataframe_to_bed(tmp_df, key_cols, tmp_dir, f'bed_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        bed_file = Dataset.dataframe_to_bed(tmp_df, key_cols, tmp_dir, f'bed_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))}')
 
-        tmp_file = os.path.join(tmp_dir, f'mapped_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
-        err_file = os.path.join(tmp_dir, f'err_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        tmp_file = os.path.join(tmp_dir, f'mapped_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))}')
+        err_file = os.path.join(tmp_dir, f'err_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))}')
         out_file = open(tmp_file, 'w+')
         out_err = open(err_file, 'w+')
 
@@ -532,9 +532,9 @@ class Dataset:
         original_length = df.shape[0]
         has_klass = 'klass' in df.columns
         if has_klass: key_cols += ['klass']
-        fasta_file = Dataset.dataframe_to_fasta(df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        fasta_file = Dataset.dataframe_to_fasta(df, 'fold', key_cols, tmp_dir, f'df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))}')
 
-        out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        out_path = os.path.join(tmp_dir, f'folded_df_{str(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))}')
         out_file = open(out_path, 'w+')
 
         subprocess.run(['RNAfold', '--verbose', '--noPS', f'--jobs={ncpu}', fasta_file], stdout=out_file, check=True)
