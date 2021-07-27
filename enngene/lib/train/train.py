@@ -18,7 +18,6 @@ from .callbacks import ProgressMonitor, LRFinder, OneCycleLR
 from .layers import BRANCH_LAYERS, COMMON_LAYERS
 from .model_builder import ModelBuilder
 from ..utils.dataset import Dataset
-from ..utils import eval_plots
 from ..utils.exceptions import UserInputError
 from ..utils import file_utils as f
 from ..utils import sequence as seq
@@ -48,6 +47,8 @@ class Train(Subcommand):
         self.validation_hash['is_dataset_dir'].append(self.params['input_folder'])
 
         if self.params['input_folder']:
+            if not os.path.isdir(self.params['input_folder']):
+                raise UserInputError('Given folder does not seem to exist.')
             note = ''
             previous_param_files = [f for f in os.listdir(self.params['input_folder']) if (f == 'parameters.yaml') and
                                     (os.path.isfile(os.path.join(self.params['input_folder'], f)))]
@@ -89,6 +90,8 @@ class Train(Subcommand):
             self.params['lr_optim'] = lr_options[st.radio('Learning rate options',
                                                           list(lr_options.keys()),
                                                           index=self.get_dict_index(self.defaults['lr_optim'], lr_options))]
+        else:
+            self.params['lr_optim'] = 'fixed'
         self.params['lr'] = st.number_input(
             'Learning rate', min_value=0.0001, max_value=0.1, value=self.defaults['lr'], step=0.0001, format='%.4f')
 
@@ -107,20 +110,25 @@ class Train(Subcommand):
         #             st.selectbox('Layer', list(LAYERS.keys()), key=f'layer{branch}{len(self.branch_layers[branch])}'))
         #         print(self.branch_layers[branch])
 
-        default_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32}
+        default_layer_args = {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4, 'units': 32, 'bidirect': True}
 
         st.markdown('## Network Architecture')
+
+        self.params['no_branches_layers'] = st.number_input(
+            'Number of layers in the branches:', min_value=0, value=self.defaults['no_branches_layers'], key=f'branches_no')
         self.params['branches_layers'] = self.defaults['branches_layers']
+
         for i, branch in enumerate(self.params['branches']):
             st.markdown(f'### {i+1}. {self.get_dict_key(branch, self.BRANCHES)} branch')
-            self.params['no_branches_layers'][branch] = st.number_input(
-                'Number of layers in the branch:', min_value=0, value=self.defaults['no_branches_layers'][branch], key=f'{branch}_no')
-            for i in range(self.params['no_branches_layers'][branch]):
-                if self.params_loaded and i < len(self.defaults['branches_layers'][branch]):
-                    default_args = self.defaults['branches_layers'][branch][i]['args']
+            self.params['branches_layers'][branch] = self.defaults['branches_layers'][branch][0:self.params['no_branches_layers']]
+            for i in range(self.params['no_branches_layers']):
+                if self.params_loaded and (i < len(self.defaults['branches_layers'][branch])):
+                    default_args = default_layer_args
+                    default_args.update(self.defaults['branches_layers'][branch][i]['args'])
                     layer = copy.deepcopy(self.defaults['branches_layers'][branch][i])
                     checkbox = True
                 else:
+                    default_args = default_layer_args
                     layer = {'name': 'Convolution layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'filters': 40, 'kernel': 4}}
                     checkbox = False
                 st.markdown(f'#### Layer {i + 1}')
@@ -138,16 +146,29 @@ class Train(Subcommand):
         self.params['no_common_layers'] = st.number_input(
             'Number of layers after concatenation of branches:', min_value=0, value=self.defaults['no_common_layers'], key=f'common_no')
         for i in range(self.params['no_common_layers']):
-            if self.params_loaded:
-                default_args = self.defaults['common_layers'][i]['args']
+            if i == 0:
+                allowed_layers = ['Dense layer', 'Convolution layer', 'GRU', 'LSTM']  # 'Locally Connected 1D layer',
+            else:
+                previous_layer = self.params['common_layers'][i-1]['name']
+                if previous_layer in ('Convolution layer', 'GRU', 'LSTM'):  # 'Locally Connected 1D layer',
+                    allowed_layers = ['Dense layer', previous_layer]
+                elif previous_layer == 'Dense layer':
+                    allowed_layers = ['Dense layer']
+
+            if self.params_loaded and (i < len(self.defaults['common_layers'])) \
+                    and self.defaults['common_layers'][i]['name'] in allowed_layers:
+                default_args = default_layer_args
+                default_args.update(self.defaults['common_layers'][i]['args'])
                 layer = copy.deepcopy(self.defaults['common_layers'][i])
                 checkbox = True
             else:
+                default_args = default_layer_args
                 layer = {'name': 'Dense layer', 'args': {'batchnorm': False, 'dropout': 0.0, 'units': 32}}
                 checkbox = False
             default_i = list(COMMON_LAYERS.keys()).index(layer['name'])
+
             st.markdown(f'#### Layer {i + 1}')
-            layer.update(dict(name=st.selectbox('Layer type', list(COMMON_LAYERS.keys()), index=default_i, key=f'common_layer{i}')))
+            layer.update(dict(name=st.selectbox('Layer type', allowed_layers, index=default_i, key=f'common_layer{i}')))
             layer = self.layer_options(layer, i, checkbox, default_args)
             st.markdown('---')
             if len(self.params['common_layers']) > i:
@@ -169,32 +190,26 @@ class Train(Subcommand):
                 defaults['filters'], key=f'filters{branch}{i}')})
                 layer['args'].update({'kernel': st.number_input('Kernel size:', min_value=1, value=
                 defaults['kernel'], key=f'kernel{branch}{i}')})
-            elif layer['name'] in ['Dense layer', 'RNN', 'GRU', 'LSTM']:
+            elif layer['name'] in ['Dense layer', 'GRU', 'LSTM']:
                 layer['args'].update({'units': st.number_input('Number of units:', min_value=1, value=
                 defaults['units'], key=f'units{branch}{i}')})
+                if layer['name'] in ['GRU', 'LSTM']:
+                    layer['args'].update({'bidirect': st.checkbox(
+                        'Bidirectional', value=defaults['bidirect'], key=f'bidirect{branch}{i}')})
+
         return layer
 
     @staticmethod
-    def parse_data(dataset_files, branches, alphabet):
+    def parse_data(dataset_files, branches, label_encoding):
         dictionary = {}
         for file in dataset_files:
             dataset = Dataset.load_from_file(file)
+            if dataset.category == 'blackbox': continue
             dictionary.update({dataset.category: {}})
-            values = []
-            for branch in branches:
-                # can not use apply, as it returns wrong object with different shape
-                # (because pandas dataframes and series are not able to store arrays as values)
-                value = []
-                for string in dataset.df[branch]:
-                    value.append(dataset.sequence_from_string(string))
-                values.append(np.array(value))
 
-            # Do not return data in an extra array if there's only one branch
-            if len(values) == 1:
-                values = values[0]
-
+            values = dataset.encode_branches(dataset, branches)
             dictionary[dataset.category].update({'values': values})
-            dictionary[dataset.category].update({'labels': dataset.labels(alphabet=alphabet)})
+            dictionary[dataset.category].update({'labels': dataset.labels(encoding=label_encoding)})
 
         return [dictionary['train']['values'], dictionary['validation']['values'], dictionary['test']['values'],
                 dictionary['train']['labels'], dictionary['validation']['labels'], dictionary['test']['labels']]
@@ -223,8 +238,9 @@ class Train(Subcommand):
         if self.previous_param_file:
             with open(self.previous_param_file, 'r') as file:
                 previous_params = yaml.safe_load(file)
-                klasses = list(set(previous_params['Preprocess']['klasses']))
-                encoded_labels = seq.onehot_encode_alphabet(klasses)
+                klasses = previous_params['Preprocess']['klasses']
+                klass_alphabet = {klass: i for i, klass in enumerate(klasses)}
+                encoded_labels = seq.onehot_encode_alphabet(klass_alphabet)
         else:
             raise UserInputError('Could not read class labels from parameters.yaml file).')
         train_x, valid_x, test_x, train_y, valid_y, test_y = self.parse_data(dataset_files, self.params['branches'], encoded_labels)
@@ -277,33 +293,25 @@ class Train(Subcommand):
         except:
             logger.warning('Did not exported model plot due to an error.')
 
-        # Evaluate
-        status.text('Testing the network...')
-        test_results = self.test(model, self.params['batch_size'], test_x, test_y)
-        test_scores = model.predict(test_x, verbose=1)
-
-        self.log_eval_metrics(test_results, self.params)
-
-        # Plot evaluation metric
-        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
-        self.ensure_dir(eval_plot_dir)
-        categorical_labels = {key: i for i, (key, _) in enumerate(encoded_labels.items())}
-
-        eval_plots.plot_multiclass_roc_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
-        eval_plots.plot_multiclass_prec_recall_curve(test_y, test_scores, encoded_labels, eval_plot_dir)
-        # FIXME
-        # eval_plots.plot_eval_cfm(np.argmax(test_y, axis=1), np.argmax(test_scores, axis=1), categorical_labels, eval_plot_dir)
-
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:
             json_file.write(model_json)
+
+        status.text('Evaluating model...')
+        eval_plot_dir = os.path.join(self.params['train_dir'], 'plots', 'evaluation_metrics')
+        self.ensure_dir(eval_plot_dir)
+        self.evaluate_model(encoded_labels, model, test_x, test_y, self.params, eval_plot_dir)
 
         # Prepare tsv row content
         header = self.train_header()
         row = self.train_row(self.params)
         if 'Preprocess' in previous_params.keys():
+            # Parameters missing in older versions of the code
+            novel_params = {'win_place': 'rand'}  # It's always been 'random' for the previous versions
+            parameters = novel_params
+            parameters.update(previous_params['Preprocess'])
             header += f'{self.preprocess_header()}\n'
-            row += f"{self.preprocess_row(previous_params['Preprocess'])}\n"
+            row += f"{self.preprocess_row(parameters)}\n"
         else:
             header += '\n'
             row += '\n'
@@ -396,17 +404,6 @@ class Train(Subcommand):
         return history
 
     @staticmethod
-    def test(model, batch_size, test_x, test_y):
-        test_results = model.evaluate(
-            test_x,
-            test_y,
-            batch_size=batch_size,
-            verbose=1,
-            sample_weight=None)
-    
-        return test_results
-
-    @staticmethod
     def log_train_val_metrics(history, params):
         st.text('Final metric values:')
 
@@ -433,20 +430,6 @@ class Train(Subcommand):
                 f"Final achieved validation loss: {params['val_loss']} \n"
                 f"Final achieved validation accuracy: {params['val_acc']} \n")
                 # f"Final achieved validation AUC: {params['val_auc']} \n\n")
-
-    @staticmethod
-    def log_eval_metrics(test_results, params):
-        params['eval_loss'] = str(round(test_results[0], 4))
-        params['eval_acc'] = str(round(test_results[1], 4))
-        # params['eval_auc'] = str(round(test_results[2], 4))
-
-        logger.info('Evaluation loss: ' + params['eval_loss'])
-        logger.info('Evaluation acc: ' + params['eval_acc'])
-        # logger.info('Evaluation auc: ' + params['eval_auc'])
-
-        st.text(f"Evaluation loss: {params['eval_loss']} \n"
-                f"Evaluation accuracy: {params['eval_acc']} \n")
-                # f"Evaluation AUC: {params['eval_auc']} \n")
 
     @staticmethod
     def plot_training_metric(history, metric, title, out_dir):
@@ -491,7 +474,7 @@ class Train(Subcommand):
                 'input_folder': '',
                 'lr': 0.005,
                 'lr_optim': 'fixed',
-                'no_branches_layers': {'seq': 1, 'fold': 1, 'cons': 1},
+                'no_branches_layers': 1,
                 'no_common_layers': 1,
                 'optimizer': 'sgd',
                 'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output'),

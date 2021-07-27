@@ -1,11 +1,13 @@
 import datetime
 import logging
 import os
+import re
 import shutil
 import streamlit as st
 import subprocess
 
 from ..utils.dataset import Dataset
+from ..utils import file_utils as f
 from ..utils.exceptions import UserInputError
 from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
@@ -74,9 +76,9 @@ class Preprocess(Subcommand):
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 
             self.params['win'] = int(st.number_input('Window size', min_value=3, value=self.defaults['win']))
-            self.params['winseed'] = int(st.number_input('Seed for semi-random window placement upon the sequences',
-                                                         value=self.defaults['winseed']))
-
+            self.params['win_place'] = self.WIN_PLACEMENT[st.radio(
+                'Choose a way to place the window upon the sequence:',
+                list(self.WIN_PLACEMENT.keys()), index=self.get_dict_index(self.defaults['win_place'], self.WIN_PLACEMENT))]
             st.markdown('## Input Coordinate Files')
 
             warning = st.empty()
@@ -96,7 +98,7 @@ class Preprocess(Subcommand):
                 self.params['input_files'][i] = file
 
                 if not file: continue
-                self.validation_hash['is_bed'].append(file)
+                self.validation_hash['is_bed'].append({'file': file, 'evaluation': False})
                 if os.path.isfile(file):
                     file_name = os.path.basename(file)
                     if any(ext in file_name for ext in self.allowed_extensions):
@@ -104,7 +106,6 @@ class Preprocess(Subcommand):
                             if ext in file_name:
                                 klass = file_name.replace(ext, '')
                                 self.params['klasses'][i] = klass
-                                # subprocess.run(['wc', '-l', file], check=True)
                                 self.klass_sizes.update({klass: (int(subprocess.check_output(['wc', '-l', file]).split()[0]))})
                     else:
                         warning.markdown(
@@ -124,26 +125,29 @@ class Preprocess(Subcommand):
 
                 if self.params['full_dataset_file']:
                     try:
-                        self.params['klasses'], self.params['valid_chromosomes'] = Dataset.load_and_cache(self.params['full_dataset_file'])
+                        self.params['klasses'], self.params['valid_chromosomes'], self.params['branches'], self.klass_sizes = \
+                            Dataset.load_and_cache(self.params['full_dataset_file'])
                     except Exception:
                         raise UserInputError('The file with mapped dataset does not exist or is not valid, sorry.')
 
         st.markdown('## Dataset Size Reduction')
         st.markdown('###### Input a decimal number if you want to reduce the sample size by a ratio (e.g. 0.1 to get 10%), '
                     'or an integer if you wish to select final dataset size (e.g. 5000 if you want exactly 5000 samples).')
+        default_reduce = [klass for klass in self.defaults['reducelist'] if klass in self.params['klasses']]
         self.params['reducelist'] = st.multiselect('Classes to be reduced (first specify input files)',
-                                                   self.params['klasses'], self.defaults['reducelist'])
+                                                   self.params['klasses'], default_reduce)
         if self.params['reducelist']:
-            self.params['reduceratio'] = self.defaults['reduceratio']
+            default_ratio = {k: v for k, v in self.defaults['reduceratio'].items() if k in self.params['klasses']}
+            self.params['reduceratio'] = default_ratio
             for klass in self.params['reducelist']:
+                if klass not in self.params['reduceratio'].keys():
+                    self.params['reduceratio'][klass] = 0.5
                 self.params['reduceratio'].update({klass: float(st.number_input(
                     f'Target {klass} dataset size (original size: {self.klass_sizes[klass]} rows)',
-                    min_value=0.00001, value=0.01, format='%.5f'))})
+                    min_value=0.00001, value=default_ratio[klass], format='%.2f'))})
             st.markdown('###### WARNING: The data are reduced randomly across the dataset. Thus in a rare occasion, when later '
                     'splitting the dataset by chromosomes, some categories may end up empty. Thus it\'s recommended '
                     'to be used in combination with random split.')
-            self.params['reduceseed'] = int(st.number_input('Seed for semi-random reduction of number of samples',
-                                                        value=self.defaults['reduceseed']))
 
         st.markdown('## Data Split')
         split_options = {'Random': 'rand',
@@ -152,28 +156,42 @@ class Preprocess(Subcommand):
             'Choose a way to split datasets into train, test, validation and blackbox categories:',
             list(split_options.keys()), index=self.get_dict_index(self.defaults['split'], split_options))]
         if self.params['split'] == 'by_chr':
+            chr_ready = False
             if self.params['use_mapped']:
-                if not self.params['full_dataset_file']:
-                    st.markdown('(The mapped file must be provided first to infer available chromosomes.)')
-            else:
-                if 'seq' in self.references.keys():
-                    self.params['fasta'] = self.references['seq']
-                    if not self.params['fasta']:
-                        st.markdown('(Fasta file with reference genome must be provided to infer available chromosomes.)')
+                if self.params['full_dataset_file']:
+                    chr_ready = True
                 else:
-                    st.markdown('**Please fill in a path to the fasta file below.** (Or you can specify it above if you select sequence or structure branch.)')
-                    self.params['fasta'] = st.text_input('Path to the reference fasta file')
+                    st.markdown('**The mapped file must be provided first to infer available chromosomes.**')
+            else:
+                if 'seq' in self.params['branches'] or 'fold' in self.params['branches']:
+                    if self.params['fasta']:
+                        try:
+                            self.params['valid_chromosomes'] = seq.read_and_cache(self.params['fasta'])
+                            chr_ready = True
+                        except Exception:
+                            raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
+                    else:
+                        st.markdown('**Fasta file with reference genome must be provided to infer available chromosomes.**')
+                elif 'cons' in self.params['branches']:
+                    st.markdown('###### WARNING: When conservation score branch selected only, the split is done based on separate wig files provided. '
+                                'Note that to be able to do that, the wig files must contain the chromosome name in the exact same form as your bed files and must not contain dots within the chromosome name.')
+                    if self.params['cons_dir']:
+                        chrom_files = f.list_files_in_dir(self.params['cons_dir'], 'wig')
+                        chromosomes = []
+                        for file in chrom_files:
+                            match = re.search(r'.*\.*.*(chr[^.]*)\..*', os.path.basename(file))
+                            if match and match.group(1):
+                                chromosomes.append(match.group(1))
+                        self.params['valid_chromosomes'] = list(set(chromosomes))
+                        chr_ready = True
+                    else:
+                        st.markdown('**Folder with conservation score (wig) files must be provided to infer available chromosomes.**')
+                else:
+                    st.markdown('**Please choose at least one branch, and provide necessary reference files to infer available chromosomes.**')
 
-                if self.params['fasta']:
-                    try:
-                        self.params['valid_chromosomes'], alphabet = seq.read_and_cache(self.params['fasta'])
-                        self.params['alphabet'] = seq.define_alphabet(alphabet)
-                    except Exception:
-                        raise UserInputError('Sorry, could not parse given fasta file. Please check the path.')
-
-            if self.params['fasta']:
+            if chr_ready:
                 if self.params['valid_chromosomes']:
-                    if not self.params['use_mapped']:
+                    if self.params['fasta'] and not self.params['use_mapped']:
                         st.markdown("##### WARNING: While selecting the chromosomes, you may ignore the yellow warning box, \
                                     and continue selecting even while it's present, as long as you work within one selectbox "
                                     "(e.g. you can select multiple chromosomes within training dataset, but than "
@@ -197,8 +215,6 @@ class Preprocess(Subcommand):
                 value=self.defaults['split_ratio'])
             self.validation_hash['is_ratio'].append(self.params['split_ratio'])
             st.markdown('###### Note: If you do not want to use the blackbox dataset (for later evaluation), you can just set it\'s size to 0.')
-            self.params['split_seed'] = int(st.number_input('Seed for semi-random split of samples in a dataset',
-                                                            value=self.defaults['split_seed']))
 
         self.validate_and_run(self.validation_hash)
 
@@ -214,6 +230,7 @@ class Preprocess(Subcommand):
         if self.params['use_mapped']:
             status.text('Reading in already mapped file with all the samples...')
             merged_dataset = Dataset.load_from_file(self.params['full_dataset_file'])
+            # FIXME copied file is broken
             shutil.copyfile(self.params['full_dataset_file'], full_data_file_path)
             # Keep only selected branches
             cols = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass'] + self.params['branches']
@@ -229,22 +246,17 @@ class Preprocess(Subcommand):
                         klass = klass.replace(ext, '')
 
                 initial_datasets.add(
-                    Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'], winseed=self.params['winseed']))
+                    Dataset(klass=klass, branches=self.params['branches'], bed_file=file, win=self.params['win'],
+                            win_place=self.params['win_place']))
 
             # Merging data from all klasses to map them more efficiently all together at once
             merged_dataset = Dataset(branches=self.params['branches'], df=Dataset.merge_dataframes(initial_datasets))
-
-            if ('seq' in self.params['branches'] or 'fold' in self.params['branches']) and \
-                    type(self.references['seq']) != dict and not self.params['alphabet']:
-                status.text('Checking reference fasta file...')
-                _, alphabet = seq.parse_fasta_reference(self.references['seq'])
-                self.params['alphabet'] = seq.define_alphabet(alphabet)
 
             # First ensure order of the data by chr_name and seq_start within, mainly for conservation
             status.text(
                 f"Mapping all intervals from to {len(self.params['branches'])} branch(es) and exporting...")
             merged_dataset.sort_datapoints().map_to_branches(
-                self.references, self.params['alphabet'], self.params['strand'], full_data_file_path, status, self.ncpu)
+                self.references, self.params['strand'], full_data_file_path, status, self.ncpu)
 
         status.text('Processing mapped samples...')
         mapped_datasets = set()
@@ -258,13 +270,13 @@ class Preprocess(Subcommand):
             if self.params['reducelist'] and (dataset.klass in self.params['reducelist']):
                 status.text(f'Reducing number of samples in klass {format(dataset.klass)}...')
                 ratio = self.params['reduceratio'][dataset.klass]
-                dataset.reduce(ratio, seed=self.params['reduceseed'])
+                dataset.reduce(ratio)
 
             # Split datasets into train, validation, test and blackbox datasets
             if self.params['split'] == 'by_chr':
                 split_subdatasets = Dataset.split_by_chr(dataset, self.params['chromosomes'])
             elif self.params['split'] == 'rand':
-                split_subdatasets = Dataset.split_random(dataset, self.params['split_ratio'], self.params['split_seed'])
+                split_subdatasets = Dataset.split_random(dataset, self.params['split_ratio'])
             split_datasets = split_datasets.union(split_subdatasets)
 
         # Merge datasets of the same category across all the branches (e.g. train = pos + neg)
@@ -285,8 +297,7 @@ class Preprocess(Subcommand):
 
     @staticmethod
     def default_params():
-        return {'alphabet': None,
-                'branches': [],
+        return {'branches': [],
                 'chromosomes': {'train': [], 'validation': [], 'test': [], 'blackbox': []},
                 'cons_dir': '',
                 'fasta': '',
@@ -296,13 +307,11 @@ class Preprocess(Subcommand):
                 'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output'),
                 'reducelist': [],
                 'reduceratio': {},
-                'reduceseed': 112,
                 'split': 'rand',
                 'split_ratio': '7:1:1:1',
-                'split_seed': 89,
                 'strand': True,
                 'use_mapped': False,
                 'valid_chromosomes': [],
                 'win': 100,
-                'winseed': 42
+                'win_place': 'center',
                 }

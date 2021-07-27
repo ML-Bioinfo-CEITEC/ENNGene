@@ -1,5 +1,6 @@
 import h5py
 import os
+import subprocess
 
 from .dataset import Dataset
 from . import file_utils as f
@@ -31,7 +32,7 @@ def uniq_klasses(klasses):
     return warning if any(klasses.count(element) > 1 for element in klasses) else None
 
 
-def is_bed(file):
+def is_bed(file, evaluation):
     invalid = False
 
     if len(file) == 0:
@@ -45,6 +46,8 @@ def is_bed(file):
                 except Exception:
                     invalid = True
                 cells = line.split('\t')
+                if evaluation:
+                    klass = cells.pop(0)
                 if len(cells) >= 3:
                     try:
                         int(cells[1])
@@ -86,6 +89,25 @@ def is_fasta(file):
         else:
             invalid = True
             warning = f'Given FASTA file {file} does not exist.'
+
+    return warning if invalid else None
+
+
+def is_blackbox(file_path):
+    invalid = False
+    try:
+        dataset = Dataset.load_from_file(file_path)
+        # category = dataset.category
+        base_columns = ['chrom_name', 'seq_start', 'seq_end', 'strand_sign', 'klass']
+        if not all(col in dataset.df.columns for col in base_columns):  # or category != 'blackbox'
+            invalid = True
+            warning = 'Given file does not seem like valid blackbox dataset. Please check the file.'
+        if int(subprocess.check_output(['wc', '-l', file_path]).split()[0]) <= 1:
+            invalid = True
+            warning = 'Given blackbox dataset file seems to be empty.'
+    except Exception:
+        invalid = True
+        warning = 'Sorry, could not parse given dataset file. Please check the file.'
 
     return warning if invalid else None
 
@@ -135,11 +157,11 @@ def is_ratio(string):
                 try:
                     numbers = [float(part) for part in parts]
                     for i, number in enumerate(numbers):
-                        warning = 'All numbers must be bigger than zero (only blackbox dataset can be zero).'
+                        warning = 'All numbers in the split ratio must be bigger than zero (only blackbox dataset can be zero).'
+                        if (i < 3) & (number <= 0):
+                            invalid = True
                         if (i == 3) & (number < 0):
                             # blackbox can be zero but not negative
-                            invalid = True
-                        if number <= 0:
                             invalid = True
                 except Exception:
                     invalid = True

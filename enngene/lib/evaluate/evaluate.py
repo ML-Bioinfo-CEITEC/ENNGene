@@ -3,40 +3,43 @@ import logging
 import numpy as np
 import os
 import streamlit as st
-import yaml
 import tensorflow as tf
+import yaml
 
-
-# TODO export the env when releasing, check pandas == 1.1.1
 from ..utils.dataset import Dataset
+from ..utils import sequence as seq
 from ..utils.subcommand import Subcommand
+from ..utils.exceptions import UserInputError
 
 logger = logging.getLogger('root')
 
 
-class Predict(Subcommand):
+class Evaluate(Subcommand):
     SEQ_TYPES = {'BED file': 'bed',
                  'FASTA file': 'fasta',
-                 'Text input': 'text'}
-
+                 'Blackbox dataset': 'blackbox'}
+    
     def __init__(self):
-        self.params = {'task': 'Predict'}
+        # test module - either on already mapped blackbox dataset, or not encoded dataset, eg from different experiment to check transferbality of the results
+
+        self.params = {'task': 'Evaluate'}
         self.validation_hash = {'is_model_file': [],
                                 'is_bed': [],
+                                'is_blackbox': [],
                                 'is_fasta': [],
-                                'is_multiline_text': [],
                                 'is_wig_dir': []}
         self.params['model_folder'] = None
 
-        st.markdown('# Prediction')
+        st.markdown('# Evaluation')
         st.markdown('')
         self.general_options()
 
         st.markdown('## Model')
         self.model_options()
 
+        # TODO add option to use already prepared file ? (sequences.tsv)
         st.markdown('## Sequences')
-        self.sequence_options(self.SEQ_TYPES, evaluation=False)
+        self.sequence_options(self.SEQ_TYPES, evaluation=True)
 
         st.markdown('')
         self.params['ig'] = st.checkbox('Calculate Integrated Gradients', self.defaults['ig'])
@@ -44,7 +47,8 @@ class Predict(Subcommand):
             self.params['smoothgrad'] = st.checkbox('Apply smoothgrad method', self.defaults['smoothgrad'])
             st.markdown('###### **WARNING**: Calculating the integrated gradients is a time-consuming process, '
                         'it may take several minutes up to few hours (depending on the number of sequences). ' +
-                        'Smoothgrad increases time consumption of integrated gradients by a factor of 20.')
+                        'Smoothgrad increases time complexity of integrated gradients by a factor of 20.')
+
 
         self.validate_and_run(self.validation_hash)
 
@@ -52,54 +56,59 @@ class Predict(Subcommand):
         status = st.empty()
         status.text('Preparing sequences...')
 
-        self.params['predict_dir'] = os.path.join(self.params['output_folder'], 'prediction',
-                                 f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
-        self.ensure_dir(self.params['predict_dir'])
+        if self.previous_param_file:
+            with open(self.previous_param_file, 'r') as file:
+                previous_params = yaml.safe_load(file)
+                klasses = previous_params['Preprocess']['klasses']
+                klass_alphabet = {klass: i for i, klass in enumerate(klasses)}
+                encoded_labels = seq.onehot_encode_alphabet(klass_alphabet)
+        else:
+            raise UserInputError('Could not read class labels from parameters.yaml file).')
 
-        prepared_file_path = os.path.join(self.params['predict_dir'], 'sequences.tsv')
+        self.params['eval_dir'] = os.path.join(self.params['output_folder'], 'evaluation',
+                                               f'{str(datetime.datetime.now().strftime("%Y%m%d-%H%M"))}')
+        self.ensure_dir(self.params['eval_dir'])
 
-        if self.params['seq_type'] == 'bed':
-            dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
-                              win=self.params['win'], win_place=self.params['win_place'])
-            status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
-            dataset.sort_datapoints()
-        elif self.params['seq_type'] == 'fasta' or self.params['seq_type'] == 'text':
-            if self.params['seq_type'] == 'fasta':
-                dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='predict',
+        prepared_file_path = os.path.join(self.params['eval_dir'], 'sequences.tsv')
+
+        if self.params['seq_type'] == 'bed' or self.params['seq_type'] == 'fasta':
+            if self.params['seq_type'] == 'bed':
+                dataset = Dataset(bed_file=self.params['seq_source'], branches=self.params['branches'], category='eval',
                                   win=self.params['win'], win_place=self.params['win_place'])
-            elif self.params['seq_type'] == 'text':
-                dataset = Dataset(text_input=self.params['seq_source'], branches=self.params['branches'], category='predict',
-                                  win=self.params['win'], win_place=self.params['win_place'])
+                status.text(f"Mapping intervals to {len(self.params['branches'])} branch(es) and exporting...")
+                dataset.sort_datapoints()
+            elif self.params['seq_type'] == 'fasta':
+                dataset = Dataset(fasta_file=self.params['seq_source'], branches=self.params['branches'], category='eval',
+                                      win=self.params['win'], win_place=self.params['win_place'])
+            dataset.map_to_branches(
+                self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
+        elif self.params['seq_type'] == 'blackbox':
+            dataset = Dataset.load_from_file(self.params['seq_source'])
+            pass
 
-        dataset.map_to_branches(
-            self.references, self.params['strand'], prepared_file_path, status, predict=True, ncpu=self.ncpu)
+        eval_x = dataset.encode_branches(dataset, self.params['branches'])
+        eval_y = dataset.labels(encoding=encoded_labels)
 
-        predict_x = dataset.encode_branches(dataset, self.params['branches'])
-
-        status.text('Calculating predictions...')
-
+        status.text('Evaluating model...')
         model = tf.keras.models.load_model(self.params['model_file'])
-        predict_y = model.predict(
-            predict_x,
-            verbose=1)
+        predicted = self.evaluate_model(encoded_labels, model, eval_x, eval_y, self.params, self.params['eval_dir'])
 
         for i, klass in enumerate(self.params['klasses']):
-            dataset.df[klass] = [y[i] for y in predict_y]
-        dataset.df['highest scoring class'] = self.get_klass(predict_y, self.params['klasses'])
+            dataset.df[klass] = [y[i] for y in predicted]
+        dataset.df['highest scoring class'] = self.get_klass(predicted, self.params['klasses'])
 
         placeholder = st.empty()
-
         if self.params['ig']:
             status.text('Calculating Integrated Gradients...')
             self.calculate_ig(dataset, model, eval_x, self.params['klasses'], self.params['branches'], self.params['smoothgrad'])
 
         placeholder.text('Exporting results...')
-        result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
-        ignore = ['name', 'score', 'klass', 'seq_encoded', 'fold_encoded', 'seq', 'fold', 'cons']
+        result_file = os.path.join(self.params['eval_dir'], 'results.tsv')
+        ignore = ['seq_encoded', 'fold_encoded', 'seq', 'fold', 'cons']
         dataset.save_to_file(ignore_cols=ignore, outfile_path=result_file)
 
-        header = self.predict_header()
-        row = self.predict_row(self.params)
+        header = self.eval_header()
+        row = self.eval_row(self.params)
 
         if self.previous_param_file:
             with open(self.previous_param_file, 'r') as file:
@@ -124,7 +133,7 @@ class Predict(Subcommand):
                 header += '\n'
                 row += '\n'
 
-        self.finalize_run(logger, self.params['predict_dir'], self.params, header, row, placeholder, self.previous_param_file)
+        self.finalize_run(logger, self.params['eval_dir'], self.params, header, row, placeholder, self.previous_param_file)
         status.text('Finished!')
         logger.info('Finished!')
 
@@ -148,4 +157,5 @@ class Predict(Subcommand):
             'smoothgrad': False,
             'output_folder': os.path.join(os.path.expanduser('~'), 'enngene_output')
         }
+
 

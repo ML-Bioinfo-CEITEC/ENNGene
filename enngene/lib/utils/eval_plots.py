@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import seaborn
+import tensorflow as tf
 
 from sklearn.metrics import average_precision_score, auc, confusion_matrix, precision_recall_curve, roc_curve
 
@@ -50,7 +51,8 @@ def plot_eval_cfm(y_true, y_pred, labels_dict, output_dir_path):
     plt.clf()
     
                                             
-def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_path):
+def plot_multiclass_prec_recall_curve(y_test, y_pred, labels_dict, output_dir_path):
+    # y_pred = np.around(y_pred)
     file_path = os.path.join(output_dir_path, 'precision_recall')
     precision = dict()
     recall = dict()
@@ -59,17 +61,20 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     n_classes = len(klass_labels)
 
     for i in range(n_classes):
-        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
-        average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_pred[:, i])
+        average_precision[i] = average_precision_score(y_test[:, i], y_pred[:, i])
+        to_export = {'precision': precision[i], 'recall': recall[i]}
+        pr_rec_df = pd.DataFrame.from_dict(to_export)
+        pr_rec_df.to_csv(os.path.join(output_dir_path, f'precision_recall_{klass_labels[i]}.tsv'), sep='\t', index=False)
 
     # A "micro-average": quantifying score on all classes jointly
-    precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
-    average_precision["micro"] = average_precision_score(y_test, y_score, average="micro")
+    precision["micro"], recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_pred.ravel())
+    average_precision["micro"] = average_precision_score(y_test, y_pred, average="micro")
 
     # A macro-average # TODO
     # precision["macro"], recall["macro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
     # average_precision["macro"] = average_precision_score(y_test, y_score, average="macro")
-    
+
     plt.figure(figsize=(12, 12))
 
     f_scores = np.linspace(0.2, 0.8, num=4)
@@ -87,16 +92,18 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
 
     l, = plt.plot(recall["micro"], precision["micro"], color='gold', lw=3)
     lines.append(l)
-    labels.append(f'Micro-average precision-recall (AP = {round(average_precision["micro"], 2)})')
+    labels.append(f'Micro-average precision-recall (AP = {round(average_precision["micro"], 4)})')
 
     # l, = plt.plot(recall["macro"], precision["macro"], color='gold', lw=3)
     # lines.append(l)
     # labels.append(f'Macro-average precision-recall (auc = {average_precision["macro"]})')
 
+    avg_precisions = {}
     for i in range(n_classes):
         l, = plt.plot(recall[i], precision[i], lw=2)
         lines.append(l)
-        labels.append(f'Precision-recall for {klass_labels[i]} (AP = {round(average_precision[i], 2)})')
+        labels.append(f'Precision-recall for {klass_labels[i]} (AP = {round(average_precision[i], 4)})')
+        avg_precisions.update({klass_labels[i]: round(average_precision[i], 4)})
 
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
@@ -107,22 +114,32 @@ def plot_multiclass_prec_recall_curve(y_test, y_score, labels_dict, output_dir_p
     plt.savefig(file_path, format='png', dpi=300)
     plt.clf()
 
+    return avg_precisions
 
-def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path):
+
+def plot_multiclass_roc_curve(test_y, y_pred, labels_dict, output_dir_path):
     # Compute ROC curve and ROC area for each class
+    # y_pred = np.around(y_pred)
     file_path = os.path.join(output_dir_path, 'roc')
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
+    roc_auc2 = dict()
+    # keras_auc = tf.keras.metrics.AUC(num_thresholds=200, curve='ROC')
     klass_labels = list(labels_dict.keys())
     n_classes = len(klass_labels)
 
     for i in range(n_classes):
-        fpr[i], tpr[i], _ = roc_curve(test_y[:, i], test_scores[:, i])
+        fpr[i], tpr[i], _ = roc_curve(test_y[:, i], y_pred[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
+        # keras_auc.update_state(test_y[:, i], y_pred[:, i])
+        # roc_auc2[i] = keras_auc.result().numpy()
+        to_export = {'fpr': fpr[i], 'tpr': tpr[i]}
+        pr_rec_df = pd.DataFrame.from_dict(to_export)
+        pr_rec_df.to_csv(os.path.join(output_dir_path, f'fpr_tpr_{klass_labels[i]}.tsv'), sep='\t', index=False)
 
     # Compute micro-average ROC curve and ROC area
-    fpr["micro"], tpr["micro"], _ = roc_curve(test_y.ravel(), test_scores.ravel())
+    fpr["micro"], tpr["micro"], _ = roc_curve(test_y.ravel(), y_pred.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
     # Compute macro-average ROC and ROC curve
@@ -143,11 +160,15 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
 
     # Plot all ROC curves
     plt.figure(figsize=(12, 12))
-    plt.plot(fpr["micro"], tpr["micro"], label=f'Micro-average ROC curve (auc = {round(roc_auc["micro"], 2)})', linestyle=':')
-    plt.plot(fpr["macro"], tpr["macro"], label=f'Macro-average ROC curve (auc = {round(roc_auc["macro"], 2)})', linestyle=':')
+    plt.plot(fpr["micro"], tpr["micro"], label=f'Micro-average ROC curve (auc = {round(roc_auc["micro"], 4)})', linestyle=':')
+    plt.plot(fpr["macro"], tpr["macro"], label=f'Macro-average ROC curve (auc = {round(roc_auc["macro"], 4)})', linestyle=':')
 
+    aucs = {}
     for i in range(n_classes):
-        plt.plot(fpr[i], tpr[i], lw=3, label=f'ROC curve of {klass_labels[i]} (auc = {round(roc_auc[i], 2)})')
+        plt.plot(fpr[i], tpr[i], lw=3, label=f'ROC curve of {klass_labels[i]} (auc = {round(roc_auc[i], 4)})')
+                                             # f', keras auc = {round(roc_auc2[i], 4)})')
+        aucs.update({klass_labels[i]: round(roc_auc[i], 4)})
+        # aucs.update({f'{klass_labels[i]} KERAS': round(roc_auc2[i], 4)})
 
     plt.plot([0, 1], [0, 1], 'k--', lw=3, alpha=0.2)
     plt.xlim([-0.05, 1.0])
@@ -158,3 +179,5 @@ def plot_multiclass_roc_curve(test_y, test_scores, labels_dict, output_dir_path)
     plt.legend(loc="lower right", prop=dict(size=14))
     plt.savefig(file_path, format='png', dpi=300)
     plt.clf()
+
+    return aucs

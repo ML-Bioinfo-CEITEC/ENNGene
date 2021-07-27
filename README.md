@@ -101,7 +101,9 @@ Each input type later corresponds to a branch in the neural network.
 Longer sequences get shortened, while short sequences are completed based on the reference.
 Both is done by randomly placing a window of selected size on the original sequence.
 
-`Seed` Parameter used for the reproducibility of the semi-random window placement.
+`Window placement` Choose a way to place the window upon the sequence:
+ * Randomized 
+ * Centered
 
 `Path to the reference fasta file` File containing reference genome/transcriptome. 
 Required when Sequence or Secondary structure branch is selected.
@@ -127,8 +129,6 @@ A hint showing a number of rows in the original input file is displayed at the e
 If you split the dataset by chromosomes after reducing its size, make sure all the classes in all the categories (train, test, etc.) 
 contain at least some data, as some small chromosomes might get fully removed.*
 
-`Seed` Parameter used for the reproducibility of the semi-random dataset size reduction.
-
 ##### Data Split
 Supplied data must be split into training, validation and testing datasets.
 
@@ -138,8 +138,6 @@ If you train multiple models on the same datasets, you might want to keep a 'bla
 `Random` Data are split into the categories randomly across the chromosomes, based on the given ratio.
 
 `Target ratio` Defines the ratio of the number of samples between the categories. Required format: train:validation:test:blackbox.
-
-`Seed` Parameter used for the reproducibility of the semi-random data split.
 
 `By chromosomes` Specific chromosomes might be selected for each category.
 To use this option, a fasta file with reference genome/transcriptome must be provided (the same one required for the sequence and secondary structure branches).
@@ -198,14 +196,22 @@ The model will stop training if the validation loss does not decrease for more t
 The last section determines the network architecture.
 You may define architecture for each of the selected branches separately, as well as for the common part of the network following the branches' concatenation.
 
-`Number of layers` First set a number of layers per each part (branch or common part of the network).
+`Number of layers` First set a number of layers per each part (branches or common part of the network).
 
 `Layer type` Types available for the branches: 
  * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
- * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)
+ <!-- * [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)--> 
  
  Types available for the connected part of the neural network:
+ * [Convolution layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv1D)
+ * [LSTM](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTM)
+ * [GRU](https://www.tensorflow.org/api_docs/python/tf/keras/layers/GRU)  
  * [Dense layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense)
+<!--* [Locally connected 1D layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/LocallyConnected1D)-->
+
+Different types of layers are not combinable. 
+E.g. when LSTM layer is chosen, it can be followed either by another LSTM layer, or a Dense layer only.
+However, multiple layers of the same type can be stacked. 
 
 `Show advanced options` If checked, you may set options specific per layer type. If not, the defaults will apply.
 
@@ -216,12 +222,15 @@ Common options are:
  * `Batch normalization` Applies [batch normalization](https://arxiv.org/abs/1502.03167) for the layer if checked.
  * `Dropout rate` Select a [dropout](https://jmlr.org/papers/v15/srivastava14a.html) rate. 
 
-Options available for Convolution and Locally connected 1D layers:
+Options available for Convolutional layers:  <!-- and Locally connected 1D layers:-->
 * `Number of filters` The number of output filters in the convolution.
 * `Kernel size` Specifies the length of the 1D convolutional window.
 
-Options available for Dense layer:
+Options available for Dense layer, GRU and LSTM:
 * `Number of units` Dimensionality of the output space.
+
+Option available for GRU and LSTM:
+* `Bidirectional` Apply a bidirectional wrapper on a recurrent layer.
 
 *Note: The softmax activation function is used for the last layer.*
 
@@ -231,8 +240,9 @@ You can monitor the progress on the chart indicating metric and loss function va
 
 Resulting model and other files are exported to the 'training' subfolder in the selected `output folder`. 
 
-#### 3 Prediction
-In the last module, a trained model can be used to classify novel, unseen data. 
+#### 3 Evaluation & Prediction
+In the last two modules, a trained model can be evaluated on sequences with a know class or used to classify novel, unseen data.
+As the parameters for the two modules are mostly overlapping, they will be covered in this section together.
 Sequences provided to be classified are preprocessed similar to the first module for the purpose of the CNN. 
 
 ##### Model
@@ -242,11 +252,10 @@ You can either use a model trained with the ENNGene application, or any custom t
  * `Training folder containing the model (hdf5 file)` Except the hdf5 file with the trained model, the folder must contain the parameters.yaml file logged when training the model. 
  Form that the parameters necessary for sequence preprocessing are read, and displayed below the field after that. 
 
-`Use a custom trained model` When using model trained otherwise that through the application, necessary parameters must be provided separately.
+`Use a custom trained model` When using model trained otherwise than through the application, necessary parameters must be provided separately.
 When selected this option, you must provide:
  * `Trained model (hdf5 file)` Path to the hdf5 file with the trained model.
  * `Window size` The size of the window must be the same as when used ofr the training the given model.
- * `Seed` Parameter used for the reproducibility of the semi-random window placement.
  * `Number of classes` Number must be the same as the number of classes used for training the given model.
  * `Class labels` Provide names of the classes for better results interpretation. 
  The order of the classes must be the same as when encoding them for training the given model.
@@ -255,11 +264,18 @@ When selected this option, you must provide:
 ##### Sequences
 
 You can provide the input sequences you wish to classify in following formats:
- * BED file
- * FASTA file
- * Text input - Paste one sequence per line.
+ * `BED file` - When used for Evaluation, a column containing class information must be inserted at the beginning of the file.
+   I.e. the first column of the file must contain the name of the class per each sequence. Class names must correspond to those used when training the model.
+ * `FASTA file` - When used for Evaluation, a klass name must be provided as a last part of the header, separated by a space. E.g. '>chr16:655478-655578 FUS_positives'.  
+ * `Text input` - Available for Prediction. Paste one sequence per line.
+ * `Blackbox dataset` - Available for Evaluation. Provide a path to the blackbox dataset file exported by the Preprocess module.
+Dataset should come from the same data as those used for training the model, or the parameters must match at least (e.g. class names, window size, branches...).  
 
 *Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
+
+`Window placement` Choose a way to place the window upon the sequence:
+* Randomized
+* Centered
 
 `BED file` When providing the sequences via an interval file, following must be specified:
  * `Path to the BED file containing intervals to be classified`
@@ -271,9 +287,9 @@ You can provide the input sequences you wish to classify in following formats:
 *Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
 
-`Calculate Integrated Gradients` [Integrated Gradients](https://arxiv.org/abs/1703.01365) are available only for one-branched models with a sequence branch only.
+`Calculate Integrated Gradients` [Integrated Gradients](https://arxiv.org/abs/1703.01365) are available for calculation.
 Ten highest scoring sequences per each class are printed at the bottom of the application.
-The html code for each sequence is also exported for future use as the last column of the results.tsv file.
+The gradient values for each sequence are also exported for future use as last columns of the results.tsv file.
 Note that calculating the integrated gradients is a time-consuming process, it may take several minutes up to few hours (depending on the number of sequences).
 
 Sequence visualization can be used for auxiliary evaluation and debugging of the model.  

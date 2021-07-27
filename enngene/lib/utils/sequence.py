@@ -1,4 +1,4 @@
-import re
+import numpy as np
 import streamlit as st
 import _io
 
@@ -7,11 +7,8 @@ from .exceptions import UserInputError
 
 # TODO allow option custom, to be specified by text input
 # TODO add amino acid alphabet - in that case disable cons and fold i guess
-ALPHABETS = {'DNA': ['A', 'C', 'G', 'T', 'N'],
-             'RNA': ['A', 'C', 'G', 'U', 'N']}
-
-COMPLEMENTARY = {'DNA': {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'},
-                 'RNA': {'A': 'U', 'C': 'G', 'G': 'C', 'U': 'A', 'N': 'N'}}
+ALPHABET = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'U': 3}
+FOLDING = {'.': 0, '|': 1, 'x': 2, '<': 3, '>': 4, '(': 5, ')': 6}
 
 
 @st.cache(hash_funcs={_io.TextIOWrapper: lambda _: None}, suppress_st_warning=True)
@@ -23,7 +20,6 @@ def read_and_cache(fasta):
 
 def parse_fasta_reference(fasta_file):
     chromosomes = []
-    alphabet = set()
 
     key = None
     value = ""
@@ -47,14 +43,14 @@ def parse_fasta_reference(fasta_file):
                 line = line.strip()
                 value += line
                 l = [char for char in line.upper()]
-                alphabet.update(l)
             else:
                 raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
+    chromosomes.append(key)  # save the last one
     file.close()
     chromosomes.sort()
 
-    return chromosomes, alphabet
+    return chromosomes
 
 
 # def is_valid_chr(chromosome):
@@ -76,7 +72,9 @@ def parse_wig_header(line):
         key, value = part.split('=')
         if key == 'chrom':
             header.update({key: value})
-        elif key in ['span', 'start', 'step']:
+        elif key == 'start':
+            header.update({key: int(value) - 1})
+        elif key in ['span', 'step']:
             header.update({key: int(value)})
 
     return header
@@ -86,7 +84,7 @@ def parse_wig_line(line, header):
     parsed_line = {}
     if header['file_type'] == 'variableStep':
         parts = line.split()
-        start = parts[0]
+        start = int(parts[0]) - 1
         value = float(parts[1])
         for i in range(header['span']):
             coord = start + i
@@ -107,26 +105,15 @@ def complement(sequence_list, dictionary):
 
 
 def onehot_encode_alphabet(alphabet):
-    class_name = alphabet.__class__.__name__
-    if class_name != 'list' and class_name != 'ndarray':
-        raise ValueError('Alphabet must be a List. Instead, object of class {class_name} was provided.')
-
     encoded_alphabet = {}
-    for i, char in enumerate(alphabet):
-        # array = numpy.zeros([len(alphabet)])
-        array = []
-        for x in range(len(alphabet)):
-            array.append(0.0)
-        array[i] = 1.0
-        encoded_alphabet.update({str(char).upper(): array})
+    for char, pos in alphabet.items():
+        ohe = np.zeros(len(set(alphabet.values())))
+        ohe[pos] = 1
+        encoded_alphabet.update({char: ohe})
+    if alphabet == ALPHABET:
+        encoded_alphabet.update({'N': np.full(len(set(alphabet.values())), 0.25)})
 
     return encoded_alphabet
-
-
-# def dna_to_rna(char):
-#     encoding = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'U', 'N': 'N'}
-#     translated_letter = translate(char, encoding)
-#     return translated_letter
 
 
 def translate(char, encoding):
@@ -135,18 +122,10 @@ def translate(char, encoding):
     if not encoding or not (encoding.__class__.__name__ == 'dict'):
         raise ValueError('Encoding missing...')
 
-    if char.upper() in encoding.keys():
+    if char in encoding.keys():
+        return encoding[char]
+    elif char.upper() in encoding.keys():
         return encoding[char.upper()]
     else:
         raise UserInputError(f"Invalid character '{char}' found, given encoding {encoding}. "
                          "Provided encoding must contain all possible characters (case-insensitive).")
-
-
-def define_alphabet(alphabet):
-    if all(x in ALPHABETS['DNA'] for x in alphabet):
-        return 'DNA'
-    elif all(x in ALPHABETS['RNA'] for x in alphabet):
-        return 'RNA'
-    else:
-        print(alphabet)
-        raise UserInputError('The characters used in the reference fasta file do not match DNA nor RNA sequence. Can not continue, sorry.')

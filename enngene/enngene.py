@@ -1,10 +1,13 @@
 import base64
 from datetime import datetime
-from PIL import Image
+import numpy as np
 import streamlit as st  # TODO outside try-except, add check if installed
 import logging
 import os
+import random as py_rand
+
 import tempfile
+import tensorflow as tf
 
 from lib.utils.exceptions import MyException
 
@@ -18,7 +21,7 @@ try:
             logger.removeHandler(file_handler)
 
     if not any(type(handler) == logging.FileHandler for handler in logger.handlers):
-        logfile_path = os.path.join(tempfile.gettempdir(), f'{datetime.now().strftime("%Y-%m-%d_%H:%M")}_app.log')
+        logfile_path = os.path.join(tempfile.gettempdir(), f'{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_app.log')
         file_handler = logging.FileHandler(logfile_path, mode='a')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
@@ -40,6 +43,7 @@ def enngene():
 
     available_subcommands = {'Preprocessing': 'preprocess',
                              'Training': 'train',
+                             'Evaluation': 'evaluate',
                              'Prediction': 'predict'}
 
     subcommand = available_subcommands[st.sidebar.selectbox(
@@ -62,6 +66,10 @@ def enngene():
     st.sidebar.markdown('---')
 
     logger.debug(f'ENNGene started with the following subcommand: {subcommand}')
+
+    np.random.seed(89)
+    py_rand.seed(123)
+    tf.random.set_seed(456)
 
     module_path = f'lib.{subcommand}.{subcommand}'
     subcommand_class = ''.join(x.title() for x in subcommand.split('_'))
