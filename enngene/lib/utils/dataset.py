@@ -188,9 +188,8 @@ class Dataset:
                     self.df = self.map_to_fasta(self.df, branch, strand, references[branch], predict)
                 mapped = True
             elif branch == 'cons':
-                status.text(f'Mapping intervals to the wig reference... \n'
-                            f'Note: This is rather slow process, it may take a while.')
-                self.df = Dataset.map_to_wig(branch, self.df, references[branch])
+                status.text(f'Mapping intervals to the wig reference... \n')
+                self.df = Dataset.map_to_wig(branch, self.df, references[branch], status)
             elif branch == 'fold':
                 status.text(f'Folding the sequences...')
                 if mapped:
@@ -402,7 +401,73 @@ class Dataset:
         return np.array(sequence)
 
     @staticmethod
-    def map_to_wig(branch, df, ref_folder):
+    def map_to_wig(branch, df, ref_dir, status):
+        ref_folder = ref_dir
+        sizes_file = f.list_files_in_dir(ref_folder, 'chrom.sizes')[0]
+        chrom_files_wig = f.list_files_in_dir(ref_folder, 'wig')
+        chrom_files_npy = f.list_files_in_dir(ref_folder, 'npy')
+        sizes = seq.chrom_sizes(sizes_file)
+
+        used_chromosomes = df['chrom_name'].unique()
+        npy_files_dict = {}
+
+        # Convert wig files to numpy scores for efficient mapping
+        for chromosome in used_chromosomes:
+            npy_file = None
+            npy_files = list(filter(lambda npfile: f'{chromosome}.' in os.path.basename(npfile), chrom_files_npy))
+
+            if len(npy_files) == 0:
+                wig_files = list(filter(lambda wig_file: f'{chromosome}.' in os.path.basename(wig_file), chrom_files_wig))
+                if len(wig_files) == 0:
+                    # TODO or rather raise an exception to let user fix it?
+                    logger.warning(
+                        f"Didn\'t find appropriate conservation file for {chromosome}, skipping the chromosome.")
+                elif len(wig_files) > 1:
+                    logger.warning(f"Found multiple conservation files for {chromosome}, skipping the chromosome.")
+                else:
+                    status.text(f'Parsing chromosome {chromosome} ...')
+                    logger.info(f'parsing chromosome {chromosome} ...')
+                    if chromosome in sizes.keys():
+                        chrom_size = sizes[chromosome]
+                        wig_file = wig_files[0]
+                        out_file = os.path.join(os.path.dirname(wig_file), f'{chromosome}.npy')
+                        npy_file = seq.wigfile_to_scores(wig_file, chrom_size, out_file)
+                        if npy_file: npy_files_dict[chromosome] = npy_file
+                    else:
+                        logger.warning(
+                            f"Didn\'t find {chromosome} in chromosome sizes file, skipping the chromosome.")
+
+            elif len(npy_files) > 1:
+                logger.warning(f"Found multiple numpy files for {chromosome}, creating new one to avoid ambiguity.")
+            else:
+                logger.info(f'found a parsed file for {chromosome}, moving on.')
+                npy_file = npy_files[0]
+                if npy_file: npy_files_dict[chromosome] = npy_file
+
+        # Map intervals in DataFrame onto obtained np arrays
+        chrom_dfs = {}
+        for chromosome in used_chromosomes:
+            chrom_dfs[chromosome] = df[df['chrom_name'] == chromosome]
+
+        def map_conservation(row, npy_arr):
+            score = npy_arr[row['seq_start']:row['seq_end']]
+            str_score = [str(num) for num in score]
+            row[branch] = ','.join(str_score)
+            return row
+
+        for chromosome, chr_df in chrom_dfs.items():
+            npy_array = np.load(npy_files_dict[chromosome])
+            chrom_dfs[chromosome] = chr_df.apply(map_conservation, axis=1, args=(npy_array,))
+
+        new_df = pd.concat(list(chrom_dfs.values()))
+        print(new_df)
+
+        if not len(df) == len(new_df): raise ProcessError('Something went wrong during conservation mapping.')
+
+        return new_df
+
+    @staticmethod
+    def map_to_wig_old(branch, df, ref_folder):
         not_found_chrs = set()
         chrom_files = f.list_files_in_dir(ref_folder, 'wig')
 

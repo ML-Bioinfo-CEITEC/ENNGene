@@ -57,7 +57,82 @@ def parse_fasta_reference(fasta_file):
 #     return not not re.search(r'^(chr)*((\d{1,3})|(M|m|MT|mt|x|X|y|Y))$', chromosome)
 
 
+def chrom_sizes(sizes_file):
+    chrom_sizes = {}
+    with open(sizes_file, 'r') as sizes:
+        for i, line in enumerate(sizes.readlines()):
+            chrom, size = line.strip().split('\t')
+            chrom_sizes[chrom] = int(size)
+
+    return chrom_sizes
+
+
+def wigfile_to_scores(cons_file, chrom_size, out_file):
+    # Expects one file containing one chromosome only
+
+    with open(cons_file, 'r') as inf:
+        for i, line in enumerate(inf):
+            if i == 0:
+                file_type, chrom, start, span, step = parse_wig_header(line)
+                position = start
+
+                scores_array = np.zeros(chrom_size)
+            else:
+                if 'chrom' in line:
+                    file_type, chrom, start, span, step = parse_wig_header(line)
+                    position = start
+                else:
+                    scores_array, position = parse_wig_line(line, file_type, step, span, position, scores_array)
+
+        np.save(out_file, scores_array)
+
+    return out_file
+
+
 def parse_wig_header(line):
+    # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
+    span = 1; start = None; step = None
+
+    parts = line.split()
+    file_type = parts.pop(0)
+
+    if file_type not in ['fixedStep', 'variableStep']:
+        raise UserInputError(f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
+
+    for part in parts:
+        key, value = part.split('=')
+        if key == 'chrom':
+            chrom = value
+        elif key == 'start':
+            start = int(value) - 1
+        elif key == 'span':
+            span = int(value)
+        elif key == 'step':
+            step = int(value)
+
+    return [file_type, chrom, start, span, step]
+
+
+def parse_wig_line(line, file_type, step, span, position, scores_array):
+    if file_type == 'variableStep':
+        parts = line.split()
+        start = int(parts[0]) - 1
+        value = float(parts[1].strip())
+        for i in range(span):
+            coord = start + i
+            scores_array[coord] = value
+
+    elif file_type == 'fixedStep':
+        value = float(line.strip())
+        for i in range(span):
+            coord = position + i
+            scores_array[coord] = value
+        position += step
+
+    return scores_array, position
+
+
+def parse_wig_header_old(line):
     # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
     header = {'span': 1}
 
@@ -80,7 +155,7 @@ def parse_wig_header(line):
     return header
 
 
-def parse_wig_line(line, header):
+def parse_wig_line_old(line, header):
     parsed_line = {}
     if header['file_type'] == 'variableStep':
         parts = line.split()

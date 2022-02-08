@@ -70,8 +70,9 @@ class Preprocess(Subcommand):
             if 'cons' in self.params['branches']:
                 cons_warning.markdown('**WARNING**: Calculating the conservation score is a time-consuming process, '
                                       'it may take up to few hours (based on the size of the wig files).')
-                self.params['cons_dir'] = st.text_input('Path to folder containing reference conservation files',
-                                                        value=self.defaults['cons_dir'])
+                self.params['cons_dir'] = st.text_input(
+                    'Path to folder containing reference conservation files and chromosome sizes '
+                    '(For more details see the documentation.)', value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 
@@ -173,8 +174,6 @@ class Preprocess(Subcommand):
                     else:
                         st.markdown('**Fasta file with reference genome must be provided to infer available chromosomes.**')
                 elif 'cons' in self.params['branches']:
-                    st.markdown('###### WARNING: When conservation score branch selected only, the split is done based on separate wig files provided. '
-                                'Note that to be able to do that, the wig files must contain the chromosome name in the exact same form as your bed files and must not contain dots within the chromosome name.')
                     if self.params['cons_dir']:
                         chrom_files = f.list_files_in_dir(self.params['cons_dir'], 'wig')
                         chromosomes = []
