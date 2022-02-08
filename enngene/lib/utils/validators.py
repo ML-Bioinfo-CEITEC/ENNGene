@@ -124,7 +124,8 @@ def is_wig_dir(folder):
             chrom_file = f.list_files_in_dir(folder, 'chrom.sizes')
             if (len(chrom_file) == 0) or not chrom_file[0]:
                 invalid = True
-                warning = 'The conservation reference directory must contain chrom.sizes file necessary for efficient mapping. ' \
+                warning = 'Missing chrom.sizes file. \n' \
+                          'The conservation reference directory must contain chrom.sizes file necessary for efficient mapping. ' \
                           'You can download the file for example [here](https://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/hg19.chrom.sizes).'
             # Check one random (first found) wig file
             wig_files = f.list_files_in_dir(folder, 'wig')
