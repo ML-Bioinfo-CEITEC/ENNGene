@@ -132,49 +132,6 @@ def parse_wig_line(line, file_type, step, span, position, scores_array):
     return scores_array, position
 
 
-def parse_wig_header_old(line):
-    # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-    header = {'span': 1}
-
-    parts = line.split()
-    file_type = parts.pop(0)
-    header.update({'file_type': file_type})
-
-    if file_type not in ['fixedStep', 'variableStep']:
-        raise UserInputError(f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
-
-    for part in parts:
-        key, value = part.split('=')
-        if key == 'chrom':
-            header.update({key: value})
-        elif key == 'start':
-            header.update({key: int(value) - 1})
-        elif key in ['span', 'step']:
-            header.update({key: int(value)})
-
-    return header
-
-
-def parse_wig_line_old(line, header):
-    parsed_line = {}
-    if header['file_type'] == 'variableStep':
-        parts = line.split()
-        start = int(parts[0]) - 1
-        value = float(parts[1])
-        for i in range(header['span']):
-            coord = start + i
-            parsed_line.update({coord: value})
-        header['start'] = start + header['span']
-    elif header['file_type'] == 'fixedStep':
-        value = float(line)
-        for i in range(header['span']):
-            coord = header['start'] + i
-            parsed_line.update({coord: value})
-        header['start'] += header['step']
-
-    return [header, parsed_line]
-
-
 def complement(sequence_list, dictionary):
     return [dictionary[base] for base in sequence_list]
 

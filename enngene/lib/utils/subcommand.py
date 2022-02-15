@@ -125,7 +125,8 @@ class Subcommand:
                             training_params['no_klasses'] = len(klasses)
                             training_params['klasses'] = klasses
                             training_params['branches'] = user_params['Train']['branches']
-                        except:
+                        except Exception as e:
+                            logger.error(e)
                             missing_params = True
                             st.markdown('#### Sorry, could not read the parameters from given folder. '
                                         'Check the folder or specify the parameters below.')
@@ -210,7 +211,7 @@ class Subcommand:
             if 'cons' in self.params['branches']:
                 self.params['cons_dir'] = st.text_input(
                     'Path to folder containing reference conservation files and chromosome sizes '
-                    '(For more details see the documentation.)', value=self.defaults['cons_dir'])
+                    '(for more details see the documentation).', value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 

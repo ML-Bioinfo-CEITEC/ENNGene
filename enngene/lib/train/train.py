@@ -290,8 +290,9 @@ class Train(Subcommand):
 
         try:
             tf.keras.utils.plot_model(model, to_file=f"{self.params['train_dir']}/model.png", show_shapes=True, dpi=300)
-        except:
+        except Exception as e:
             logger.warning('Did not exported model plot due to an error.')
+            logger.warning(e)
 
         model_json = model.to_json()
         with open(f"{self.params['train_dir']}/model.json", 'w') as json_file:

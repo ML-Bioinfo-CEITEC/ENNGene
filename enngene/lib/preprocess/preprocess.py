@@ -68,11 +68,9 @@ class Preprocess(Subcommand):
                 self.references.update({'seq': self.params['fasta'], 'fold': self.params['fasta']})
                 self.validation_hash['is_fasta'].append(self.params['fasta'])
             if 'cons' in self.params['branches']:
-                cons_warning.markdown('**WARNING**: Calculating the conservation score is a time-consuming process, '
-                                      'it may take up to few hours (based on the size of the wig files).')
                 self.params['cons_dir'] = st.text_input(
                     'Path to folder containing reference conservation files and chromosome sizes '
-                    '(For more details see the documentation.)', value=self.defaults['cons_dir'])
+                    '(for more details see the documentation).', value=self.defaults['cons_dir'])
                 self.references.update({'cons': self.params['cons_dir']})
                 self.validation_hash['is_wig_dir'].append(self.params['cons_dir'])
 
