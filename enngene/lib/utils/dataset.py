@@ -417,17 +417,23 @@ class Dataset:
             if len(npy_files) == 0:
                 wig_files = list(filter(lambda wig_file: f'{chromosome}.' in os.path.basename(wig_file), chrom_files_wig))
                 if len(wig_files) == 0:
-                    # TODO or rather raise an exception to let user fix it?
-                    logger.warning(
-                        f"Didn\'t find appropriate conservation file for {chromosome}, skipping the chromosome.")
-                elif len(wig_files) > 1:
-                    logger.warning(f"Found multiple conservation files for {chromosome}, skipping the chromosome.")
+                    raise UserInputError(
+                        f"Didn\'t find a conservation file for {chromosome}. Please check the provided reference.")
                 else:
                     status.text(f'Parsing chromosome {chromosome} ...')
                     logger.info(f'parsing chromosome {chromosome} ...')
                     if chromosome in sizes.keys():
                         chrom_size = sizes[chromosome]
-                        wig_file = wig_files[0]
+                        if len(wig_files) > 1:
+                            unzipped = [file for file in wig_files if ('zip' not in file) and ('gz' not in file)]
+                            if len(unzipped) == 1:
+                                wig_file = unzipped[0]
+                            else:
+                                raise UserInputError(
+                                    f'Multiple conservation score files found for chromosome {chromosome}. \n'
+                                    f'Please ensure only one file per chromosome is provided.')
+                        else:
+                            wig_file = f.unzip_if_zipped(wig_files[0])
                         out_file = os.path.join(os.path.dirname(wig_file), f'{chromosome}.npy')
                         npy_file = seq.wigfile_to_scores(wig_file, chrom_size, out_file)
                         if npy_file: npy_files_dict[chromosome] = npy_file
@@ -438,7 +444,7 @@ class Dataset:
             elif len(npy_files) > 1:
                 logger.warning(f"Found multiple numpy files for {chromosome}, creating new one to avoid ambiguity.")
             else:
-                logger.info(f'found a parsed file for {chromosome}, moving on.')
+                logger.info(f'Found a parsed file for {chromosome}, moving on.')
                 npy_file = npy_files[0]
                 if npy_file: npy_files_dict[chromosome] = npy_file
 
@@ -448,7 +454,12 @@ class Dataset:
             chrom_dfs[chromosome] = df[df['chrom_name'] == chromosome]
 
         def map_conservation(row, npy_arr):
-            score = npy_arr[row['seq_start']:row['seq_end']]
+            try:
+                score = npy_arr[row['seq_start']:row['seq_end']]
+            except Exception as e:
+                logger.error(e)
+                raise UserInputError(f"Provided bed coordinates out of the chromosome {row['chrom_name']} scope. \n"
+                                     f"Please check if the versions of coordinates and reference correspond.")
             str_score = [str(num) for num in score]
             row[branch] = ','.join(str_score)
             return row

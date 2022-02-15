@@ -24,32 +24,32 @@ def parse_fasta_reference(fasta_file):
     key = None
     value = ""
 
-    file, zipped = f.unzip_if_zipped(fasta_file)
-    while True:
-        line = f.read_decoded_line(file, zipped)
-        if not line:
-            break
-    
-        if '>' in line:
-            # Save finished previous key value pair (unless it's the first iteration)
-            if key:  # and is_valid_chr(key):
-                # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
-                chromosomes.append(key)
+    unzipped = f.unzip_if_zipped(fasta_file)
+    with open(unzipped) as file:
+        while True:
+            line = file.readline().strip()
+            if not line:
+                break
 
-            key = line.strip().strip('>')
-            value = ""
-        else:
-            if key:
-                line = line.strip()
-                value += line
-                l = [char for char in line.upper()]
+            if '>' in line:
+                # Save finished previous key value pair (unless it's the first iteration)
+                if key:  # and is_valid_chr(key):
+                    # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
+                    chromosomes.append(key)
+
+                key = line.strip().strip('>')
+                value = ""
             else:
-                raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
+                if key:
+                    line = line.strip()
+                    value += line
+                    l = [char for char in line.upper()]
+                else:
+                    raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
-    chromosomes.append(key)  # save the last one
-    file.close()
+        chromosomes.append(key)  # save the last one
+
     chromosomes.sort()
-
     return chromosomes
 
 

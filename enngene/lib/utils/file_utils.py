@@ -1,7 +1,12 @@
 # module containing methods for file handling
-import gzip
+import logging
 import os
+import subprocess
 from zipfile import ZipFile
+
+from .exceptions import ProcessError
+
+logger = logging.getLogger('root')
 
 
 def list_files_in_dir(path, extension='*'):
@@ -20,21 +25,21 @@ def write(path, content):
 
 
 def unzip_if_zipped(zipped_file):
-    if ".gz" in zipped_file:
-        file = gzip.open(zipped_file, 'r')
-        zipped = True
-    elif ".zip" in zipped_file:
-        file = ZipFile(zipped_file).extractall()
-        zipped = True
+    if '.gz' in zipped_file or '.zip' in zipped_file:
+        try:
+            if ".gz" in zipped_file:
+                # subprocess.run(['gzip', '-d', zipped_file], check=True)
+                subprocess.run(['gzip', zipped_file], check=True)
+                file = zipped_file.replace('.gz', '')
+            elif ".zip" in zipped_file:
+                with ZipFile(zipped_file, 'r') as zipObj:
+                    zipObj.extractall(os.path.dirname(zipped_file))
+                file = zipped_file.replace('.zip', '')
+                # if os.path.isfile(file):
+                #     os.remove(zipped_file)
+        except Exception as e:
+            logger.error(e)
+            raise ProcessError(F'Failed to unzip file {zipped_file}. Please provide the files in an uncompressed format.')
     else:
-        file = open(zipped_file)
-        zipped = False
-    return file, zipped
-
-
-def read_decoded_line(opened_file, zipped):
-    line = opened_file.readline().strip()
-    if zipped:
-        line = line.decode('utf-8')
-
-    return line
+        file = zipped_file
+    return file
