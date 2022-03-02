@@ -91,7 +91,7 @@ class Predict(Subcommand):
 
         if self.params['ig']:
             status.text('Calculating Integrated Gradients...')
-            self.calculate_ig(dataset, model, eval_x, self.params['klasses'], self.params['branches'], self.params['smoothgrad'])
+            self.calculate_ig(dataset, model, predict_x, self.params['klasses'], self.params['branches'], self.params['smoothgrad'])
 
         placeholder.text('Exporting results...')
         result_file = os.path.join(self.params['predict_dir'], 'results.tsv')
