@@ -85,7 +85,7 @@ def plot_multiclass_prec_recall_curve(y_test, y_pred, labels_dict, output_dir_pa
         x = np.linspace(0.01, 1)
         y = f_score * x / (2 * x - f_score)
         l,  = plt.plot(x[y >= 0], y[y >= 0], color='gray', alpha=0.2)
-        plt.annotate(f'f1 = {f_score}', xy=(0.9, y[45] + 0.02))
+        plt.annotate(f'f1 = {f_score}', xy=(0.9, y[45] + 0.02), fontsize=16)
 
     lines.append(l)
     labels.append('iso-f1 curves')
@@ -107,11 +107,13 @@ def plot_multiclass_prec_recall_curve(y_test, y_pred, labels_dict, output_dir_pa
 
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel('Recall', fontsize=14)
-    plt.ylabel('Precision', fontsize=14)
-    plt.title('Precision-Recall curve', fontsize=16)
-    plt.legend(lines, labels, loc='lower left', prop=dict(size=14))
-    plt.savefig(file_path, format='png', dpi=300)
+    plt.xlabel('Recall', fontsize=22)
+    plt.xticks(fontsize=18)
+    plt.ylabel('Precision', fontsize=22)
+    plt.yticks(fontsize=18)
+    plt.title('Precision-Recall curve', fontsize=28)
+    plt.legend(lines, labels, loc='lower left', prop=dict(size=22))
+    plt.savefig(file_path, format='png', dpi=600)
     plt.clf()
 
     return avg_precisions
@@ -172,12 +174,14 @@ def plot_multiclass_roc_curve(test_y, y_pred, labels_dict, output_dir_path):
 
     plt.plot([0, 1], [0, 1], 'k--', lw=3, alpha=0.2)
     plt.xlim([-0.05, 1.0])
+    plt.xticks(fontsize=18)
     plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate (1-specifity)', fontsize=14)
-    plt.ylabel('True Positive Rate (sensitivity)', fontsize=14)
-    plt.title('Multiclass Receiver operating characteristic', fontsize=16)
-    plt.legend(loc="lower right", prop=dict(size=14))
-    plt.savefig(file_path, format='png', dpi=300)
+    plt.yticks(fontsize=18)
+    plt.xlabel('False Positive Rate (1-specifity)', fontsize=22)
+    plt.ylabel('True Positive Rate (sensitivity)', fontsize=22)
+    plt.title('Multiclass Receiver Operating Characteristic', fontsize=28)
+    plt.legend(loc="lower right", prop=dict(size=22))
+    plt.savefig(file_path, format='png', dpi=600)
     plt.clf()
 
     return aucs
