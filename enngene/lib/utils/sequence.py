@@ -24,32 +24,32 @@ def parse_fasta_reference(fasta_file):
     key = None
     value = ""
 
-    file, zipped = f.unzip_if_zipped(fasta_file)
-    while True:
-        line = f.read_decoded_line(file, zipped)
-        if not line:
-            break
-    
-        if '>' in line:
-            # Save finished previous key value pair (unless it's the first iteration)
-            if key:  # and is_valid_chr(key):
-                # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
-                chromosomes.append(key)
+    unzipped = f.unzip_if_zipped(fasta_file)
+    with open(unzipped) as file:
+        while True:
+            line = file.readline().strip()
+            if not line:
+                break
 
-            key = line.strip().strip('>')
-            value = ""
-        else:
-            if key:
-                line = line.strip()
-                value += line
-                l = [char for char in line.upper()]
+            if '>' in line:
+                # Save finished previous key value pair (unless it's the first iteration)
+                if key:  # and is_valid_chr(key):
+                    # Save only sequence for chromosomes we are interested in (skip scaffolds etc.)
+                    chromosomes.append(key)
+
+                key = line.strip().strip('>')
+                value = ""
             else:
-                raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
+                if key:
+                    line = line.strip()
+                    value += line
+                    l = [char for char in line.upper()]
+                else:
+                    raise UserInputError("Provided reference file does not start with '>' fasta identifier.")
 
-    chromosomes.append(key)  # save the last one
-    file.close()
+        chromosomes.append(key)  # save the last one
+
     chromosomes.sort()
-
     return chromosomes
 
 
@@ -57,13 +57,44 @@ def parse_fasta_reference(fasta_file):
 #     return not not re.search(r'^(chr)*((\d{1,3})|(M|m|MT|mt|x|X|y|Y))$', chromosome)
 
 
+def chrom_sizes(sizes_file):
+    chrom_sizes = {}
+    with open(sizes_file, 'r') as sizes:
+        for i, line in enumerate(sizes.readlines()):
+            chrom, size = line.strip().split('\t')
+            chrom_sizes[chrom] = int(size)
+
+    return chrom_sizes
+
+
+def wigfile_to_scores(cons_file, chrom_size, out_file):
+    # Expects one file containing one chromosome only
+
+    with open(cons_file, 'r') as inf:
+        for i, line in enumerate(inf):
+            if i == 0:
+                file_type, chrom, start, span, step = parse_wig_header(line)
+                position = start
+
+                scores_array = np.zeros(chrom_size)
+            else:
+                if 'chrom' in line:
+                    file_type, chrom, start, span, step = parse_wig_header(line)
+                    position = start
+                else:
+                    scores_array, position = parse_wig_line(line, file_type, step, span, position, scores_array)
+
+        np.save(out_file, scores_array)
+
+    return out_file
+
+
 def parse_wig_header(line):
     # example: fixedStep chrom=chr22 start=10510001 step=1 # may also contain span (default = 1)
-    header = {'span': 1}
+    span = 1; start = None; step = None
 
     parts = line.split()
     file_type = parts.pop(0)
-    header.update({'file_type': file_type})
 
     if file_type not in ['fixedStep', 'variableStep']:
         raise UserInputError(f'Unknown type of wig file provided: {file_type}. Only fixedStep or variableStep allowed.')
@@ -71,33 +102,34 @@ def parse_wig_header(line):
     for part in parts:
         key, value = part.split('=')
         if key == 'chrom':
-            header.update({key: value})
+            chrom = value
         elif key == 'start':
-            header.update({key: int(value) - 1})
-        elif key in ['span', 'step']:
-            header.update({key: int(value)})
+            start = int(value) - 1
+        elif key == 'span':
+            span = int(value)
+        elif key == 'step':
+            step = int(value)
 
-    return header
+    return [file_type, chrom, start, span, step]
 
 
-def parse_wig_line(line, header):
-    parsed_line = {}
-    if header['file_type'] == 'variableStep':
+def parse_wig_line(line, file_type, step, span, position, scores_array):
+    if file_type == 'variableStep':
         parts = line.split()
         start = int(parts[0]) - 1
-        value = float(parts[1])
-        for i in range(header['span']):
+        value = float(parts[1].strip())
+        for i in range(span):
             coord = start + i
-            parsed_line.update({coord: value})
-        header['start'] = start + header['span']
-    elif header['file_type'] == 'fixedStep':
-        value = float(line)
-        for i in range(header['span']):
-            coord = header['start'] + i
-            parsed_line.update({coord: value})
-        header['start'] += header['step']
+            scores_array[coord] = value
 
-    return [header, parsed_line]
+    elif file_type == 'fixedStep':
+        value = float(line.strip())
+        for i in range(span):
+            coord = position + i
+            scores_array[coord] = value
+        position += step
+
+    return scores_array, position
 
 
 def complement(sequence_list, dictionary):

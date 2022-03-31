@@ -1,6 +1,9 @@
 import h5py
+import logging
 import os
 import subprocess
+
+logger = logging.getLogger('root')
 
 from .dataset import Dataset
 from . import file_utils as f
@@ -72,20 +75,17 @@ def is_fasta(file):
         warning = 'You must provide the FASTA file.'
     else:
         if os.path.isfile(file):
-            fasta, zipped = f.unzip_if_zipped(file)
-            # the fasta must be unzipped for the bedtools
-            if zipped:
-                invalid = True
-                warning = 'The fasta file must be extracted first. Can not accept compressed file.'
-            else:
+            # unzipped = f.unzip_if_zipped(file)
+            with open(file) as fasta:
                 try:
-                    line1 = f.read_decoded_line(fasta, zipped)
-                    line2 = f.read_decoded_line(fasta, zipped)
+                    line1 = fasta.readline().strip()
+                    line2 = fasta.readline().strip()
                     if not line1 or not ('>' in line1) or not line2:
                         invalid = True
                 except Exception:
                     invalid = True
-                warning = f"File {file} does not look like valid FASTA file."
+                warning = f"File {file} does not look like valid FASTA file. \n" \
+                          f"Please make sure the file is not compressed."
         else:
             invalid = True
             warning = f'Given FASTA file {file} does not exist.'
@@ -113,7 +113,6 @@ def is_blackbox(file_path):
 
 
 def is_wig_dir(folder):
-    # Checks just one random (first found) wig file
     invalid = False
 
     if len(folder) == 0:
@@ -121,20 +120,31 @@ def is_wig_dir(folder):
         warning = 'You must provide the conservation reference directory.'
     else:
         if os.path.isdir(folder):
-            files = f.list_files_in_dir(folder, 'wig')
-            one_wig = next((file for file in files if 'wig' in file), None)
+            # Check the folder contains chrom.sizes file
+            chrom_file = f.list_files_in_dir(folder, 'chrom.sizes')
+            if (len(chrom_file) == 0) or not chrom_file[0]:
+                invalid = True
+                warning = 'Missing chrom.sizes file. \n' \
+                          'The conservation reference directory must contain chrom.sizes file necessary for efficient mapping. ' \
+                          'You can download the file for example [here](https://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/hg19.chrom.sizes).'
+            # Check one random (first found) wig file
+            wig_files = f.list_files_in_dir(folder, 'wig')
+            one_wig = next((file for file in wig_files if 'wig' in file), None)
             if one_wig:
                 try:
-                    wig_file, zipped = f.unzip_if_zipped(one_wig)
-                    line1 = f.read_decoded_line(wig_file, zipped)
-                    if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
-                        invalid = True
-                        warning = f"Provided wig file {one_wig} starts with unknown header."
-                    line2 = f.read_decoded_line(wig_file, zipped)
-                    float(line2)
-                except Exception:
+                    unzipped = f.unzip_if_zipped(one_wig)
+                    with open(unzipped) as wig_file:
+                        line1 = wig_file.readline().strip()
+                        if not ('fixedStep' in line1 or 'variableStep' in line1) or not ('chrom' in line1):
+                            invalid = True
+                            warning = f"Provided wig file {one_wig} starts with unknown header."
+                        line2 = wig_file.readline().strip()
+                        float(line2)
+                except Exception as e:
+                    logger.error(e)
                     invalid = True
-                    warning = f"Tried to look at a provided wig file: {one_wig} and failed to properly read it. Please check the format."
+                    warning = f"Tried to look at a provided wig file: {one_wig} and failed to properly read it. " \
+                              f"Please check the format and make sure the file is not compressed."
             else:
                 invalid = True
                 warning = "I don't see any WIG file in conservation reference directory."

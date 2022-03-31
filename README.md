@@ -6,8 +6,6 @@ allowing simplified input such as genomic coordinates.
 ENNGene deals with all steps of training and evaluation of Convolutional Neural Networks for genomics, 
 empowering researchers that may not be experts in machine learning to perform this powerful type of analysis.
 
-> We are preparing a video tutorial for an even easier start with the ENNGene application!
-
 ### Installation
 To install ENNGene, you need the following prerequisites:
 - [Python 3](https://www.python.org/) - Python language is usually already available with the OS
@@ -91,9 +89,9 @@ Using a mapped file, you can still change the datasets' size, or redistribute da
 
 `Branches` You may select one or more input types engineered from the given interval files.
 Each input type later corresponds to a branch in the neural network.
- * Sequence – one-hot encoded RNA or DNA sequence. Requires reference genome/transcriptome in a fasta file.
+ * Sequence – one-hot encoded RNA or DNA sequence obtained by [bedtools](https://bedtools.readthedocs.io/en/latest/). Requires reference genome/transcriptome in a fasta file.
  * Secondary structure – computed by [ViennaRNA](https://www.tbi.univie.ac.at/RNA/) package, one-hot encoded. (Also requires the reference genome in fasta file).
- * Conservation score – counted based on the user provided reference file/s. This option is the most time-consuming, we advise to use it judiciously.
+ * Conservation score – counted based on the user provided reference file/s. When using the given conservation reference for the first time, the provided wig files are parsed into a more efficient format. Therefore, the first time the reference is used the mapping takes a long time, while every other round using the same reference is very fast.
 
 `Apply strand` Choose to apply (if available) or ignore strand information.
 
@@ -108,7 +106,7 @@ Both is done by randomly placing a window of selected size on the original seque
 `Path to the reference fasta file` File containing reference genome/transcriptome. 
 Required when Sequence or Secondary structure branch is selected.
 
-`Path to folder containing reference conservation files` Required when Conservation score branch is selected.'Path to folder containing reference conservation files'
+`Path to folder containing reference conservation files` Path to folder containing reference conservation files and a chrom.sizes file. The chrom.sizes file is necessary for efficient mapping, you can download from for example from [here](https://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/hg19.chrom.sizes). Required when Conservation score branch is selected.  
 
 `Number of CPUs` You might assign multiple CPUs for the computation of the secondary structure.
 
@@ -187,10 +185,6 @@ The model will stop training if the validation loss does not decrease for more t
 
 `Learning rate` Corresponds to the step size during the gradient descent.
 
-`Metric` Choose a metric. Available options: accuracy.
-
-`Loss function` Choose a loss function. Available options: categorical crossentropy.
-
 ##### Network Architecture
 
 The last section determines the network architecture.
@@ -232,7 +226,8 @@ Options available for Dense layer, GRU and LSTM:
 Option available for GRU and LSTM:
 * `Bidirectional` Apply a bidirectional wrapper on a recurrent layer.
 
-*Note: The softmax activation function is used for the last layer.*
+*Note: The softmax activation function is used for the last layer, and the loss function is set as the categorical crossentropy,
+ both in accordance with the focus of the ENNGene on the classification problems for two or more classes.*
 
 `Run` When all is set, press the run button to start training the model.
 The training time depends on many variables (dataset size, network architecture, number of epochs, hardware available, etc.).
@@ -271,7 +266,7 @@ You can provide the input sequences you wish to classify in following formats:
  * `Blackbox dataset` - Available for Evaluation. Provide a path to the blackbox dataset file exported by the Preprocess module.
 Dataset should come from the same data as those used for training the model, or the parameters must match at least (e.g. class names, window size, branches...).  
 
-*Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the score.*
+*Note: If the Conservation score branch is applied, only files in BED format are accepted, as the coordinates are necessary to get the scores.*
 
 `Window placement` Choose a way to place the window upon the sequence:
 * Randomized
@@ -282,7 +277,7 @@ Dataset should come from the same data as those used for training the model, or 
  * `Apply strand` Choose to apply (if available) or ignore strand information.
  * `Path to the reference fasta file` File containing reference genome/transcriptome.
  Required when Sequence or Secondary structure branch is selected.
- * `Path to folder containing reference conservation files` Required when Conservation score branch is selected.'Path to folder containing reference conservation files' 
+ * `Path to folder containing reference conservation files` Path to folder containing reference conservation files and a chrom.sizes file. The chrom.sizes file is necessary for efficient mapping, you can download from for example from [here](https://hgdownload.cse.ucsc.edu/goldenpath/hg19/bigZips/hg19.chrom.sizes). Required when Conservation score branch is selected. 
 
 *Note: When providing the sequences via FASTA file or text input, sequences shorter than the window size will be padded with Ns 
 (might affect the prediction accuracy). Longer sequences will be cut to the length of the window.*
